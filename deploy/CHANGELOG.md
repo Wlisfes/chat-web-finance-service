@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-18：Home 隔离 Docker 配置补齐 Compose 插件
+
+- 影响机器：Home；Company 保持兼容。
+- 关联版本：Finance 服务本次流水线修复提交；业务镜像仍为 `260bd2fd2df4b9b07d01dcfaf73264fdbcd6f319`。
+- 变更内容：部署校验创建隔离 `DOCKER_CONFIG` 后，如果 Runner 持久卷中存在预装的 Docker Compose 插件，则将其复制到隔离配置的 `cli-plugins` 目录，再执行 `docker compose version`。这样既保留 GHCR 登录信息隔离，又让容器化 Home Runner 能使用已安装插件；Company 的系统级 Compose 路径不受影响。
+- 机器侧操作：无需安装软件或修改 `.env`；合并后重新运行同一 Finance 精确 SHA 的部署流水线，Home Runner 会自动复用持久卷内插件。
+- 验证命令：确认 `Validate local Docker host` 输出 Compose 版本；确认 Company/Home 的部署任务均成功；在两台机器分别执行 `docker inspect chat-web-finance-service --format '{{.Config.Image}} {{.State.Health.Status}}'` 和容器内 `/health` 检查。
+- 回滚方法：回滚本次工作流提交即可；复制出的插件只位于每次任务的临时 `DOCKER_CONFIG`，任务结束后清理，不修改 Runner 持久卷和已运行服务。
+
 ## 2026-08-18：财务微服务首次部署
 
 - 影响范围：Company、Home；Company 为当前本地联调目标。
