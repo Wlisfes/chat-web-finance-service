@@ -189,8 +189,7 @@ jobs:
                     --network "$network" \
                     --env-file "$DEPLOY_PATH/.env" \
                     --env ACCOUNT_NACOS_CONFIG_DATA_ID=chat-web-account-service.yaml \
-                    --volume "$DEPLOY_PATH/bootstrap-nacos-config.cjs:/bootstrap-nacos-config.cjs:ro" \
-                    node:22-alpine node /bootstrap-nacos-config.cjs
+                    node:22-alpine node - < "$DEPLOY_PATH/bootstrap-nacos-config.cjs"
 
             - name: Pull and deploy image
               shell: bash
