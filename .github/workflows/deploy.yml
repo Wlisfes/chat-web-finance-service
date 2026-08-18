@@ -1,0 +1,214 @@
+name: Build and deploy
+
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+jobs:
+    verify:
+        name: Verify service
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            packages: read
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v4
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  cache: yarn
+                  registry-url: https://npm.pkg.github.com
+                  scope: '@wlisfes'
+
+            - name: Install dependencies
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: yarn install --frozen-lockfile --non-interactive
+
+            - name: Check formatting
+              run: yarn format:check
+
+            - name: Build and test
+              run: yarn test
+
+    build:
+        name: Build and publish image
+        needs: verify
+        runs-on: ubuntu-latest
+        concurrency:
+            group: build-${{ github.ref }}
+            cancel-in-progress: true
+        permissions:
+            contents: read
+            packages: write
+        outputs:
+            image: ${{ steps.image.outputs.name }}
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@v4
+
+            - name: Resolve image name
+              id: image
+              shell: bash
+              run: |
+                  repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+                  echo "name=${repository}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+                  echo "latest=${repository}:latest" >> "$GITHUB_OUTPUT"
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Log in to GitHub Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Build and push image
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  push: true
+                  tags: |
+                      ${{ steps.image.outputs.name }}
+                      ${{ steps.image.outputs.latest }}
+                  labels: |
+                      org.opencontainers.image.revision=${{ github.sha }}
+                      org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max
+                  secrets: |
+                      github_token=${{ secrets.GITHUB_TOKEN }}
+
+    deploy:
+        name: Deploy to ${{ matrix.server }}
+        needs: build
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - server: company
+                      runner: chat-server-company
+                      environment: production-company
+                    - server: home
+                      runner: chat-server-home
+                      environment: production-home
+        runs-on:
+            - self-hosted
+            - linux
+            - ${{ matrix.runner }}
+        environment: ${{ matrix.environment }}
+        concurrency:
+            group: deploy-${{ matrix.server }}
+            cancel-in-progress: true
+        permissions:
+            contents: read
+            packages: read
+        env:
+            DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/chat-web-finance-service' }}
+            ACCOUNT_ENV_PATH: ${{ vars.ACCOUNT_ENV_PATH || '/opt/chat-web-account-service/.env' }}
+            IMAGE: ${{ needs.build.outputs.image }}
+
+        steps:
+            - name: Check out deployment files
+              uses: actions/checkout@v4
+
+            - name: Validate local Docker host
+              shell: bash
+              run: |
+                  set -eu
+                  [[ "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "DEPLOY_PATH must be an absolute path" >&2; exit 1; }
+                  [[ "$ACCOUNT_ENV_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "ACCOUNT_ENV_PATH must be an absolute path" >&2; exit 1; }
+                  command -v docker >/dev/null
+                  export DOCKER_CONFIG="$RUNNER_TEMP/chat-web-finance-service-docker-config"
+                  printf 'DOCKER_CONFIG=%s\n' "$DOCKER_CONFIG" >> "$GITHUB_ENV"
+                  mkdir -p "$DOCKER_CONFIG"
+                  chmod 700 "$DOCKER_CONFIG"
+                  docker compose version
+                  docker info >/dev/null
+                  docker network inspect chat-web-infrastructure >/dev/null
+                  mkdir -p "$DEPLOY_PATH"
+                  test -w "$DEPLOY_PATH" || { echo "$DEPLOY_PATH is not writable by the runner user" >&2; exit 1; }
+                  test -r "$ACCOUNT_ENV_PATH" || { echo "Missing readable Account environment file" >&2; exit 1; }
+
+            - name: Install deployment files
+              shell: bash
+              run: |
+                  set -eu
+                  install -m 0644 deploy/compose.yml "$DEPLOY_PATH/compose.yml"
+                  install -m 0755 deploy/deploy.sh "$DEPLOY_PATH/deploy.sh"
+                  install -m 0644 deploy/bootstrap-nacos-config.cjs "$DEPLOY_PATH/bootstrap-nacos-config.cjs"
+                  if [ ! -f "$DEPLOY_PATH/.env" ]; then
+                    install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env"
+                  fi
+
+            - name: Synchronize shared runtime settings
+              shell: bash
+              run: |
+                  set -eu
+                  sync_key() {
+                    key="$1"
+                    line=$(grep -m 1 "^${key}=" "$ACCOUNT_ENV_PATH" || true)
+                    [ -n "$line" ] || return 0
+                    temporary_env=$(mktemp "$DEPLOY_PATH/.env.XXXXXX")
+                    SYNC_KEY="$key" SYNC_LINE="$line" awk '
+                      BEGIN { replaced = 0 }
+                      index($0, ENVIRON["SYNC_KEY"] "=") == 1 {
+                        if (!replaced) print ENVIRON["SYNC_LINE"]
+                        replaced = 1
+                        next
+                      }
+                      { print }
+                      END { if (!replaced) print ENVIRON["SYNC_LINE"] }
+                    ' "$DEPLOY_PATH/.env" > "$temporary_env"
+                    chmod 600 "$temporary_env"
+                    mv "$temporary_env" "$DEPLOY_PATH/.env"
+                  }
+                  for key in JWT_SECRET REDIS_URL REDIS_HOST REDIS_PORT REDIS_DATABASE REDIS_USERNAME REDIS_PASSWORD REDIS_TLS NACOS_SERVER NACOS_NAMESPACE NACOS_CONFIG_GROUP NACOS_USERNAME NACOS_PASSWORD; do
+                    sync_key "$key"
+                  done
+                  jwt_secret=$(sed -n 's/^JWT_SECRET=//p' "$DEPLOY_PATH/.env" | tail -n 1)
+                  test "${#jwt_secret}" -ge 32 || { echo "Shared JWT_SECRET must be at least 32 characters" >&2; exit 1; }
+                  chmod 600 "$DEPLOY_PATH/.env"
+
+            - name: Ensure Finance Nacos config
+              shell: bash
+              run: |
+                  set -eu
+                  network=$(sed -n 's/^DOCKER_NETWORK=//p' "$DEPLOY_PATH/.env" | tail -n 1)
+                  network=${network:-chat-web-infrastructure}
+                  docker run --rm \
+                    --network "$network" \
+                    --env-file "$DEPLOY_PATH/.env" \
+                    --env ACCOUNT_NACOS_CONFIG_DATA_ID=chat-web-account-service.yaml \
+                    --volume "$DEPLOY_PATH/bootstrap-nacos-config.cjs:/bootstrap-nacos-config.cjs:ro" \
+                    node:22-alpine node /bootstrap-nacos-config.cjs
+
+            - name: Pull and deploy image
+              shell: bash
+              env:
+                  GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  set -eu
+                  printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username '${{ github.actor }}' --password-stdin
+                  cd "$DEPLOY_PATH"
+                  ./deploy.sh "$IMAGE" compose.yml
+
+            - name: Verify deployed endpoint
+              shell: bash
+              run: |
+                  set -eu
+                  docker exec chat-web-finance-service node -e "require('http').get('http://127.0.0.1:3010/health', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
+            - name: Log out from GitHub Container Registry
+              if: always()
+              shell: bash
+              run: docker logout ghcr.io >/dev/null 2>&1 || true

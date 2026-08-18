@@ -1,0 +1,73 @@
+import { loadEnvFile } from 'node:process'
+import yaml from 'js-yaml'
+
+export type DatabaseConfig = {
+    host: string
+    port?: number | string
+    username: string
+    password: string
+    database?: string
+    name?: string
+    charset?: string
+    timezone?: string
+}
+
+export function loadLocalEnvironment(): void {
+    try {
+        loadEnvFile()
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+}
+
+function required(key: string): string {
+    const value = process.env[key]?.trim()
+    if (!value) throw new Error(`缺少环境变量：${key}`)
+    return value
+}
+
+export function identifier(value: string, label: string): string {
+    if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`${label}只能包含字母、数字、下划线和连字符`)
+    return value
+}
+
+export async function loadFinanceDatabaseConfig(): Promise<DatabaseConfig> {
+    const directHost = process.env.FINANCE_MYSQL_HOST?.trim()
+    const directUser = process.env.FINANCE_MYSQL_USERNAME?.trim()
+    const directPassword = process.env.FINANCE_MYSQL_PASSWORD
+    const directDatabase = process.env.FINANCE_MYSQL_DATABASE?.trim()
+    if (directHost && directUser && directPassword !== undefined && directDatabase) {
+        return {
+            host: directHost,
+            port: process.env.FINANCE_MYSQL_PORT || 3306,
+            username: directUser,
+            password: directPassword,
+            database: directDatabase,
+            charset: process.env.FINANCE_MYSQL_CHARSET || 'utf8mb4',
+            timezone: process.env.FINANCE_MYSQL_TIMEZONE || '+08:00'
+        }
+    }
+
+    const server = required('NACOS_SERVER')
+    const baseUrl = /^https?:\/\//i.test(server) ? server : `http://${server}`
+    const params = new URLSearchParams({
+        dataId: required('NACOS_CONFIG_DATA_ID'),
+        group: process.env.NACOS_CONFIG_GROUP?.trim() || process.env.NACOS_GROUP?.trim() || 'DEFAULT_GROUP',
+        tenant: process.env.NACOS_NAMESPACE?.trim() || 'public'
+    })
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/nacos/v1/cs/configs?${params}`)
+    if (!response.ok) throw new Error(`读取 Nacos 配置失败：HTTP ${response.status}`)
+    const parsed = yaml.load(await response.text()) as Record<string, unknown>
+    const databaseRoot = parsed?.database as Record<string, unknown> | undefined
+    const database = databaseRoot?.['chat-web-finance']
+    if (!database || typeof database !== 'object' || Array.isArray(database)) {
+        throw new Error('缺少 Nacos 数据库配置节点：database.chat-web-finance')
+    }
+    return database as DatabaseConfig
+}
+
+export function getDatabaseName(config: DatabaseConfig): string {
+    const name = process.env.FINANCE_MYSQL_DATABASE?.trim() || config.database?.trim() || config.name?.trim()
+    if (!name) throw new Error('财务数据库名称不能为空')
+    return identifier(name, '财务数据库名称')
+}
