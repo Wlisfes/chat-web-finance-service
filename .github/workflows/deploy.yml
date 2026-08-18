@@ -132,6 +132,11 @@ jobs:
                   printf 'DOCKER_CONFIG=%s\n' "$DOCKER_CONFIG" >> "$GITHUB_ENV"
                   mkdir -p "$DOCKER_CONFIG"
                   chmod 700 "$DOCKER_CONFIG"
+                  runner_compose_plugin=/home/runner/.docker/cli-plugins/docker-compose
+                  if [ -x "$runner_compose_plugin" ]; then
+                    install -d -m 0700 "$DOCKER_CONFIG/cli-plugins"
+                    install -m 0755 "$runner_compose_plugin" "$DOCKER_CONFIG/cli-plugins/docker-compose"
+                  fi
                   docker compose version
                   docker info >/dev/null
                   docker network inspect chat-web-infrastructure >/dev/null
