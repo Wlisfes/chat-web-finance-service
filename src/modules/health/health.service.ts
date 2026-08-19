@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
 import { DataSource } from 'typeorm'
@@ -10,7 +9,6 @@ type TableRow = { tableName: string }
 export class HealthService {
     constructor(
         @InjectDataSource() private readonly dataSource: DataSource,
-        private readonly configService: ConfigService,
         private readonly redisService: RedisService
     ) {}
 
@@ -20,8 +18,6 @@ export class HealthService {
 
     async getReadiness() {
         const requiredTables = [...new Set(this.dataSource.entityMetadatas.map(metadata => metadata.tableName))].sort()
-        const secret = this.configService.get<string>('JWT_SECRET') || this.configService.get<string>('security.jwt.secret')
-        const jwtConfigured = typeof secret === 'string' && secret.length >= 32
         let databaseReady = false
         let database: Record<string, unknown>
         try {
@@ -44,10 +40,10 @@ export class HealthService {
             redisReady = false
         }
         return {
-            status: databaseReady && redisReady && jwtConfigured ? 'UP' : 'DOWN',
+            status: databaseReady && redisReady ? 'UP' : 'DOWN',
             database,
             redis: { connected: redisReady },
-            security: { jwtConfigured },
+            auth: { mode: 'account-service-introspection' },
             timestamp: new Date().toISOString()
         }
     }

@@ -114,7 +114,6 @@ jobs:
             packages: read
         env:
             DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/chat-web-finance-service' }}
-            ACCOUNT_ENV_PATH: ${{ vars.ACCOUNT_ENV_PATH || '/opt/chat-web-account-service/.env' }}
             IMAGE: ${{ needs.build.outputs.image }}
 
         steps:
@@ -126,7 +125,6 @@ jobs:
               run: |
                   set -eu
                   [[ "$DEPLOY_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "DEPLOY_PATH must be an absolute path" >&2; exit 1; }
-                  [[ "$ACCOUNT_ENV_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || { echo "ACCOUNT_ENV_PATH must be an absolute path" >&2; exit 1; }
                   command -v docker >/dev/null
                   export DOCKER_CONFIG="$RUNNER_TEMP/chat-web-finance-service-docker-config"
                   printf 'DOCKER_CONFIG=%s\n' "$DOCKER_CONFIG" >> "$GITHUB_ENV"
@@ -142,7 +140,6 @@ jobs:
                   docker network inspect chat-web-infrastructure >/dev/null
                   mkdir -p "$DEPLOY_PATH"
                   test -w "$DEPLOY_PATH" || { echo "$DEPLOY_PATH is not writable by the runner user" >&2; exit 1; }
-                  test -r "$ACCOUNT_ENV_PATH" || { echo "Missing readable Account environment file" >&2; exit 1; }
 
             - name: Install deployment files
               shell: bash
@@ -155,33 +152,25 @@ jobs:
                     install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env"
                   fi
 
-            - name: Synchronize shared runtime settings
+            - name: Enforce Finance data boundary
               shell: bash
               run: |
                   set -eu
-                  sync_key() {
-                    key="$1"
-                    line=$(grep -m 1 "^${key}=" "$ACCOUNT_ENV_PATH" || true)
-                    [ -n "$line" ] || return 0
-                    temporary_env=$(mktemp "$DEPLOY_PATH/.env.XXXXXX")
-                    SYNC_KEY="$key" SYNC_LINE="$line" awk '
-                      BEGIN { replaced = 0 }
-                      index($0, ENVIRON["SYNC_KEY"] "=") == 1 {
-                        if (!replaced) print ENVIRON["SYNC_LINE"]
-                        replaced = 1
-                        next
-                      }
-                      { print }
-                      END { if (!replaced) print ENVIRON["SYNC_LINE"] }
-                    ' "$DEPLOY_PATH/.env" > "$temporary_env"
-                    chmod 600 "$temporary_env"
-                    mv "$temporary_env" "$DEPLOY_PATH/.env"
-                  }
-                  for key in JWT_SECRET REDIS_URL REDIS_HOST REDIS_PORT REDIS_DATABASE REDIS_USERNAME REDIS_PASSWORD REDIS_TLS NACOS_SERVER NACOS_NAMESPACE NACOS_CONFIG_GROUP NACOS_USERNAME NACOS_PASSWORD; do
-                    sync_key "$key"
-                  done
-                  jwt_secret=$(sed -n 's/^JWT_SECRET=//p' "$DEPLOY_PATH/.env" | tail -n 1)
-                  test "${#jwt_secret}" -ge 32 || { echo "Shared JWT_SECRET must be at least 32 characters" >&2; exit 1; }
+                  temporary_env=$(mktemp "$DEPLOY_PATH/.env.XXXXXX")
+                  awk '
+                    BEGIN { redis_database = 0 }
+                    /^JWT_SECRET=/ { next }
+                    /^REDIS_DATABASE=/ {
+                      if (!redis_database) print "REDIS_DATABASE=1"
+                      redis_database = 1
+                      next
+                    }
+                    { print }
+                    END { if (!redis_database) print "REDIS_DATABASE=1" }
+                  ' "$DEPLOY_PATH/.env" > "$temporary_env"
+                  chmod 600 "$temporary_env"
+                  mv "$temporary_env" "$DEPLOY_PATH/.env"
+                  test "$(sed -n 's/^REDIS_DATABASE=//p' "$DEPLOY_PATH/.env" | tail -n 1)" = "1" || { echo "Finance REDIS_DATABASE must be 1" >&2; exit 1; }
                   chmod 600 "$DEPLOY_PATH/.env"
 
             - name: Ensure Finance Nacos config
@@ -193,7 +182,6 @@ jobs:
                   docker run --rm \
                     --network "$network" \
                     --env-file "$DEPLOY_PATH/.env" \
-                    --env ACCOUNT_NACOS_CONFIG_DATA_ID=chat-web-account-service.yaml \
                     node:22-alpine node - < "$DEPLOY_PATH/bootstrap-nacos-config.cjs"
 
             - name: Pull and deploy image
