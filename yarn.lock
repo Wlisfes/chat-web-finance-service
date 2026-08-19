@@ -452,11 +452,6 @@
   resolved "https://registry.npmmirror.com/@scarf/scarf/-/scarf-1.4.0.tgz#3bbb984085dbd6d982494538b523be1ce6562972"
   integrity sha512-xxeapPiUXdZAE3che6f3xogoJPeZgig6omHEy1rIY5WVsB3H2BHNnZH+gHG6x91SCWyQCzWGsuL2Hh3ClO5/qQ==
 
-"@sch_cat/nest-nacos-config@^0.0.6":
-  version "0.0.6"
-  resolved "https://registry.npmmirror.com/@sch_cat/nest-nacos-config/-/nest-nacos-config-0.0.6.tgz#98a3ce5f373ebdf9c4a81856640cc8867179410e"
-  integrity sha512-Q30isIZtopzhSwaNxWjCAtS+zKE6e9cRswjegKMo+tg7Q1dIEbVy8cMICcHGOMdWnj+6HVAwoUJyqny02oCLDg==
-
 "@sqltools/formatter@^1.2.5":
   version "1.2.5"
   resolved "https://registry.npmmirror.com/@sqltools/formatter/-/formatter-1.2.5.tgz#3abc203c79b8c3e90fd6c156a0c62d5403520e12"
@@ -730,10 +725,10 @@
     "@webassemblyjs/ast" "1.14.1"
     "@xtuc/long" "4.2.2"
 
-"@wlisfes/chat-web-base-schema@1.0.8":
-  version "1.0.8"
-  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.0.8/cf67846ae542060a5bf63005da71d8c1f59aaa24#cf67846ae542060a5bf63005da71d8c1f59aaa24"
-  integrity sha512-Tk538dsdXS148dMqj1JSxZLyi/4LmNtPPPCugLh5tjwXInN7L6DDNFqVeRi6WwSRVPTr/lwqip/PvA7994DEFg==
+"@wlisfes/chat-web-base-schema@1.1.1":
+  version "1.1.1"
+  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.1.1/65b0a9a31c1a1e07bc212f8c88e02aaed03138cb#65b0a9a31c1a1e07bc212f8c88e02aaed03138cb"
+  integrity sha512-5RWg2+eNJWfla4ao79E6dleIAjkS4IbuqzslY8RFgQ/V158xeDktE2mApUBOXCbSPOOk8wkJmzlSDZKgpPXjfw==
   dependencies:
     "@types/lodash" "^4.17.25"
     class-validator "^0.15.1"

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectDataSource } from '@nestjs/typeorm'
+import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
 import { DataSource } from 'typeorm'
-import { RedisService } from '@/modules/redis/redis.service'
 
 type TableRow = { tableName: string }
 

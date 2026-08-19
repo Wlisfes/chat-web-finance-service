@@ -1,9 +1,9 @@
 import { Global, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { FINANCE_MYSQL_ENTITIES } from '@/modules/database/database.constants'
-import { createFinanceMysqlOptions } from '@/modules/database/database.options'
-import { NacosService } from '@/modules/nacos/nacos.service'
+import { createMysqlOptions } from '@wlisfes/chat-web-base-schema/database'
+import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
+import { FINANCE_MYSQL_CONFIG_KEY, FINANCE_MYSQL_ENTITIES } from '@/modules/database/database.constants'
 
 @Global()
 @Module({
@@ -13,7 +13,13 @@ import { NacosService } from '@/modules/nacos/nacos.service'
             inject: [ConfigService, NacosService],
             useFactory: async (configService: ConfigService, nacosService: NacosService) => {
                 await nacosService.loadConfig()
-                return createFinanceMysqlOptions(configService)
+                return createMysqlOptions(configService, {
+                    configKey: FINANCE_MYSQL_CONFIG_KEY,
+                    entities: [...FINANCE_MYSQL_ENTITIES],
+                    environmentPrefix: 'FINANCE_MYSQL',
+                    environmentOverrides: ['host', 'port', 'username', 'password', 'database'],
+                    decimalNumbers: true
+                })
             }
         }),
         TypeOrmModule.forFeature([...FINANCE_MYSQL_ENTITIES])
