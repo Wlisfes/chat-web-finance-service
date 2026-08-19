@@ -1,6 +1,6 @@
 import { Controller, Get, ServiceUnavailableException } from '@nestjs/common'
+import { Public } from '@wlisfes/chat-web-base-schema/auth'
 import { PreserveHttpStatus } from '@wlisfes/chat-web-base-schema/filters'
-import { Public } from '@/modules/auth/auth.decorator'
 import { HealthService } from '@/modules/health/health.service'
 import { AppService } from '@/app.service'
 

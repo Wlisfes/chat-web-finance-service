@@ -1,7 +1,7 @@
 import { Body, Controller, Post } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { CurrentPrincipal } from '@/modules/auth/auth.decorator'
-import type { AuthPrincipal } from '@/modules/auth/auth.interface'
+import { CurrentPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { BrandService } from '@/modules/brand/brand.service'
 import { CreateBrandDto, ListBrandDto, UpdateBrandDto, UpdateBrandStatusDto } from '@/modules/brand/dto/brand.dto'
 

@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-19：共享运行时模块接入
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.1`；财务服务本次完整 Git SHA 镜像。
+- 变更内容：删除财务服务内重复的 Auth、Redis、Nacos 和数据库配置实现，改用共享 `SessionAuthModule`、Redis/Nacos 模块及 MySQL 配置工厂。账号服务签发的 JWT、Redis 会话键、Nacos Data ID、注册名、端口 3010、财务数据库覆盖项和 `decimalNumbers` 行为保持不变。
+- 机器侧操作：无需修改 `.env`、Nacos、Redis、数据库、端口、Runner、部署目录或外部网络；合并后由现有双机矩阵部署同一完整 SHA。
+- 验证命令：`yarn format:check && yarn test`；部署后分别执行 `docker inspect chat-web-finance-service --format '{{.Config.Image}} {{.State.Health.Status}}'`、`curl -fsS http://127.0.0.1:3010/health`，并通过网关携带账号 Token 调用财务查询接口。
+- 回滚方法：将两台机器恢复到上一条健康财务服务 SHA；不回滚数据库、Nacos 或 Redis 会话数据。
+
 ## 2026-08-18：Home 隔离 Docker 配置补齐 Compose 插件
 
 - 影响机器：Home；Company 保持兼容。

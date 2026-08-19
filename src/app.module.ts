@@ -1,29 +1,26 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
+import { JwtAuthGuard, SessionAuthModule } from '@wlisfes/chat-web-base-schema/auth'
 import { HttpResponseModule } from '@wlisfes/chat-web-base-schema/interceptor'
+import { NacosModule } from '@wlisfes/chat-web-base-schema/nacos'
 import { AppController } from '@/app.controller'
 import { AppService } from '@/app.service'
-import { AuthModule } from '@/modules/auth/auth.module'
-import { JwtAuthGuard } from '@/modules/auth/jwt-auth.guard'
 import { BrandModule } from '@/modules/brand/brand.module'
 import { ClientModule } from '@/modules/client/client.module'
 import { CountryModule } from '@/modules/country/country.module'
 import { CurrencyModule } from '@/modules/currency/currency.module'
 import { DatabaseModule } from '@/modules/database/database.module'
 import { HealthModule } from '@/modules/health/health.module'
-import { NacosModule } from '@/modules/nacos/nacos.module'
-import { RedisModule } from '@/modules/redis/redis.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
 
 @Module({
     imports: [
         HttpResponseModule,
         ConfigModule.forRoot({ isGlobal: true }),
-        NacosModule.forRoot(),
-        RedisModule,
+        NacosModule.forRoot({ serviceName: 'chat-web-finance-service', defaultPort: 3010 }),
         DatabaseModule,
-        AuthModule,
+        SessionAuthModule,
         HealthModule,
         BrandModule,
         CurrencyModule,
