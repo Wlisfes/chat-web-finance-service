@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 import mysql, { RowDataPacket } from 'mysql2/promise'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
 
@@ -22,12 +23,16 @@ async function main(): Promise<void> {
         port: Number(process.env.FINANCE_MYSQL_PORT || config.port || 3306),
         user: process.env.FINANCE_MYSQL_USERNAME?.trim() || config.username,
         password: process.env.FINANCE_MYSQL_PASSWORD ?? config.password,
+        database,
         charset: process.env.FINANCE_MYSQL_CHARSET || config.charset || 'utf8mb4',
         multipleStatements: true
     })
     try {
-        await connection.query(`CREATE DATABASE IF NOT EXISTS \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`)
-        await connection.query(`USE \`${database}\``)
+        const [grantRows] = await connection.query<RowDataPacket[]>('SHOW GRANTS FOR CURRENT_USER()')
+        assertMysqlDatabaseIsolation(
+            grantRows.flatMap(row => Object.values(row).filter((value): value is string => typeof value === 'string')),
+            database
+        )
         await connection.query(
             `CREATE TABLE IF NOT EXISTS \`${MIGRATION_TABLE}\` (
                 \`filename\` varchar(255) NOT NULL,

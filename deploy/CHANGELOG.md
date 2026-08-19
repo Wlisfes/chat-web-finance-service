@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-19：业务数据库、Redis 与鉴权边界隔离
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.2`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：Finance 移除本地 `SessionAuthModule` 和 JWT 验签，改由强类型 `AccountAuthClient` 转发 Bearer Token 到 Account `/auth/introspect`；独立加载 Redis 并强制 index `1`，显式 index 可覆盖 `REDIS_URL` 内库号。部署不再读取 Account `.env`，首次 Nacos 配置只接受 Finance 独立 MySQL 凭据；Schema 升级器不再建库，并拒绝全局、跨库或角色授权。
+- 机器侧操作：两台机器分别确认 `/opt/chat-web-finance-service/.env` 中 Nacos/Redis/Account 地址完整且 `REDIS_DATABASE=1`。由 MySQL 管理员预创建 `chat_web_finance` 和 Finance 专用账号，仅授权 `chat_web_finance.*`；更新 Finance Nacos 配置并移除历史克隆的 Account/security 节点。Company 已完成专用账号创建、Nacos 凭据轮换和授权验证；Home 由部署前隔离引导执行同一规则。使用服务账号执行 `SELECT DATABASE(), CURRENT_USER()` 与 `SHOW GRANTS FOR CURRENT_USER()`，不得记录真实凭据。
+- 验证命令：`yarn format:check && yarn test`；部署后执行 `docker inspect chat-web-finance-service --format '{{.Config.Image}} {{.State.Health.Status}}'`、`curl -fsS http://127.0.0.1:3010/health`，并携带同一 Account Token 经网关调用 Finance 接口，确认有效 Token 成功、撤销 Token 立即失败。
+- 回滚方法：将两台机器恢复到上一条健康 Finance SHA；独立数据库账号和 Redis index `1` 不回滚。若需回滚到读取 Account Redis 会话的旧 Finance 版本，必须先明确批准临时破坏数据边界并恢复兼容配置。
+
 ## 2026-08-19：共享运行时模块接入
 
 - 影响机器：Company、Home。

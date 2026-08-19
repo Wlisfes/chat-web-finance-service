@@ -15,9 +15,11 @@ services:
       REDIS_URL: ${REDIS_URL-}
       REDIS_HOST: ${REDIS_HOST:-chat-web-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_DATABASE: ${REDIS_DATABASE:-0}
+      REDIS_DATABASE: ${REDIS_DATABASE:-1}
       REDIS_USERNAME: ${REDIS_USERNAME:-}
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      ACCOUNT_SERVICE_URL: ${ACCOUNT_SERVICE_URL:-http://chat-web-account-service:3000}
+      ACCOUNT_AUTH_TIMEOUT_MS: ${ACCOUNT_AUTH_TIMEOUT_MS:-3000}
     ports:
       - "${BIND_ADDRESS:-0.0.0.0}:${HOST_PORT:-3010}:3010"
     extra_hosts:

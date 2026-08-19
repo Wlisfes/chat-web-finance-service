@@ -1,9 +1,11 @@
 'use strict'
 
-function required(name) {
-    const value = process.env[name]?.trim()
-    if (!value) throw new Error(`Missing environment variable: ${name}`)
-    return value
+function required(name, environment = process.env, trim = true) {
+    const raw = environment[name]
+    if (typeof raw !== 'string' || raw.length === 0 || (trim && !raw.trim())) {
+        throw new Error(`Missing environment variable: ${name}`)
+    }
+    return trim ? raw.trim() : raw
 }
 
 function getBaseUrl() {
@@ -28,24 +30,53 @@ async function readConfig(dataId) {
     return content.trim() ? content : undefined
 }
 
-function createFinanceConfig(accountConfig) {
-    let section = ''
-    const content = accountConfig
-        .split(/\r?\n/)
-        .map(line => {
-            const root = line.match(/^([A-Za-z0-9_-]+):\s*$/)
-            if (root) section = root[1]
-            if (section === 'server' && /^\s+port:\s*/.test(line)) return line.replace(/^(\s*)port:.*$/, '$1port: 3010')
-            if (section === 'database') return line.replaceAll('chat-web-account', 'chat-web-finance')
-            return line
-        })
-        .join('\n')
-        .trim()
-
-    if (!/^database:\s*$/m.test(content) || !/^\s+chat-web-finance:\s*$/m.test(content)) {
-        throw new Error('Account Nacos config does not contain database.chat-web-account')
+function createFinanceConfig(environment = process.env) {
+    const database = required('FINANCE_MYSQL_DATABASE', environment)
+    if (database !== 'chat_web_finance') {
+        throw new Error('FINANCE_MYSQL_DATABASE must be chat_web_finance')
     }
-    return `${content}\n`
+    const port = Number(environment.FINANCE_MYSQL_PORT || 3306)
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error('FINANCE_MYSQL_PORT must be an integer between 1 and 65535')
+    }
+    const scalar = value => JSON.stringify(value)
+    return `server:
+  port: 3010
+database:
+  chat-web-finance:
+    host: ${scalar(required('FINANCE_MYSQL_HOST', environment))}
+    port: ${port}
+    name: ${scalar(database)}
+    username: ${scalar(required('FINANCE_MYSQL_USERNAME', environment))}
+    password: ${scalar(required('FINANCE_MYSQL_PASSWORD', environment, false))}
+    charset: ${scalar(environment.FINANCE_MYSQL_CHARSET?.trim() || 'utf8mb4')}
+    timezone: ${scalar(environment.FINANCE_MYSQL_TIMEZONE?.trim() || '+08:00')}
+`
+}
+
+function sanitizeFinanceConfig(content) {
+    const forbiddenSections = new Set(['security', 'redis'])
+    let section = ''
+    const lines = []
+    for (const originalLine of content.split(/\r?\n/)) {
+        const root = originalLine.match(/^([A-Za-z0-9_-]+):(?:\s.*)?$/)
+        if (root) section = root[1]
+        if (forbiddenSections.has(section)) continue
+        const line =
+            section === 'server' && /^\s+port:\s*/.test(originalLine)
+                ? originalLine.replace(/^(\s*)port:.*$/, '$1port: 3010')
+                : originalLine
+        lines.push(line)
+    }
+    const sanitized = lines.join('\n').trim()
+
+    if (!/^server:\s*$/m.test(sanitized) || !/^database:\s*$/m.test(sanitized) || !/^\s+chat-web-finance:\s*$/m.test(sanitized)) {
+        throw new Error('Existing Finance Nacos config must contain server and database.chat-web-finance')
+    }
+    if (/chat-web-account/.test(sanitized)) {
+        throw new Error('Existing Finance Nacos config still references chat-web-account')
+    }
+    return `${sanitized}\n`
 }
 
 async function publishConfig(dataId, content) {
@@ -69,15 +100,19 @@ async function publishConfig(dataId, content) {
 
 async function main() {
     const financeDataId = required('NACOS_CONFIG_DATA_ID')
-    if (await readConfig(financeDataId)) {
-        process.stdout.write(`Nacos config already exists: ${financeDataId}\n`)
+    const existingConfig = await readConfig(financeDataId)
+    if (existingConfig) {
+        const sanitized = sanitizeFinanceConfig(existingConfig)
+        if (sanitized !== `${existingConfig.trim()}\n`) {
+            await publishConfig(financeDataId, sanitized)
+            process.stdout.write(`Nacos config sanitized: ${financeDataId}\n`)
+            return
+        }
+        process.stdout.write(`Nacos config already isolated: ${financeDataId}\n`)
         return
     }
 
-    const accountDataId = process.env.ACCOUNT_NACOS_CONFIG_DATA_ID?.trim() || 'chat-web-account-service.yaml'
-    const accountConfig = await readConfig(accountDataId)
-    if (!accountConfig) throw new Error(`Account Nacos config does not exist: ${accountDataId}`)
-    await publishConfig(financeDataId, createFinanceConfig(accountConfig))
+    await publishConfig(financeDataId, createFinanceConfig())
     process.stdout.write(`Nacos config created: ${financeDataId}\n`)
 }
 
@@ -88,4 +123,4 @@ if (require.main === module) {
     })
 }
 
-module.exports = { createFinanceConfig }
+module.exports = { createFinanceConfig, sanitizeFinanceConfig }
