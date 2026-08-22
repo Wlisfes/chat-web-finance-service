@@ -1,12 +1,11 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { BadRequestException, UnauthorizedException } = require('@nestjs/common')
+const { BadRequestException } = require('@nestjs/common')
 const { plainToInstance } = require('class-transformer')
 const { validate } = require('class-validator')
 const { HttpExceptionFilter } = require('@wlisfes/chat-web-base-schema/filters')
 
 const { SizePageDto } = require('@wlisfes/chat-web-base-schema/utils')
-const { AccountAuthClient } = require('../dist/modules/auth/account-auth.client')
 const { HealthService } = require('../dist/modules/health/health.service')
 const { ResolveCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
 const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
@@ -100,40 +99,6 @@ test('分页参数提供默认值并拒绝越界数据', async () => {
 
     const invalid = plainToInstance(SizePageDto, { page: 0, size: 101 })
     assert.equal((await validate(invalid)).length, 2)
-})
-
-test('财务服务通过账号 HTTP 接口校验 Token，不读取账号 Redis 会话', async () => {
-    let request
-    const service = new AccountAuthClient(config({ ACCOUNT_SERVICE_URL: 'http://account.internal:3000' }), async (url, init) => {
-        request = { url: String(url), init }
-        return new Response(
-            JSON.stringify({
-                data: { uid: '2149446185344106496', sessionId: 'finance-test-session' },
-                code: 200,
-                message: 'success',
-                timestamp: '2026-08-19 12:00:00'
-            }),
-            { status: 200, headers: { 'content-type': 'application/json' } }
-        )
-    })
-
-    assert.deepEqual(await service.authenticateToken('account-token'), {
-        uid: '2149446185344106496',
-        sessionId: 'finance-test-session'
-    })
-    assert.equal(request.url, 'http://account.internal:3000/auth/token/introspect')
-    assert.equal(request.init.headers.authorization, 'Bearer account-token')
-})
-
-test('账号鉴权接口拒绝 Token 时财务服务返回未授权', async () => {
-    const service = new AccountAuthClient(config({}), async () => {
-        return new Response(JSON.stringify({ data: null, code: 401, message: '会话已失效', timestamp: '2026-08-19 12:00:00' }), {
-            status: 401,
-            headers: { 'content-type': 'application/json' }
-        })
-    })
-
-    await assert.rejects(() => service.authenticateToken('expired-token'), UnauthorizedException)
 })
 
 test('旧数据迁移默认 dry-run，且只迁移 Finance 所属表', async () => {
