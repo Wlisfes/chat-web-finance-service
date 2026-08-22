@@ -9,7 +9,6 @@ import { AppController } from '@/app.controller'
 import { AppService } from '@/app.service'
 import { AuthModule } from '@/modules/auth/auth.module'
 import { BrandModule } from '@/modules/brand/brand.module'
-import { ClientModule } from '@/modules/client/client.module'
 import { CountryModule } from '@/modules/country/country.module'
 import { CurrencyModule } from '@/modules/currency/currency.module'
 import { DatabaseModule } from '@/modules/database/database.module'
@@ -28,7 +27,6 @@ import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
         BrandModule,
         CurrencyModule,
         CountryModule,
-        ClientModule,
         SmsRateModule
     ],
     controllers: [AppController],

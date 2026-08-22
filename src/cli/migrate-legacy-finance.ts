@@ -27,31 +27,6 @@ export const TABLE_MIGRATIONS = [
         select: 'key_id,code,mcc,cn_name,en_name,status,create_time,modify_time'
     },
     {
-        source: 'tb_windows_client',
-        target: 'tb_finance_client',
-        columns:
-            'key_id,owner_user_uid,name,alias,brand_key_id,currency,email,phone,status,pay_mode,class_type,balance,balance_usd,credit,credit_usd,level,stage,auth_status,source,remark,create_time,modify_time',
-        select: 'key_id,userId,name,alias,brand_id,currency,email,phone,status,pay_mode,class_type,balance,balance_usd,credit,credit_usd,level,stage,auth_status,source,remark,create_time,modify_time'
-    },
-    {
-        source: 'tb_windows_client_tags',
-        target: 'tb_finance_client_tag',
-        columns: 'key_id,client_key_id,tag_name,create_by,modify_by,create_time,modify_time',
-        select: 'key_id,client_id,tag_name,create_by,modify_by,create_time,modify_time'
-    },
-    {
-        source: 'tb_windows_client_share',
-        target: 'tb_finance_client_share',
-        columns: 'key_id,client_key_id,shared_user_uid,create_by,modify_by,create_time,modify_time',
-        select: 'key_id,client_id,userId,create_by,modify_by,create_time,modify_time'
-    },
-    {
-        source: 'tb_windows_client_settings',
-        target: 'tb_finance_client_settings',
-        columns: 'key_id,client_key_id,sms_active,sms_max,mail_active,mail_max,social_active,social_max,create_time,modify_time',
-        select: 'key_id,client_id,sms_active,sms_max,main_active,main_max,meta_active,meta_max,create_time,modify_time'
-    },
-    {
         source: 'tb_windows_basic_sms_rate',
         target: 'tb_finance_basic_sms_rate',
         columns: 'key_id,code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time',

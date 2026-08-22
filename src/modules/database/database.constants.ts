@@ -1,10 +1,6 @@
 import {
     TbFinanceBasicSmsRate,
     TbFinanceBrand,
-    TbFinanceClient,
-    TbFinanceClientSettings,
-    TbFinanceClientShare,
-    TbFinanceClientTag,
     TbFinanceCountry,
     TbFinanceCurrency,
     TbFinanceCurrencyExchange
@@ -17,9 +13,5 @@ export const FINANCE_MYSQL_ENTITIES = [
     TbFinanceCurrency,
     TbFinanceCurrencyExchange,
     TbFinanceCountry,
-    TbFinanceClient,
-    TbFinanceClientTag,
-    TbFinanceClientShare,
-    TbFinanceClientSettings,
     TbFinanceBasicSmsRate
 ]

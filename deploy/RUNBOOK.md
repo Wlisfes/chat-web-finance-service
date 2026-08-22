@@ -1,19 +1,19 @@
 # 财务服务运行手册
 
-| 项目 | 基线 |
-| --- | --- |
-| 容器 | `chat-web-finance-service` |
-| 容器端口 | `3010` |
-| Nacos Data ID | `chat-web-finance-service.yaml` |
-| Nacos 服务名 | `chat-web-finance-service` |
-| 数据库 | `chat_web_finance` |
-| MySQL 授权边界 | 仅 `chat_web_finance.*` |
-| Redis index | `1` |
-| Account 鉴权地址 | `http://chat-web-account-service:3000` |
-| 部署目录 | `/opt/chat-web-finance-service` |
-| Docker 网络 | `chat-web-infrastructure` |
-| Company Runner | `chat-server-company-finance`（标签 `chat-server-company`） |
-| Home Runner | `chat-server-home-finance`（标签 `chat-server-home`） |
+| 项目             | 基线                                                        |
+| ---------------- | ----------------------------------------------------------- |
+| 容器             | `chat-web-finance-service`                                  |
+| 容器端口         | `3010`                                                      |
+| Nacos Data ID    | `chat-web-finance-service.yaml`                             |
+| Nacos 服务名     | `chat-web-finance-service`                                  |
+| 数据库           | `chat_web_finance`                                          |
+| MySQL 授权边界   | 仅 `chat_web_finance.*`                                     |
+| Redis index      | `1`                                                         |
+| Account 鉴权地址 | `http://chat-web-account-service:3000`                      |
+| 部署目录         | `/opt/chat-web-finance-service`                             |
+| Docker 网络      | `chat-web-infrastructure`                                   |
+| Company Runner   | `chat-server-company-finance`（标签 `chat-server-company`） |
+| Home Runner      | `chat-server-home-finance`（标签 `chat-server-home`）       |
 
 常用排障命令：
 
@@ -37,5 +37,7 @@ SHOW GRANTS FOR CURRENT_USER();
 Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现全局权限、其他数据库权限或角色授权时，部署会在切换容器前失败。真实用户名和密码不得写入仓库、命令日志或完整 `.env` 示例。
 
 业务请求的 Bearer Token 由 `AccountAuthClient` 转发到 `GET /auth/introspect`。Account 不可达返回上游不可用，Token 无效返回未授权；Finance 不在本地验签，也不访问 Account Redis index `0`。
+
+Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已重命名为 deprecated 备份，不得重新接入 TypeORM 或恢复业务写入。
 
 部署失败时先检查 Actions 的 `Ensure Finance Nacos config`、MySQL 授权检查、Schema 应用和容器健康检查步骤。镜像回滚由 `deploy.sh` 自动执行；预创建的数据库与数据不会自动删除。

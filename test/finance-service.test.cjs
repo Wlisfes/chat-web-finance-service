@@ -20,8 +20,8 @@ function config(values) {
 }
 
 function fakeMigrationConnection() {
-    const sourceTables = new Set(['tb_windows_brand', 'tb_windows_client', 'tb_windows_client_settings'])
-    const targetTables = new Set(['tb_finance_brand', 'tb_finance_client', 'tb_finance_client_settings'])
+    const sourceTables = new Set(['tb_windows_brand'])
+    const targetTables = new Set(['tb_finance_brand'])
     const state = { inserts: [], committed: false, rolledBack: false }
     return {
         state,
@@ -98,7 +98,7 @@ test('账号鉴权接口拒绝 Token 时财务服务返回未授权', async () =
     await assert.rejects(() => service.authenticateToken('expired-token'), UnauthorizedException)
 })
 
-test('旧数据迁移默认 dry-run，且兼容部分旧表和历史字段名', async () => {
+test('旧数据迁移默认 dry-run，且只迁移 Finance 所属表', async () => {
     assert.equal(shouldApplyMigration([]), false)
     assert.equal(shouldApplyMigration(['--apply']), true)
 
@@ -106,14 +106,12 @@ test('旧数据迁移默认 dry-run，且兼容部分旧表和历史字段名', 
     const counts = await migrateLegacyTables(connection, 'legacy_windows', 'chat_web_finance', false)
     assert.equal(connection.state.committed, false)
     assert.equal(connection.state.rolledBack, true)
-    assert.deepEqual(counts, {
-        tb_finance_brand: 2,
-        tb_finance_client: 2,
-        tb_finance_client_settings: 2
-    })
-    assert.equal(connection.state.inserts.length, 3)
-    assert.match(connection.state.inserts[1], /`owner_user_uid`.*`brand_key_id`.*SELECT.*`userId`.*`brand_id`/)
-    assert.match(connection.state.inserts[2], /`mail_active`.*`social_active`.*SELECT.*`main_active`.*`meta_active`/)
+    assert.deepEqual(counts, { tb_finance_brand: 2 })
+    assert.equal(connection.state.inserts.length, 1)
+    assert.equal(
+        TABLE_MIGRATIONS.some(item => item.source.startsWith('tb_windows_client')),
+        false
+    )
 })
 
 test('显式 --apply 才提交旧数据迁移', async () => {
@@ -169,7 +167,7 @@ test('就绪检查覆盖数据库表、独立 Redis 与远程鉴权模式', asyn
     const service = new HealthService(
         {
             isInitialized: true,
-            entityMetadatas: [{ tableName: 'tb_finance_brand' }, { tableName: 'tb_finance_client' }],
+            entityMetadatas: [{ tableName: 'tb_finance_brand' }, { tableName: 'tb_finance_currency' }],
             async query() {
                 return [{ tableName: 'tb_finance_brand' }]
             }
@@ -182,7 +180,7 @@ test('就绪检查覆盖数据库表、独立 Redis 与远程鉴权模式', asyn
     )
     const result = await service.getReadiness()
     assert.equal(result.status, 'DOWN')
-    assert.deepEqual(result.database.missingTables, ['tb_finance_client'])
+    assert.deepEqual(result.database.missingTables, ['tb_finance_currency'])
     assert.equal(result.auth.mode, 'account-service-introspection')
 })
 

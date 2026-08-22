@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-22：客户主表退出 Finance 数据域
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.3`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：移除 Finance 的 Client 模块、实体和旧客户迁移映射；Schema 将 `tb_finance_client`、标签、共享和设置四张表重命名为带日期的 deprecated 备份，保留原数据但停止加载和写入。品牌、币种、汇率、国家地区和短信基础价格继续归 Finance 管理。
+- 机器侧操作：无需修改 `.env`、Nacos、Redis、端口、Runner、部署目录或外部网络；部署前 Schema 升级器自动完成保留式重命名。外部客户后续只通过 Account `/consumers/**` 和 `tb_account_consumer` 管理。
+- 验证命令：执行 `yarn format:check && yarn test`；部署后执行 `docker inspect chat-web-finance-service --format '{{.Config.Image}} {{.State.Health.Status}}'`、`curl -fsS http://127.0.0.1:3010/health`，并确认 Finance Swagger 不再暴露 `/client/**`。
+- 回滚方法：将 Finance 恢复到上一条健康 SHA，并在停止新旧服务写入后把四张 deprecated 表重命名回原名。禁止同时让 Account Consumer 与旧 Finance Client 接口写入，避免形成双主数据。
+
 ## 2026-08-19：业务数据库、Redis 与鉴权边界隔离
 
 - 影响机器：Company、Home。
