@@ -30,7 +30,7 @@ export class AccountAuthClient implements AuthTokenAuthenticator {
         if (!['http:', 'https:'].includes(parsed.protocol)) {
             throw new Error('ACCOUNT_SERVICE_URL 必须使用 http:// 或 https://')
         }
-        this.introspectionUrl = new URL('/auth/introspect', parsed).toString()
+        this.introspectionUrl = new URL('/auth/token/introspect', parsed).toString()
         this.timeoutMs = this.getTimeout(configService.get<string | number>('ACCOUNT_AUTH_TIMEOUT_MS'))
     }
 

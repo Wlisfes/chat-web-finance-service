@@ -19,9 +19,12 @@
 
 ```bash
 docker inspect chat-web-finance-service --format '{{.State.Health.Status}}'
+docker inspect chat-web-finance-service --format '{{json .HostConfig.LogConfig}}'
 docker logs --tail 100 chat-web-finance-service
 curl -fsS http://127.0.0.1:3010/health
 ```
+
+日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。请求日志应包含 `logId`、方法、URL、状态码、来源和耗时，密码及 Token 等敏感字段必须脱敏。
 
 Finance 部署不读取 Account 的 `.env`、JWT 密钥或 Redis 会话。`/opt/chat-web-finance-service/.env` 必须独立配置 Nacos、Redis 地址/认证和 `ACCOUNT_SERVICE_URL`，并固定 `REDIS_DATABASE=1`；即使 `REDIS_URL` 带 `/0`，共享运行时也会用显式 index `1` 覆盖。
 
@@ -36,7 +39,7 @@ SHOW GRANTS FOR CURRENT_USER();
 
 Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现全局权限、其他数据库权限或角色授权时，部署会在切换容器前失败。真实用户名和密码不得写入仓库、命令日志或完整 `.env` 示例。
 
-业务请求的 Bearer Token 由 `AccountAuthClient` 转发到 `GET /auth/introspect`。Account 不可达返回上游不可用，Token 无效返回未授权；Finance 不在本地验签，也不访问 Account Redis index `0`。
+业务请求的 Bearer Token 由 `AccountAuthClient` 转发到 `GET /auth/token/introspect`。Account 不可达返回上游不可用，Token 无效返回未授权；Finance 不在本地验签，也不访问 Account Redis index `0`。
 
 Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 

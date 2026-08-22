@@ -9,31 +9,31 @@ import { CreateBrandDto, ListBrandDto, UpdateBrandDto, UpdateBrandStatusDto } fr
 @ApiBearerAuth('authorization')
 @Controller('brand')
 export class BrandController {
-    constructor(private readonly service: BrandService) {}
+    constructor(private readonly brandService: BrandService) {}
 
     @Post('create')
     @ApiOperation({ summary: '新增品牌' })
-    create(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: CreateBrandDto) {
-        return this.service.create(principal.uid, input)
+    httpBaseFinanceCreateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: CreateBrandDto) {
+        return this.brandService.create(principal.uid, input)
     }
 
     @Post('update')
-    update(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandDto) {
-        return this.service.update(principal.uid, input)
+    httpBaseFinanceUpdateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandDto) {
+        return this.brandService.update(principal.uid, input)
     }
 
     @Post('update/status')
-    updateStatus(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandStatusDto) {
-        return this.service.updateStatus(principal.uid, input)
+    httpBaseFinanceUpdateBrandStatus(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandStatusDto) {
+        return this.brandService.updateStatus(principal.uid, input)
     }
 
     @Post('column')
-    list(@Body() input: ListBrandDto) {
-        return this.service.list(input)
+    httpBaseFinanceColumnBrand(@Body() input: ListBrandDto) {
+        return this.brandService.list(input)
     }
 
     @Post('select')
-    select() {
-        return this.service.select()
+    httpBaseFinanceSelectBrand() {
+        return this.brandService.select()
     }
 }

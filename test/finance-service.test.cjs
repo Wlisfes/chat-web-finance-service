@@ -112,7 +112,7 @@ test('财务服务通过账号 HTTP 接口校验 Token，不读取账号 Redis �
         uid: '2149446185344106496',
         sessionId: 'finance-test-session'
     })
-    assert.equal(request.url, 'http://account.internal:3000/auth/introspect')
+    assert.equal(request.url, 'http://account.internal:3000/auth/token/introspect')
     assert.equal(request.init.headers.authorization, 'Bearer account-token')
 })
 

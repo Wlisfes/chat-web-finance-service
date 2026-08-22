@@ -7,17 +7,17 @@ import { ListCountryDto, UpdateCountryStatusDto } from '@/modules/country/dto/co
 @ApiBearerAuth('authorization')
 @Controller('country')
 export class CountryController {
-    constructor(private readonly service: CountryService) {}
+    constructor(private readonly countryService: CountryService) {}
     @Post('column')
-    list(@Body() input: ListCountryDto) {
-        return this.service.list(input)
+    httpBaseFinanceColumnCountry(@Body() input: ListCountryDto) {
+        return this.countryService.list(input)
     }
     @Post('update/status')
-    updateStatus(@Body() input: UpdateCountryStatusDto) {
-        return this.service.updateStatus(input)
+    httpBaseFinanceUpdateCountryStatus(@Body() input: UpdateCountryStatusDto) {
+        return this.countryService.updateStatus(input)
     }
     @Post('select')
-    select() {
-        return this.service.select()
+    httpBaseFinanceSelectCountry() {
+        return this.countryService.select()
     }
 }

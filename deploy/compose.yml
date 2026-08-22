@@ -1,10 +1,17 @@
 name: chat-web-service
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "30"
+
 services:
   finance-service:
     image: ${IMAGE:?IMAGE is required}
     container_name: chat-web-finance-service
     restart: unless-stopped
+    logging: *default-logging
     init: true
     env_file:
       - .env

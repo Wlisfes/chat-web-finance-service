@@ -7,25 +7,25 @@ import { ListCurrencyDto, ListCurrencyExchangeDto, UpdateCurrencyStatusDto } fro
 @ApiBearerAuth('authorization')
 @Controller('currency')
 export class CurrencyController {
-    constructor(private readonly service: CurrencyService) {}
+    constructor(private readonly currencyService: CurrencyService) {}
 
     @Post('column')
-    list(@Body() input: ListCurrencyDto) {
-        return this.service.list(input)
+    httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto) {
+        return this.currencyService.list(input)
     }
 
     @Post('update/status')
-    updateStatus(@Body() input: UpdateCurrencyStatusDto) {
-        return this.service.updateStatus(input)
+    httpBaseFinanceUpdateCurrencyStatus(@Body() input: UpdateCurrencyStatusDto) {
+        return this.currencyService.updateStatus(input)
     }
 
     @Post('select')
-    select() {
-        return this.service.select()
+    httpBaseFinanceSelectCurrency() {
+        return this.currencyService.select()
     }
 
     @Post('exchange/column')
-    listExchange(@Body() input: ListCurrencyExchangeDto) {
-        return this.service.listExchange(input)
+    httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto) {
+        return this.currencyService.listExchange(input)
     }
 }

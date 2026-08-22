@@ -25,4 +25,4 @@
 
 - 本服务独占 MySQL 数据库 `chat_web_finance` 和独立账号。运行与 Schema 升级账号只能访问 `chat_web_finance.*`，不得拥有全局权限、Account 库权限或跨库角色；数据库由外部基础设施预创建，升级器不得执行 `CREATE DATABASE`。
 - 本服务独占 Redis index `1`。部署必须显式设置 `REDIS_DATABASE=1`，即使 `REDIS_URL` 自带其他库号也不得降级到 Account 的 index `0`。
-- 禁止导入 Account Entity、连接 `chat_web_account`、读取 Account Redis 会话或持有 Account JWT 密钥。鉴权通过 `AccountAuthClient` 把 Bearer Token 转发到 Account `/auth/introspect`，其他跨服务数据访问也使用强类型 HTTP 客户端 Provider。
+- 禁止导入 Account Entity、连接 `chat_web_account`、读取 Account Redis 会话或持有 Account JWT 密钥。鉴权通过 `AccountAuthClient` 把 Bearer Token 转发到 Account `/auth/token/introspect`，其他跨服务数据访问也使用强类型 HTTP 客户端 Provider。

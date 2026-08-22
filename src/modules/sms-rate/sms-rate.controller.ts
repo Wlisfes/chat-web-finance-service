@@ -9,17 +9,17 @@ import { SmsRateService } from '@/modules/sms-rate/sms-rate.service'
 @ApiBearerAuth('authorization')
 @Controller('rates/sms')
 export class SmsRateController {
-    constructor(private readonly service: SmsRateService) {}
+    constructor(private readonly smsRateService: SmsRateService) {}
     @Post('create')
-    create(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: CreateSmsRateDto) {
-        return this.service.create(principal.uid, input)
+    httpBaseFinanceCreateSmsRate(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: CreateSmsRateDto) {
+        return this.smsRateService.create(principal.uid, input)
     }
     @Post('update')
-    update(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateSmsRateDto) {
-        return this.service.update(principal.uid, input)
+    httpBaseFinanceUpdateSmsRate(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateSmsRateDto) {
+        return this.smsRateService.update(principal.uid, input)
     }
     @Post('column')
-    list(@Body() input: ListSmsRateDto) {
-        return this.service.list(input)
+    httpBaseFinanceColumnSmsRate(@Body() input: ListSmsRateDto) {
+        return this.smsRateService.list(input)
     }
 }
