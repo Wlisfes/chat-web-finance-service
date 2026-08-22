@@ -40,7 +40,7 @@ Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现
 
 Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 
-空库需要演示数据时，在 Actions 手动运行 `Build and deploy` 并开启 `seedDemoData`。初始化器使用固定 Faker 种子，只在五张 Finance 业务表全部为空时以单个事务写入；任一表已有数据都会中止。容器内也可先 dry-run 核对数量，再显式提交：
+空库需要演示数据时，在 Actions 手动运行 `Build and deploy`，开启 `seedDemoData`，并通过 `seedDemoDataTarget` 选择 `all`、`company` 或 `home`。初始化器使用固定 Faker 种子，只在目标节点的五张 Finance 业务表全部为空时以单个事务写入；任一表已有数据都会中止。容器内也可先 dry-run 核对数量，再显式提交：
 
 ```bash
 docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js
