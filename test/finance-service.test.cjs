@@ -5,7 +5,7 @@ const { plainToInstance } = require('class-transformer')
 const { validate } = require('class-validator')
 const { HttpExceptionFilter } = require('@wlisfes/chat-web-base-schema/filters')
 
-const { PageDto } = require('../dist/common/dto/page.dto')
+const { SizePageDto } = require('@wlisfes/chat-web-base-schema/utils')
 const { AccountAuthClient } = require('../dist/modules/auth/account-auth.client')
 const { HealthService } = require('../dist/modules/health/health.service')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
@@ -84,12 +84,12 @@ function fakeDemoSeedConnection(nonEmptyTable) {
 }
 
 test('分页参数提供默认值并拒绝越界数据', async () => {
-    const defaults = plainToInstance(PageDto, {})
+    const defaults = plainToInstance(SizePageDto, {})
     assert.deepEqual(await validate(defaults), [])
     assert.equal(defaults.page, 1)
     assert.equal(defaults.size, 50)
 
-    const invalid = plainToInstance(PageDto, { page: 0, size: 101 })
+    const invalid = plainToInstance(SizePageDto, { page: 0, size: 101 })
     assert.equal((await validate(invalid)).length, 2)
 })
 

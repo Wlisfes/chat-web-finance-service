@@ -1,11 +1,20 @@
 # 部署变更记录
 
+## 2026-08-22：共享分页工具与 Account Consumer 路由
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.4`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：删除服务内重复的 `src/common/dto/page.dto.ts`，财务分页统一引用共享 `SizePageDto`，继续保持 `page/size` 协议和默认每页 50 条；外部客户入口文档修正为 Account `/api/account/consumer/**`。
+- 机器侧操作：无需修改 `.env`、Nacos、Redis、数据库、端口、Runner、部署目录或外部网络；合并后由双机矩阵部署同一完整 SHA。
+- 验证命令：执行 `yarn format:check && yarn test`；部署后执行 `docker inspect chat-web-finance-service --format '{{.Config.Image}} {{.State.Health.Status}}'` 和 `curl -fsS http://127.0.0.1:3010/health`。
+- 回滚方法：将两台机器恢复到上一条健康 Finance SHA；无需回滚数据库、Nacos、Redis 或演示数据。
+
 ## 2026-08-22：客户主表退出 Finance 数据域
 
 - 影响机器：Company、Home。
 - 关联版本：`@wlisfes/chat-web-base-schema@1.1.3`；Finance 本次完整 Git SHA 镜像。
 - 变更内容：移除 Finance 的 Client 模块、实体和旧客户迁移映射；Schema 直接删除 `tb_finance_client`、标签、共享和设置四张旧表。新增基于 `@faker-js/faker` 固定种子的空库演示数据初始化器，覆盖品牌、币种、汇率、国家地区和短信基础价格；工作流手动输入 `seedDemoData=true` 时在部署后执行，并可通过 `seedDemoDataTarget` 只选择 Company、Home 或双机。
-- 机器侧操作：无需修改 `.env`、Nacos、Redis、端口、Runner、部署目录或外部网络；部署前确认 Account 已接管需要保留的客户数据。Schema 升级器删除旧 Finance 客户表；仅当五张 Finance 业务表全部为空时才允许写入演示数据。外部客户后续只通过 Account `/consumers/**` 和 `tb_account_consumer` 管理。
+- 机器侧操作：无需修改 `.env`、Nacos、Redis、端口、Runner、部署目录或外部网络；部署前确认 Account 已接管需要保留的客户数据。Schema 升级器删除旧 Finance 客户表；仅当五张 Finance 业务表全部为空时才允许写入演示数据。外部客户后续只通过 Account `/api/account/consumer/**` 和 `tb_account_consumer` 管理。
 - 验证命令：执行 `yarn format:check && yarn test`；部署后执行 `docker inspect chat-web-finance-service --format '{{.Config.Image}} {{.State.Health.Status}}'`、`curl -fsS http://127.0.0.1:3010/health`，确认 Finance Swagger 不再暴露 `/client/**`，并查询五张 Finance 业务表的记录数。
 - 回滚方法：将 Finance 恢复到上一条健康 SHA；已删除的旧客户表只能从执行 Schema 变更前的数据库备份恢复，演示数据只能在确认没有业务写入后按固定创建账号 UID `2026082200000000001` 清理。禁止恢复旧 Finance Client 接口形成双主数据。
 
