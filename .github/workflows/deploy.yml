@@ -5,6 +5,12 @@ on:
         branches:
             - main
     workflow_dispatch:
+        inputs:
+            seedDemoData:
+                description: 仅当五张 Finance 业务表全部为空时写入演示数据
+                required: false
+                default: false
+                type: boolean
 
 jobs:
     verify:
@@ -199,6 +205,11 @@ jobs:
               run: |
                   set -eu
                   docker exec chat-web-finance-service node -e "require('http').get('http://127.0.0.1:3010/health', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
+            - name: Seed Finance demo data
+              if: ${{ github.event_name == 'workflow_dispatch' && inputs.seedDemoData }}
+              shell: bash
+              run: docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --apply
 
             - name: Log out from GitHub Container Registry
               if: always()

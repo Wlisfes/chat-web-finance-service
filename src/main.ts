@@ -10,7 +10,7 @@ async function bootstrap() {
     const port = Number(process.env.PORT ?? app.get(ConfigService).get<number>('server.port', 3010))
     await setupSwagger(app, {
         title: 'Chat Web 财务服务 API',
-        description: '品牌、币种、汇率、国家地区、消费客户与基础价格管理接口',
+        description: '品牌、币种、汇率、国家地区与基础价格管理接口',
         port
     })
     console.log(`Chat Web 财务服务启动[${process.env.NODE_ENV}]: http://127.0.0.1:${port}`)
