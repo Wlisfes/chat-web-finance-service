@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：统一远程账号鉴权模块
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.2.2`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：删除 Finance 内重复的 `AccountAuthClient` 和 `AuthModule`，统一导入共享 `AccountRemoteAuthModule`；Bearer Token 仍通过 Account `/auth/token/introspect` 校验，不读取 Account Redis 或持有 JWT 密钥。
+- 机器侧操作：无需修改 `.env`、Nacos、数据库、Redis、端口、Runner、部署目录或网络。
+- 验证命令：执行 `yarn format:check && yarn test`；部署后检查 `/health`，并通过网关验证有效和失效 Token。
+- 回滚方法：恢复上一条健康 Finance 完整 SHA 镜像；无需回滚数据库、Redis 或 Nacos。
+
 ## 2026-08-23：CRM 报价聚合接口与共享包升级
 
 - 影响机器：Company、Home；需先于 CRM 首次部署完成。
