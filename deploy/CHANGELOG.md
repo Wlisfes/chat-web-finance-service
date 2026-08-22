@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：CRM 报价聚合接口与共享包升级
+
+- 影响机器：Company、Home；需先于 CRM 首次部署完成。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.2.1`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：新增 `POST /rates/sms/batch`，按国家/地区主键数组返回基础短信价格；新增 `GET /currency/exchange/resolver` 返回最新汇率；供 CRM 强类型客户端调用，不开放数据库访问。同步升级共享包 1.2.1。
+- 机器侧操作：无需修改数据库、Redis、Nacos、端口、Runner、部署目录或外部网络。
+- 验证命令：执行 `yarn format:check && yarn test`；部署后携带有效 Token 验证批量价格和汇率接口。
+- 回滚方法：回滚 Finance 镜像；CRM 报价初始化在旧接口不可用期间会返回上游异常，数据库无需回滚。
+
 ## 2026-08-22：接口方法命名、远程内省路径与请求日志
 
 - 影响机器：Company、Home；需与 Account、Gateway 同一发布窗口部署。

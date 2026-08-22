@@ -2,7 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { CurrentPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { CreateSmsRateDto, ListSmsRateDto, UpdateSmsRateDto } from '@/modules/sms-rate/dto/sms-rate.dto'
+import { BatchSmsRateDto, CreateSmsRateDto, ListSmsRateDto, UpdateSmsRateDto } from '@/modules/sms-rate/dto/sms-rate.dto'
 import { SmsRateService } from '@/modules/sms-rate/sms-rate.service'
 
 @ApiTags('财务中心-短信基础价格')
@@ -21,5 +21,9 @@ export class SmsRateController {
     @Post('column')
     httpBaseFinanceColumnSmsRate(@Body() input: ListSmsRateDto) {
         return this.smsRateService.list(input)
+    }
+    @Post('batch')
+    httpBaseFinanceBatchSmsRate(@Body() input: BatchSmsRateDto) {
+        return this.smsRateService.batch(input)
     }
 }
