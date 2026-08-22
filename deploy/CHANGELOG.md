@@ -3,7 +3,7 @@
 ## 2026-08-22：接口方法命名、远程内省路径与请求日志
 
 - 影响机器：Company、Home；需与 Account、Gateway 同一发布窗口部署。
-- 关联版本：`@wlisfes/chat-web-base-schema@1.1.6`；Finance 本次完整 Git SHA 镜像。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.1.7`；Finance 本次完整 Git SHA 镜像。
 - 变更内容：Controller 方法统一为 `httpBaseFinance...` 动作式命名，继续只使用 POST body；Account 远程鉴权改为 `GET /auth/token/introspect`。接入共享请求 ID/结构化请求日志并脱敏敏感字段；Compose 新增 `json-file` 日志驱动，单文件 20m、保留 30 个文件。
 - 机器侧操作：无需修改 `.env`、Nacos、数据库、Redis、端口、Runner、部署目录或网络；Account 新接口部署后再切换 Finance。
 - 验证命令：执行 `yarn format:check && yarn test` 和 `docker compose -f deploy/compose.yml config --quiet`；部署后验证健康、有效/无效 Token、Finance 查询，并检查 `docker inspect chat-web-finance-service --format '{{json .HostConfig.LogConfig}}'`。
