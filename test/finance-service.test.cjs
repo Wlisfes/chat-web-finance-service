@@ -8,6 +8,8 @@ const { HttpExceptionFilter } = require('@wlisfes/chat-web-base-schema/filters')
 const { SizePageDto } = require('@wlisfes/chat-web-base-schema/utils')
 const { AccountAuthClient } = require('../dist/modules/auth/account-auth.client')
 const { HealthService } = require('../dist/modules/health/health.service')
+const { ResolveCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
+const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
 const { createFinanceDemoTables, seedFinanceDemoData, shouldApplyFinanceDemoSeed } = require('../dist/cli/seed-demo-finance')
 const { createFinanceConfig, sanitizeFinanceConfig } = require('../deploy/bootstrap-nacos-config.cjs')
@@ -82,6 +84,13 @@ function fakeDemoSeedConnection(nonEmptyTable) {
         }
     }
 }
+
+test('CRM 聚合接口使用国家数组和单一币种查询 DTO', async () => {
+    const batch = plainToInstance(BatchSmsRateDto, { countryKeyIds: [1, 2, 2] })
+    assert.deepEqual(await validate(batch), [])
+    assert.ok((await validate(plainToInstance(BatchSmsRateDto, { countryKeyIds: 1 }))).length > 0)
+    assert.deepEqual(await validate(plainToInstance(ResolveCurrencyExchangeDto, { currency: 'CNY' })), [])
+})
 
 test('分页参数提供默认值并拒绝越界数据', async () => {
     const defaults = plainToInstance(SizePageDto, {})

@@ -1,8 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { TbFinanceBasicSmsRate, TbFinanceCountry } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { In, Repository } from 'typeorm'
-import { CreateSmsRateDto, ListSmsRateDto, UpdateSmsRateDto } from '@/modules/sms-rate/dto/sms-rate.dto'
+import { BatchSmsRateDto, CreateSmsRateDto, ListSmsRateDto, UpdateSmsRateDto } from '@/modules/sms-rate/dto/sms-rate.dto'
 
 @Injectable()
 export class SmsRateService {
@@ -47,6 +47,27 @@ export class SmsRateService {
                 modifyByOptions: rate.modifyBy ? { uid: rate.modifyBy } : undefined
             }))
         }
+    }
+
+    async batch(input: BatchSmsRateDto) {
+        const countryKeyIds = [...new Set(input.countryKeyIds)]
+        const countries = await this.countryRepository.find({ where: { keyId: In(countryKeyIds) } })
+        if (countries.length !== countryKeyIds.length) throw new BadRequestException('部分国家/地区不存在')
+        const rates = await this.repository.find({
+            where: countries.map(country => ({ code: country.code, mcc: country.mcc }))
+        })
+        const rateByCountry = new Map(rates.map(rate => [`${rate.code}:${rate.mcc}`, rate]))
+        const missingCountries = countries.filter(country => !rateByCountry.has(`${country.code}:${country.mcc}`))
+        if (missingCountries.length) {
+            throw new BadRequestException(
+                `以下国家/地区尚未配置短信基础价格：${missingCountries.map(country => country.cnName).join('、')}`
+            )
+        }
+        const countryByKeyId = new Map(countries.map(country => [country.keyId, country]))
+        return countryKeyIds.map(countryKeyId => {
+            const country = countryByKeyId.get(countryKeyId)!
+            return { ...country, ...rateByCountry.get(`${country.code}:${country.mcc}`), countryKeyId: country.keyId }
+        })
     }
 
     private async findRequired(keyId: number) {

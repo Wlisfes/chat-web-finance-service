@@ -47,4 +47,16 @@ export class CurrencyService {
         const [items, total] = await query.getManyAndCount()
         return { page: input.page, size: input.size, total, list: items.map(item => ({ ...item, date: item.rateDate })) }
     }
+
+    async resolveExchange(currency: string) {
+        const normalizedCurrency = currency.trim().toUpperCase()
+        const currentDate = new Date().toISOString().slice(0, 10)
+        if (normalizedCurrency === 'USD') return { currency: 'USD', rate: 1, rateDate: currentDate, date: currentDate }
+        const exchange = await this.exchangeRepository.findOne({
+            where: { currency: normalizedCurrency },
+            order: { rateDate: 'DESC', keyId: 'DESC' }
+        })
+        if (!exchange) throw new NotFoundException(`币种 ${normalizedCurrency} 暂无可用汇率`)
+        return { ...exchange, date: exchange.rateDate }
+    }
 }
