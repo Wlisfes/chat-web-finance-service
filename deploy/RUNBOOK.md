@@ -38,6 +38,13 @@ Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现
 
 业务请求的 Bearer Token 由 `AccountAuthClient` 转发到 `GET /auth/introspect`。Account 不可达返回上游不可用，Token 无效返回未授权；Finance 不在本地验签，也不访问 Account Redis index `0`。
 
-Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已重命名为 deprecated 备份，不得重新接入 TypeORM 或恢复业务写入。
+Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
+
+空库需要演示数据时，在 Actions 手动运行 `Build and deploy` 并开启 `seedDemoData`。初始化器使用固定 Faker 种子，只在五张 Finance 业务表全部为空时以单个事务写入；任一表已有数据都会中止。容器内也可先 dry-run 核对数量，再显式提交：
+
+```bash
+docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js
+docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --apply
+```
 
 部署失败时先检查 Actions 的 `Ensure Finance Nacos config`、MySQL 授权检查、Schema 应用和容器健康检查步骤。镜像回滚由 `deploy.sh` 自动执行；预创建的数据库与数据不会自动删除。

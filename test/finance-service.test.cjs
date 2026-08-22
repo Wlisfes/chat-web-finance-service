@@ -9,6 +9,7 @@ const { PageDto } = require('../dist/common/dto/page.dto')
 const { AccountAuthClient } = require('../dist/modules/auth/account-auth.client')
 const { HealthService } = require('../dist/modules/health/health.service')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
+const { createFinanceDemoTables, seedFinanceDemoData, shouldApplyFinanceDemoSeed } = require('../dist/cli/seed-demo-finance')
 const { createFinanceConfig, sanitizeFinanceConfig } = require('../deploy/bootstrap-nacos-config.cjs')
 
 function config(values) {
@@ -45,6 +46,34 @@ function fakeMigrationConnection() {
             throw new Error(`Unexpected query: ${sql}`)
         },
         async beginTransaction() {},
+        async commit() {
+            state.committed = true
+        },
+        async rollback() {
+            state.rolledBack = true
+        }
+    }
+}
+
+function fakeDemoSeedConnection(nonEmptyTable) {
+    const state = { inserts: [], committed: false, rolledBack: false, transactionStarted: false }
+    return {
+        state,
+        async execute(sql, parameters) {
+            if (sql.includes('information_schema.tables')) return [[{ count: 1 }]]
+            if (sql.startsWith('INSERT INTO')) {
+                state.inserts.push({ sql, parameters })
+                return [{ affectedRows: 1 }]
+            }
+            throw new Error(`Unexpected execute: ${sql}`)
+        },
+        async query(sql) {
+            if (sql.startsWith('SELECT COUNT(*)')) return [[{ count: nonEmptyTable && sql.includes(`\`${nonEmptyTable}\``) ? 1 : 0 }]]
+            throw new Error(`Unexpected query: ${sql}`)
+        },
+        async beginTransaction() {
+            state.transactionStarted = true
+        },
         async commit() {
             state.committed = true
         },
@@ -126,6 +155,47 @@ test('迁移 SQL 保留旧自增主键并映射汇率日期', () => {
     const sql = buildInsertSelectSql(exchange, 'legacy_windows', 'chat_web_finance')
     assert.match(sql, /^INSERT INTO `chat_web_finance`.`tb_finance_currency_exchange` \(`key_id`/)
     assert.match(sql, /`rate_date`.*SELECT.*`date`/)
+})
+
+test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
+    const first = createFinanceDemoTables(20260822, '2026-08-22')
+    const second = createFinanceDemoTables(20260822, '2026-08-22')
+    assert.deepEqual(first, second)
+    assert.deepEqual(
+        first.map(table => table.table),
+        ['tb_finance_brand', 'tb_finance_currency', 'tb_finance_currency_exchange', 'tb_finance_country', 'tb_finance_basic_sms_rate']
+    )
+    assert.equal(
+        first.some(table => table.table.includes('client')),
+        false
+    )
+})
+
+test('Finance 演示数据默认只预览，显式 --apply 才写入并提交', async () => {
+    assert.equal(shouldApplyFinanceDemoSeed([]), false)
+    assert.equal(shouldApplyFinanceDemoSeed(['--apply']), true)
+    const dryRunConnection = fakeDemoSeedConnection()
+    const dryRunCounts = await seedFinanceDemoData(dryRunConnection, 'chat_web_finance', false)
+    assert.equal(dryRunConnection.state.transactionStarted, false)
+    assert.equal(dryRunConnection.state.inserts.length, 0)
+    assert.equal(
+        Object.values(dryRunCounts).reduce((total, count) => total + count, 0),
+        62
+    )
+
+    const applyConnection = fakeDemoSeedConnection()
+    await seedFinanceDemoData(applyConnection, 'chat_web_finance', true)
+    assert.equal(applyConnection.state.transactionStarted, true)
+    assert.equal(applyConnection.state.inserts.length, 62)
+    assert.equal(applyConnection.state.committed, true)
+    assert.equal(applyConnection.state.rolledBack, false)
+})
+
+test('Finance 任一目标表已有数据时拒绝混入演示数据', async () => {
+    const connection = fakeDemoSeedConnection('tb_finance_currency')
+    await assert.rejects(() => seedFinanceDemoData(connection, 'chat_web_finance', true), /演示数据目标表非空：tb_finance_currency/)
+    assert.equal(connection.state.transactionStarted, false)
+    assert.equal(connection.state.inserts.length, 0)
 })
 
 test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', () => {
