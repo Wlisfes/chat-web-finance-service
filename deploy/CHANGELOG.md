@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：账号鉴权切换为声明式 Feign
+
+- 影响机器：Company、Home。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.3.0`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：Account Token 内省改由共享 `AccountFeignClient` 声明式接口完成；Finance 的短信批量价格和汇率解析接口同时纳入 `FinanceFeignClient`，供 CRM 强类型调用。服务内不再维护手写 `fetch` 鉴权实现。
+- 机器侧操作：继续使用现有 `ACCOUNT_SERVICE_URL` 和超时配置；无需修改 Nacos、`.env`、数据库、Redis、端口、Runner、部署目录或网络。
+- 验证命令：执行 `yarn format:check && yarn test`；部署后验证有效/失效 Token、短信批量价格、汇率解析和 `/health`。
+- 回滚方法：恢复上一条健康 Finance 镜像，并同步回滚 CRM 到共享包 1.2.2；不回滚数据库和 Nacos。
+
 ## 2026-08-23：Home Runner 迁移为主机服务
 
 - 影响机器：Home；Company Runner 离线状态保持不变。
