@@ -1,15 +1,15 @@
-import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { ConfigService } from '@nestjs/config'
 import { NestExpressApplication } from '@nestjs/platform-express'
 import { setupSwagger } from '@wlisfes/chat-web-base-schema'
-import { createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
+import { createRequestLoggingMiddleware, createStructuredLogger } from '@wlisfes/chat-web-base-schema/logging'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import { AppModule } from '@/app.module'
 
+const logger = createStructuredLogger({ serviceName: 'chat-web-finance-service' })
+
 async function bootstrap() {
-    const app = await NestFactory.create<NestExpressApplication>(AppModule)
-    const logger = new Logger('Bootstrap')
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger })
     app.enableShutdownHooks()
     app.use(requestContextMiddleware)
     app.use(createRequestLoggingMiddleware({ serviceName: 'chat-web-finance-service' }))
@@ -24,7 +24,6 @@ async function bootstrap() {
 }
 
 void bootstrap().catch(error => {
-    const logger = new Logger('Bootstrap')
-    logger.error(error instanceof Error ? error.stack : String(error))
+    logger.error(error, 'Bootstrap')
     process.exitCode = 1
 })

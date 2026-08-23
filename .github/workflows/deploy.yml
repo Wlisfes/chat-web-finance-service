@@ -129,6 +129,7 @@ jobs:
             packages: read
         env:
             DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/chat-web-finance-service' }}
+            DEPLOYMENT_ENVIRONMENT: production-${{ matrix.server }}
             IMAGE: ${{ needs.build.outputs.image }}
 
         steps:

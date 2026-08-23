@@ -2,6 +2,7 @@
 set -eu
 
 IMAGE=${1:?Usage: deploy.sh IMAGE [COMPOSE_FILE]}
+SERVICE_VERSION=${SERVICE_VERSION:-${IMAGE##*:}}
 COMPOSE_FILE=${2:-compose.yml}
 SERVICE=finance-service
 CONTAINER=chat-web-finance-service
@@ -13,13 +14,13 @@ test -f .env
 old_image=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)
 
 compose() {
-    IMAGE="$IMAGE" docker compose -f "$COMPOSE_FILE" "$@"
+    IMAGE="$IMAGE" SERVICE_VERSION="$SERVICE_VERSION" docker compose -f "$COMPOSE_FILE" "$@"
 }
 
 rollback() {
     docker logs --tail 100 "$CONTAINER" 2>&1 || true
     if [ -n "$old_image" ] && [ "$old_image" != "$IMAGE" ]; then
-        IMAGE="$old_image" docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
+        IMAGE="$old_image" SERVICE_VERSION="${old_image##*:}" docker compose -f "$COMPOSE_FILE" up -d --no-deps "$SERVICE"
     fi
 }
 

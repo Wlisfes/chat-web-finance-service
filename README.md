@@ -24,3 +24,7 @@ yarn seed:demo --apply
 ```
 
 初始化器会同时检查品牌、币种、汇率、国家地区和短信基础价格五张表；任一表已有数据即拒绝写入。旧 `tb_finance_client*` 表由 Schema 增量直接删除，不会生成客户演示数据。
+
+## 可观测性
+
+Docker 部署通过 Grafana Alloy 自动采集结构化 JSON 日志、OpenTelemetry Trace 和 Node 运行指标。日志包含 `requestId`、`traceId`、`spanId`，完整配置与排障命令见 `deploy/RUNBOOK.md`。
