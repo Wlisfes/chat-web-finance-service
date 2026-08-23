@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：Home Runner 迁移为主机服务
+
+- 影响机器：Home；Company Runner 离线状态保持不变。
+- 关联版本：Finance 本次完整 Git SHA；业务接口、数据库结构和演示数据不变。
+- 变更内容：`chat-server-home-finance` 从 `chat-web-finance-runner-home` 容器迁移为 Ubuntu WSL systemd 服务，继续使用仓库级 Runner 身份和 `chat-server-home` 标签。
+- 机器侧操作：Runner 安装目录为 `/home/runner/actions-runner-finance`，部署目录迁移到主机 `/opt/chat-web-finance-service`；旧 Runner 容器及 Docker 卷已删除。无需修改 `.env`、Nacos、数据库、Redis、端口或网络。
+- 验证命令：检查 systemd 服务为 `active/enabled`、日志包含 `Connected to GitHub` 和 `Listening for Jobs`；以 Runner 用户执行 Docker/Compose 检查，并确认本次 main 发布的 Home 部署和 `/health` 成功。
+- 回滚方法：停止主机服务并使用 Finance 仓库生成的新临时 Token 重新注册 Runner；保留部署目录、业务容器及数据库数据。
+
 ## 2026-08-23：统一远程账号鉴权模块
 
 - 影响机器：Company、Home。

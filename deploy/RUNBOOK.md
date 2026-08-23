@@ -15,6 +15,8 @@
 | Company Runner   | `chat-server-company-finance`（标签 `chat-server-company`） |
 | Home Runner      | `chat-server-home-finance`（标签 `chat-server-home`）       |
 
+Home Runner 作为 Ubuntu WSL 主机服务运行，安装目录为 `/home/runner/actions-runner-finance`，systemd 单元为 `actions.runner.Wlisfes-chat-web-finance-service.chat-server-home-finance.service`。禁止重新创建 `chat-web-finance-runner-home` 容器；Runner 用户必须属于 `docker` 组并可写 `/opt/chat-web-finance-service`。
+
 常用排障命令：
 
 ```bash
