@@ -730,10 +730,10 @@
     "@webassemblyjs/ast" "1.14.1"
     "@xtuc/long" "4.2.2"
 
-"@wlisfes/chat-web-base-schema@1.4.4":
-  version "1.4.4"
-  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.4.4/b7f895ba1b119c257aadeb5e589e0dc8112e71d8#b7f895ba1b119c257aadeb5e589e0dc8112e71d8"
-  integrity sha512-0F4uhJfsqHHlE5TFDZlb91Wgj90BIU9b5NokDqrV7tPpA+gCq22baNnU9OuSlPBeqs8Ran62AoIOb9i25NeHiA==
+"@wlisfes/chat-web-base-schema@1.4.5":
+  version "1.4.5"
+  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.4.5/02ef4ff93b6fc06683e59372808985f58d20129c#02ef4ff93b6fc06683e59372808985f58d20129c"
+  integrity sha512-1rwM3t+uVIcFC6syrTC4uXiQidDYIti7r5+3Rzmpb840cUKtP6TNZ/3EPbQHBJ3e3SeP31vL7X3vAROr5CGLlw==
   dependencies:
     "@types/lodash" "^4.17.25"
     class-validator "^0.15.1"
