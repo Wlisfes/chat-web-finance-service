@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-23：补全财务接口文档模型
+
+- 影响机器：Home；Company 当前离线，本次不等待其部署结果。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.2`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：品牌、国家地区、币种汇率和短信基础价格接口统一使用聚合 Swagger/Apifox 装饰器，补齐请求字段示例、分页/下拉/批量响应类型，并将更新接口的 `keyId` 明确为可写整数入参。
+- 机器侧操作：无需修改 Nacos、`.env`、数据库、Redis、端口、Runner、部署目录或网络。
+- 验证命令：执行 `yarn format:check --end-of-line auto && yarn test`；部署后检查 `/api/swagger-json`、`/health`、品牌分页、汇率解析和短信价格批量接口。
+- 回滚方法：恢复上一条健康 Finance 完整 SHA 镜像；无需回滚数据库、Redis、Nacos 或共享 Schema SQL。
+
 ## 2026-08-23：账号鉴权切换为声明式 Feign
 
 - 影响机器：Company、Home。

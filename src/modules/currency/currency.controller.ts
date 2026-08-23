@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common'
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
+import { Body, Get, Post, Query } from '@nestjs/common'
+import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
+import { TbFinanceCurrencyDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { CurrencyService } from '@/modules/currency/currency.service'
 import {
     ListCurrencyDto,
@@ -7,34 +8,57 @@ import {
     ResolveCurrencyExchangeDto,
     UpdateCurrencyStatusDto
 } from '@/modules/currency/dto/currency.dto'
+import {
+    CurrencyExchangePageResponseDto,
+    CurrencyExchangeResponseDto,
+    CurrencyPageResponseDto,
+    CurrencySelectResponseDto
+} from '@/dto/api-response.dto'
 
-@ApiTags('财务中心-币种与汇率')
-@ApiBearerAuth('authorization')
-@Controller('currency')
+@ApifoxController('财务中心-币种与汇率', 'currency', { bearerAuth: true })
 export class CurrencyController {
     constructor(private readonly currencyService: CurrencyService) {}
 
-    @Post('column')
+    @ApiServiceDecorator(Post('column'), {
+        operation: { summary: '分页查询币种' },
+        request: { source: 'body', type: ListCurrencyDto },
+        response: { type: CurrencyPageResponseDto, description: '币种分页数据' }
+    })
     httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto) {
         return this.currencyService.list(input)
     }
 
-    @Post('update/status')
+    @ApiServiceDecorator(Post('update/status'), {
+        operation: { summary: '更新币种状态' },
+        request: { source: 'body', type: UpdateCurrencyStatusDto },
+        response: { type: TbFinanceCurrencyDto, description: '更新后的币种信息' }
+    })
     httpBaseFinanceUpdateCurrencyStatus(@Body() input: UpdateCurrencyStatusDto) {
         return this.currencyService.updateStatus(input)
     }
 
-    @Post('select')
+    @ApiServiceDecorator(Post('select'), {
+        operation: { summary: '获取可用币种下拉选项' },
+        response: { type: CurrencySelectResponseDto, description: '可用币种列表' }
+    })
     httpBaseFinanceSelectCurrency() {
         return this.currencyService.select()
     }
 
-    @Post('exchange/column')
+    @ApiServiceDecorator(Post('exchange/column'), {
+        operation: { summary: '分页查询币种汇率' },
+        request: { source: 'body', type: ListCurrencyExchangeDto },
+        response: { type: CurrencyExchangePageResponseDto, description: '币种汇率分页数据' }
+    })
     httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto) {
         return this.currencyService.listExchange(input)
     }
 
-    @Get('exchange/resolver')
+    @ApiServiceDecorator(Get('exchange/resolver'), {
+        operation: { summary: '获取币种最新汇率' },
+        request: { source: 'query', type: ResolveCurrencyExchangeDto },
+        response: { type: CurrencyExchangeResponseDto, description: '币种最新汇率' }
+    })
     httpBaseFinanceResolverCurrencyExchange(@Query() input: ResolveCurrencyExchangeDto) {
         return this.currencyService.resolveExchange(input.currency)
     }
