@@ -27,4 +27,4 @@ yarn seed:demo --apply
 
 ## 可观测性
 
-Docker 部署通过 Grafana Alloy 自动采集结构化 JSON 日志、OpenTelemetry Trace 和 Node 运行指标。日志包含 `requestId`、`traceId`、`spanId`，完整配置与排障命令见 `deploy/RUNBOOK.md`。
+Docker 部署输出结构化单行 JSON 日志，日志包含 `requestId` 并支持通过容器标准输出直接排障，完整命令见 `deploy/RUNBOOK.md`。

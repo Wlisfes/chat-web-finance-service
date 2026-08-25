@@ -11,6 +11,19 @@ PULL_ATTEMPTS=${PULL_ATTEMPTS:-8}
 
 test -f "$COMPOSE_FILE"
 test -f .env
+
+temporary_env=$(mktemp .env.XXXXXX)
+if ! awk '
+    /^OTEL_/ { next }
+    /^NODE_OPTIONS=.*@opentelemetry\/auto-instrumentations-node\/register/ { next }
+    { print }
+' .env > "$temporary_env"; then
+    rm -f "$temporary_env"
+    exit 1
+fi
+chmod 600 "$temporary_env"
+mv "$temporary_env" .env
+
 old_image=$(docker inspect --format '{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)
 
 compose() {
