@@ -3,8 +3,8 @@
 ## 2026-08-26：显式注入完整 Nacos 运行参数
 
 - 影响机器：Company、Home；两台机器继续部署同一个 Finance 完整 Git SHA 镜像。
-- 关联版本：`@wlisfes/chat-web-base-schema@1.4.8`；Finance 本次完整 Git SHA 镜像。
-- 变更内容：升级共享包并将完整扁平化 `NacosRuntimeOptions` 从 `.env` 显式注入 `NacosModule.forRoot`；服务名和注册端口保留 Finance 默认值，其余可选字段使用共享包默认值。环境示例补充认证、请求超时及每项默认行为。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.9`；Finance 本次完整 Git SHA 镜像。
+- 变更内容：由 base 内的 `NacosModule.forRoot` 统一把扁平化 `.env` 转换为完整 `NacosRuntimeOptions`；Finance 只传入服务名和注册端口，不再调用环境转换方法。环境示例补充认证、请求超时及每项默认行为。
 - 机器侧操作：确认 `/opt/chat-web-finance-service/.env` 显式包含本机 `NACOS_SERVER`、`NACOS_NAMESPACE`；现有其他 `NACOS_*` 可保留，省略时按示例注释使用默认值。无需修改数据库、Redis index `1`、Account 上游地址、端口、Runner、部署目录或外部网络。
 - 验证命令：执行 `yarn format:check && yarn test` 和 `IMAGE=example.invalid/chat-web-finance-service:compose-check docker compose --env-file deploy/.env.example -f deploy/compose.yml config --quiet`；部署后检查 `/health/live`、`/health` 及 Nacos 中 `chat-web-finance-service:3010` 实例。
 - 回滚方法：恢复上一条健康 Finance 完整 SHA 镜像，并保留原服务器 `.env`；无需回滚数据库、Redis 或 Nacos 数据。
