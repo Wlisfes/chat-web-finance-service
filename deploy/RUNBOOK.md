@@ -39,6 +39,8 @@ curl -fsS http://127.0.0.1:3010/health
 
 Finance 部署不读取 Account 的 `.env`、JWT 密钥或 Redis 会话。`/opt/chat-web-finance-service/.env` 必须独立配置 Nacos、Redis 地址/认证和 `ACCOUNT_SERVICE_URL`，并固定 `REDIS_DATABASE=1`；即使 `REDIS_URL` 带 `/0`，共享运行时也会用显式 index `1` 覆盖。
 
+共享包 `1.4.8` 起，Finance 使用 base 导出的 `createNacosRuntimeOptions` 把 Nacos 启动参数一次性注入 `NacosModule.forRoot`。服务器 `.env` 必须显式提供 `NACOS_SERVER` 和 `NACOS_NAMESPACE`；`NACOS_REQUEST_TIMEOUT`、Data ID、配置组、认证、注册开关、服务名、发现组、注册地址和注册端口均为可选覆盖，默认值与 `deploy/.env.example` 注释一致。修改这些值后必须重新创建容器，不能再依赖 Nacos 远端配置反向改变启动连接或注册参数。
+
 Finance Nacos Data ID 不存在时，引导脚本只接受显式 `FINANCE_MYSQL_HOST/PORT/DATABASE/USERNAME/PASSWORD` 并生成最小 Finance 配置，禁止从 Account 配置复制数据库凭据。数据库 `chat_web_finance` 必须由外部基础设施预创建。已有环境若曾从 Account 配置派生，应先创建 Finance 专用 MySQL 账号、仅授权 `chat_web_finance.*`，更新 Finance Nacos 配置；引导脚本会自动移除不属于 Finance 的 Account/security/Redis 节点。
 
 使用 Finance 连接参数进入 MySQL 后核对：

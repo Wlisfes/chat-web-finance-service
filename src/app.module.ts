@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { AccountRemoteAuthModule, JwtAuthGuard } from '@wlisfes/chat-web-base-schema/auth'
 import { HttpResponseModule } from '@wlisfes/chat-web-base-schema/interceptor'
-import { NacosModule } from '@wlisfes/chat-web-base-schema/nacos'
+import { createNacosRuntimeOptions, NacosModule } from '@wlisfes/chat-web-base-schema/nacos'
 import { RedisModule } from '@wlisfes/chat-web-base-schema/redis'
 import { AppController } from '@/app.controller'
 import { AppService } from '@/app.service'
@@ -14,11 +14,14 @@ import { DatabaseModule } from '@/modules/database/database.module'
 import { HealthModule } from '@/modules/health/health.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
 
+const configModule = ConfigModule.forRoot({ isGlobal: true })
+const nacosModule = NacosModule.forRoot(createNacosRuntimeOptions({ serviceName: 'chat-web-finance-service', registerPort: 3010 }))
+
 @Module({
     imports: [
         HttpResponseModule,
-        ConfigModule.forRoot({ isGlobal: true }),
-        NacosModule.forRoot({ serviceName: 'chat-web-finance-service', defaultPort: 3010 }),
+        configModule,
+        nacosModule,
         RedisModule,
         DatabaseModule,
         AccountRemoteAuthModule,
