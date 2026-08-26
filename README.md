@@ -8,6 +8,8 @@ yarn test
 yarn schema:apply
 ```
 
+根目录 `.env` 只提供 `NODE_ENV`、`PORT` 和 Nacos 连接参数。数据库、Redis index `1`、Account 上游地址及超时统一维护在 Nacos 远端 `chat-web-finance-service.yaml`；实际凭据不得提交到仓库。
+
 旧财务库中的财务基础数据迁移默认 dry-run：
 
 ```bash
