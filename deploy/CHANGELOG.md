@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-28：统一可读日志与显式 Nacos 运行参数
+
+- 影响机器：Home；Company Runner 当前离线，本次不等待其部署结果，恢复后继续兼容同一完整 SHA。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.15`、Finance 本次完整 Git SHA 镜像。
+- 变更内容：统一使用共享 `ReadableConsoleLogger` 和请求日志默认过滤规则；请求日志只保留 `logId`，本地 JSON 保留缩进、生产 JSON 压缩为单物理行。按新版公共包契约显式映射现有 `NACOS_*` 启动参数，并向 Swagger 启动器传入 `NODE_ENV`。
+- 机器侧操作：无需新增或修改 `.env`、Nacos Data ID、Finance 数据库、Redis index `1`、Account 上游地址、端口、Runner、部署目录或外部网络。
+- 验证命令：执行 `yarn format:check && yarn tsc -p tsconfig.json --noEmit && yarn test`；部署后检查 `/health/live`、`/health`、Nacos 注册实例及 `docker logs --tail 100 chat-web-finance-service`。
+- 回滚方法：恢复上一条健康 Finance 完整 SHA 镜像；Nacos、数据库和 Redis 数据均不回滚。
+
 ## 2026-08-26：根目录运行配置收口到 Nacos
 
 - 影响机器：Company、Home；容器部署参数和双机矩阵不变。
