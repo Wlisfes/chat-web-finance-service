@@ -1,13 +1,12 @@
 # Repository instructions
 
-## 默认双机部署规则
+## 单机部署规则
 
-- 本服务默认同时部署到 Company 和 Home 两台独立机器。Company Runner 标签固定为 `chat-server-company`，Home Runner 标签固定为 `chat-server-home`。只有用户明确批准单机例外时，才允许移除其中一台。
-- GitHub Actions 只构建并发布一次镜像，并将同一个完整 Git SHA 镜像部署到两台机器；禁止两台机器各自构建可能不同的 `latest` 版本。
-- 部署阶段使用矩阵，包含 `company / chat-server-company / production-company` 和 `home / chat-server-home / production-home`。矩阵必须设置 `fail-fast: false`，并使用按机器隔离的 `deploy-${server}` concurrency。
-- 两台机器分别安装本仓库专用的 Self-hosted Runner，部署目录固定为 `/opt/chat-web-finance-service`；不得与其他服务共用部署目录。
+- 本服务只部署到当前主机 `chat-home-server`，原另一台部署机器已废弃并下线，不得再为废弃机器创建部署任务或多机矩阵。
+- GitHub Actions 使用 `chat-home-server` Runner 标签和 `production-home` Environment，只构建并发布一次完整 Git SHA 镜像，然后部署到 `/opt/chat-web-finance-service`。
+- 当前主机安装本仓库专用的 Self-hosted Runner，不得与其他服务共用 Runner 注册或部署目录。
 - 服务加入外部 Docker 网络 `chat-web-infrastructure`，Compose 项目名使用 `chat-web-service`。不得重建、删除或接管 MySQL、Redis、RabbitMQ、Nacos 等基础设施容器。
-- 两台机器的部署都必须包含容器健康检查、部署后端点验证和失败自动回滚，并部署同一个精确 SHA。
+- 部署必须包含容器健康检查、部署后端点验证和失败自动回滚，不得使用 `--remove-orphans`。
 
 ## 部署变更记录
 

@@ -11,15 +11,6 @@ on:
                 required: false
                 default: false
                 type: boolean
-            seedDemoDataTarget:
-                description: 选择需要写入演示数据的部署节点
-                required: true
-                default: all
-                type: choice
-                options:
-                    - all
-                    - company
-                    - home
 
 jobs:
     verify:
@@ -104,32 +95,22 @@ jobs:
                       github_token=${{ secrets.GITHUB_TOKEN }}
 
     deploy:
-        name: Deploy to ${{ matrix.server }}
+        name: Deploy to chat-home-server
         needs: build
-        strategy:
-            fail-fast: false
-            matrix:
-                include:
-                    - server: company
-                      runner: chat-server-company
-                      environment: production-company
-                    - server: home
-                      runner: chat-server-home
-                      environment: production-home
         runs-on:
             - self-hosted
             - linux
-            - ${{ matrix.runner }}
-        environment: ${{ matrix.environment }}
+            - chat-home-server
+        environment: production-home
         concurrency:
-            group: deploy-${{ matrix.server }}
+            group: deploy-chat-home-server
             cancel-in-progress: true
         permissions:
             contents: read
             packages: read
         env:
             DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/chat-web-finance-service' }}
-            DEPLOYMENT_ENVIRONMENT: production-${{ matrix.server }}
+            DEPLOYMENT_ENVIRONMENT: production-home
             IMAGE: ${{ needs.build.outputs.image }}
 
         steps:
@@ -217,7 +198,7 @@ jobs:
                   docker exec chat-web-finance-service node -e "require('http').get('http://127.0.0.1:3010/health', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
             - name: Seed Finance demo data
-              if: ${{ github.event_name == 'workflow_dispatch' && inputs.seedDemoData && (inputs.seedDemoDataTarget == 'all' || inputs.seedDemoDataTarget == matrix.server) }}
+              if: ${{ github.event_name == 'workflow_dispatch' && inputs.seedDemoData }}
               shell: bash
               run: docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --apply
 
