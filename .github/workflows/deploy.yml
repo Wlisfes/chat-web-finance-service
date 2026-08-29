@@ -144,42 +144,9 @@ jobs:
                   set -eu
                   install -m 0644 deploy/compose.yml "$DEPLOY_PATH/compose.yml"
                   install -m 0755 deploy/deploy.sh "$DEPLOY_PATH/deploy.sh"
-                  install -m 0644 deploy/bootstrap-nacos-config.cjs "$DEPLOY_PATH/bootstrap-nacos-config.cjs"
                   if [ ! -f "$DEPLOY_PATH/.env" ]; then
                     install -m 0600 deploy/.env.example "$DEPLOY_PATH/.env"
                   fi
-
-            - name: Enforce Finance data boundary
-              shell: bash
-              run: |
-                  set -eu
-                  temporary_env=$(mktemp "$DEPLOY_PATH/.env.XXXXXX")
-                  awk '
-                    BEGIN { redis_database = 0 }
-                    /^JWT_SECRET=/ { next }
-                    /^REDIS_DATABASE=/ {
-                      if (!redis_database) print "REDIS_DATABASE=1"
-                      redis_database = 1
-                      next
-                    }
-                    { print }
-                    END { if (!redis_database) print "REDIS_DATABASE=1" }
-                  ' "$DEPLOY_PATH/.env" > "$temporary_env"
-                  chmod 600 "$temporary_env"
-                  mv "$temporary_env" "$DEPLOY_PATH/.env"
-                  test "$(sed -n 's/^REDIS_DATABASE=//p' "$DEPLOY_PATH/.env" | tail -n 1)" = "1" || { echo "Finance REDIS_DATABASE must be 1" >&2; exit 1; }
-                  chmod 600 "$DEPLOY_PATH/.env"
-
-            - name: Ensure Finance Nacos config
-              shell: bash
-              run: |
-                  set -eu
-                  network=$(sed -n 's/^DOCKER_NETWORK=//p' "$DEPLOY_PATH/.env" | tail -n 1)
-                  network=${network:-chat-web-infrastructure}
-                  docker run --rm \
-                    --network "$network" \
-                    --env-file "$DEPLOY_PATH/.env" \
-                    node:22-alpine node - < "$DEPLOY_PATH/bootstrap-nacos-config.cjs"
 
             - name: Pull and deploy image
               shell: bash
@@ -195,7 +162,7 @@ jobs:
               shell: bash
               run: |
                   set -eu
-                  docker exec chat-web-finance-service node -e "require('http').get('http://127.0.0.1:3010/health', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+                  docker exec chat-web-finance-service node -e "require('http').get('http://127.0.0.1:5030/health', response => process.exit(response.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
             - name: Seed Finance demo data
               if: ${{ github.event_name == 'workflow_dispatch' && inputs.seedDemoData }}

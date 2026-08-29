@@ -26,6 +26,24 @@ function required(key: string): string {
     return value
 }
 
+async function getNacosAccessToken(baseUrl: string): Promise<string | undefined> {
+    const username = process.env.NACOS_USERNAME?.trim()
+    const password = process.env.NACOS_PASSWORD
+    if (!username || password === undefined) return undefined
+
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/nacos/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username, password })
+    })
+    if (!response.ok) throw new Error(`Nacos 鉴权失败：HTTP ${response.status}`)
+    const result = (await response.json()) as { accessToken?: unknown }
+    if (typeof result.accessToken !== 'string' || !result.accessToken.trim()) {
+        throw new Error('Nacos 鉴权响应缺少 accessToken')
+    }
+    return result.accessToken
+}
+
 export function identifier(value: string, label: string): string {
     if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error(`${label}只能包含字母、数字、下划线和连字符`)
     return value
@@ -55,6 +73,8 @@ export async function loadFinanceDatabaseConfig(): Promise<DatabaseConfig> {
         group: process.env.NACOS_CONFIG_GROUP?.trim() || process.env.NACOS_GROUP?.trim() || 'DEFAULT_GROUP',
         tenant: process.env.NACOS_NAMESPACE?.trim() || 'public'
     })
+    const accessToken = await getNacosAccessToken(baseUrl)
+    if (accessToken) params.set('accessToken', accessToken)
     const response = await fetch(`${baseUrl.replace(/\/$/, '')}/nacos/v1/cs/configs?${params}`)
     if (!response.ok) throw new Error(`读取 Nacos 配置失败：HTTP ${response.status}`)
     const parsed = yaml.load(await response.text()) as Record<string, unknown>
