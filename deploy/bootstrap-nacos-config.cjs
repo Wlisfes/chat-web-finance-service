@@ -13,17 +13,38 @@ function getBaseUrl() {
     return (/^https?:\/\//i.test(server) ? server : `http://${server}`).replace(/\/$/, '')
 }
 
-function configUrl(dataId) {
+async function getNacosAccessToken() {
+    const baseUrl = getBaseUrl()
+    const username = process.env.NACOS_USERNAME?.trim()
+    const password = process.env.NACOS_PASSWORD
+    if (!username || password === undefined) return undefined
+
+    const response = await fetch(`${baseUrl}/nacos/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ username, password })
+    })
+    if (!response.ok) throw new Error(`Nacos 鉴权失败：HTTP ${response.status}`)
+    const result = await response.json()
+    if (typeof result.accessToken !== 'string' || !result.accessToken.trim()) {
+        throw new Error('Nacos 鉴权响应缺少 accessToken')
+    }
+    return result.accessToken
+}
+
+async function configUrl(dataId) {
     const parameters = new URLSearchParams({
         dataId,
         group: process.env.NACOS_CONFIG_GROUP?.trim() || process.env.NACOS_GROUP?.trim() || 'DEFAULT_GROUP',
         tenant: process.env.NACOS_NAMESPACE?.trim() || 'public'
     })
+    const accessToken = await getNacosAccessToken()
+    if (accessToken) parameters.set('accessToken', accessToken)
     return `${getBaseUrl()}/nacos/v1/cs/configs?${parameters}`
 }
 
 async function readConfig(dataId) {
-    const response = await fetch(configUrl(dataId))
+    const response = await fetch(await configUrl(dataId))
     if (response.status === 404) return undefined
     if (!response.ok) throw new Error(`Unable to read Nacos config ${dataId}: HTTP ${response.status}`)
     const content = await response.text()
@@ -41,7 +62,7 @@ function createFinanceConfig(environment = process.env) {
     }
     const scalar = value => JSON.stringify(value)
     return `server:
-  port: 3010
+  port: 5030
 database:
   chat-web-finance:
     host: ${scalar(required('FINANCE_MYSQL_HOST', environment))}
@@ -64,7 +85,7 @@ function sanitizeFinanceConfig(content) {
         if (forbiddenSections.has(section)) continue
         const line =
             section === 'server' && /^\s+port:\s*/.test(originalLine)
-                ? originalLine.replace(/^(\s*)port:.*$/, '$1port: 3010')
+                ? originalLine.replace(/^(\s*)port:.*$/, '$1port: 5030')
                 : originalLine
         lines.push(line)
     }
@@ -87,6 +108,8 @@ async function publishConfig(dataId, content) {
         type: 'yaml',
         content
     })
+    const accessToken = await getNacosAccessToken()
+    if (accessToken) body.set('accessToken', accessToken)
     const response = await fetch(`${getBaseUrl()}/nacos/v1/cs/configs`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },

@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { NestFactory } from '@nestjs/core'
 import { ConfigService } from '@nestjs/config'
 import { NestExpressApplication } from '@nestjs/platform-express'
@@ -14,7 +15,7 @@ async function bootstrap() {
     app.enableShutdownHooks()
     app.use(requestContextMiddleware)
     app.use(createRequestLoggingMiddleware(serviceName))
-    const port = Number(process.env.PORT ?? app.get(ConfigService).get<number>('server.port', 3010))
+    const port = Number(process.env.PORT ?? app.get(ConfigService).get<number>('server.port', 5030))
     await setupSwagger(app, {
         title: 'Chat Web 财务服务 API',
         description: '品牌、币种、汇率、国家地区与基础价格管理接口',

@@ -180,7 +180,7 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
         FINANCE_MYSQL_USERNAME: 'finance-service',
         FINANCE_MYSQL_PASSWORD: 'redacted'
     })
-    assert.match(financeConfig, /server:\n  port: 3010/)
+    assert.match(financeConfig, /server:\n  port: 5030/)
     assert.match(financeConfig, /database:\n  chat-web-finance:/)
     assert.match(financeConfig, /name: "chat_web_finance"/)
     assert.match(financeConfig, /username: "finance-service"/)
@@ -202,7 +202,7 @@ security:
 redis:
   database: 0
 `)
-    assert.match(sanitized, /server:\n  port: 3010/)
+    assert.match(sanitized, /server:\n  port: 5030/)
     assert.match(sanitized, /database:\n  chat-web-finance:/)
     assert.doesNotMatch(sanitized, /security|account-secret|redis/)
 })

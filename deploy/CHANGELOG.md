@@ -1,5 +1,32 @@
 # 部署变更记录
 
+## 2026-08-29：统一 Nacos 启动参数转换
+
+- 影响机器：`chat-home-server`；本次仅改造调用代码，不触发镜像构建或线上部署。
+- 关联版本：等待 `@wlisfes/chat-web-base-schema` 发布包含 `forRootNacosRuntimeOptions` 的新版本。
+- 变更内容：Finance 改为直接调用 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))`，移除逐字段环境变量映射。
+- 机器侧操作：共享包发布并升级后再重建 Finance；现有 Nacos 配置、端口和数据库不变。
+- 验证命令：共享包发布后执行 `yarn build && yarn test`，再按本服务健康检查验证。
+- 回滚方法：恢复上一版共享包并还原旧的 `createNacosRuntimeOptions` 调用。
+
+## 2026-08-29：统一服务监听端口为 5030
+
+- 影响机器：`chat-home-server`；Company Runner 当前离线，本次不等待其部署结果。
+- 关联版本：Finance 本次 `developer` 配置提交；未合并 `main`，不触发镜像构建或线上部署。
+- 变更内容：Finance 容器、Nacos 注册和健康检查端口由 `3010`/`4010` 统一为 `5030`；云端生产与 development Data ID 的 `server.port` 已同步为 `5030`，Account 后备地址同步为 `5010`。
+- 机器侧操作：下次部署重新创建 Finance 容器，使 `PORT=5030` 生效；数据库、Redis index `1`、Nacos 命名空间和网络不变。
+- 验证命令：检查 `docker inspect` 中的 `PORT=5030`、访问容器 `/health/live`，并确认 Nacos 注册实例端口为 `5030`。
+- 回滚方法：恢复上一条健康 Finance 完整 SHA，并将 Nacos `server.port` 与注册端口恢复为旧值。
+
+## 2026-08-29：统一环境示例并补充 Nacos 鉴权读取
+
+- 影响机器：`chat-home-server`；Company Runner 当前离线，本次不等待其部署结果。
+- 关联版本：Finance 本次 `developer` 配置提交；未合并 `main`，不触发镜像构建或线上部署。
+- 变更内容：根目录与部署目录 `.env.example` 统一只描述启动和 Nacos 参数，业务数据库、Redis、Account 地址继续由云端 Nacos 管理；Schema、历史迁移、演示数据 CLI 和 Nacos 引导脚本读取/发布配置时增加登录令牌。
+- 机器侧操作：无需迁移数据库或修改 Redis index `1`；确认部署主机 `.env` 保留 Nacos 用户名和密码，真实密钥不得提交仓库。
+- 验证命令：执行 `yarn build`；使用鉴权令牌读取 Finance Data ID，并检查 `/health/live` 和 Nacos 服务注册。
+- 回滚方法：恢复上一条健康 Finance 完整 SHA；Nacos、数据库和 Redis 数据均不回滚。
+
 ## 2026-08-29：部署拓扑收敛到 chat-home-server
 
 - 影响机器：仅 `chat-home-server`；原另一台部署机器已废弃并下线，不再创建部署任务。
