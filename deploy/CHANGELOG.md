@@ -1,5 +1,11 @@
 # 部署变更记录
 
+## 2026-08-29：部署前清理旧版 Nacos 覆盖项
+
+- 变更内容：部署流水线自动从主机 `.env` 移除 `NACOS_REQUEST_TIMEOUT`、`NACOS_REGISTER_PORT`、`NACOS_REGISTER_IP`、`NACOS_REGISTER_REQUIRED`、`NACOS_GROUP` 和 `NACOS_CONFIG_GROUP`，统一使用共享包默认值。
+- 修复原因：历史 `.env` 残留字段会覆盖新的端口和分组默认值，导致服务注册信息与实际监听配置不一致。
+- 影响范围：仅修改 Finance 部署主机的启动覆盖项，不影响 Nacos 远端业务配置。
+
 ## 2026-08-29：统一 Nacos 启动参数转换
 
 - 影响机器：`chat-home-server`；本次仅改造调用代码，不触发镜像构建或线上部署。
