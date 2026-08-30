@@ -65,4 +65,13 @@ docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js
 docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --apply
 ```
 
+已有 Finance 数据库需要补充国际常用币种时，使用幂等的币种同步命令。它只新增缺失记录，保留已有记录的启用/禁用状态：
+
+```bash
+docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --sync-currencies
+docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --sync-currencies --apply
+```
+
+同步目标为 28 种币种：USD、EUR、CNY、JPY、GBP、CHF、CAD、AUD、HKD、SGD、NZD、INR、BRL、RUB、KRW、MXN、ZAR、AED、SAR、THB、IDR、MYR、VND、PHP、PLN、NOK、SEK、DKK。
+
 部署失败时先检查 Actions 的 `Ensure Finance Nacos config`、MySQL 授权检查、Schema 应用和容器健康检查步骤。镜像回滚由 `deploy.sh` 自动执行；预创建的数据库与数据不会自动删除。

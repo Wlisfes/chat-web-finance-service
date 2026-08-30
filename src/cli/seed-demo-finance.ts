@@ -1,6 +1,6 @@
 import { Faker, zh_CN } from '@faker-js/faker'
 import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
-import mysql, { Connection, RowDataPacket } from 'mysql2/promise'
+import mysql, { Connection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
 
 export const FINANCE_DEMO_SEED = 20260822
@@ -15,20 +15,35 @@ export type FinanceDemoTable = {
     rows: readonly (readonly FinanceDemoValue[])[]
 }
 
-const CURRENCIES = [
+export const FINANCE_COMMON_CURRENCIES = [
     { currency: 'USD', name: '美元', symbol: '$', rate: 1 },
-    { currency: 'CNY', name: '人民币', symbol: '¥', rate: 7.2 },
     { currency: 'EUR', name: '欧元', symbol: '€', rate: 0.92 },
-    { currency: 'GBP', name: '英镑', symbol: '£', rate: 0.79 },
-    { currency: 'SGD', name: '新加坡元', symbol: 'S$', rate: 1.34 },
-    { currency: 'INR', name: '印度卢比', symbol: '₹', rate: 83.5 },
+    { currency: 'CNY', name: '中国人民币', symbol: '¥', rate: 7.2 },
     { currency: 'JPY', name: '日元', symbol: '¥', rate: 146.5 },
+    { currency: 'GBP', name: '英镑', symbol: '£', rate: 0.79 },
+    { currency: 'CHF', name: '瑞士法郎', symbol: 'CHF', rate: 0.88 },
+    { currency: 'CAD', name: '加拿大元', symbol: 'C$', rate: 1.36 },
+    { currency: 'AUD', name: '澳大利亚元', symbol: 'A$', rate: 1.51 },
+    { currency: 'HKD', name: '港币', symbol: 'HK$', rate: 7.82 },
+    { currency: 'SGD', name: '新加坡元', symbol: 'S$', rate: 1.34 },
+    { currency: 'NZD', name: '新西兰元', symbol: 'NZ$', rate: 1.62 },
+    { currency: 'INR', name: '印度卢比', symbol: '₹', rate: 83.5 },
+    { currency: 'BRL', name: '巴西雷亚尔', symbol: 'R$', rate: 5.5 },
+    { currency: 'RUB', name: '俄罗斯卢布', symbol: '₽', rate: 90 },
     { currency: 'KRW', name: '韩元', symbol: '₩', rate: 1335 },
-    { currency: 'IDR', name: '印度尼西亚卢比', symbol: 'Rp', rate: 15800 },
+    { currency: 'MXN', name: '墨西哥比索', symbol: 'MX$', rate: 18.5 },
+    { currency: 'ZAR', name: '南非兰特', symbol: 'R', rate: 18.3 },
+    { currency: 'AED', name: '阿联酋迪拉姆', symbol: 'د.إ', rate: 3.6725 },
+    { currency: 'SAR', name: '沙特里亚尔', symbol: 'ر.س', rate: 3.75 },
     { currency: 'THB', name: '泰铢', symbol: '฿', rate: 35.4 },
+    { currency: 'IDR', name: '印度尼西亚卢比', symbol: 'Rp', rate: 15800 },
     { currency: 'MYR', name: '马来西亚林吉特', symbol: 'RM', rate: 4.46 },
     { currency: 'VND', name: '越南盾', symbol: '₫', rate: 24850 },
-    { currency: 'PHP', name: '菲律宾比索', symbol: '₱', rate: 56.3 }
+    { currency: 'PHP', name: '菲律宾比索', symbol: '₱', rate: 56.3 },
+    { currency: 'PLN', name: '波兰兹罗提', symbol: 'zł', rate: 4 },
+    { currency: 'NOK', name: '挪威克朗', symbol: 'kr', rate: 10.6 },
+    { currency: 'SEK', name: '瑞典克朗', symbol: 'kr', rate: 10.8 },
+    { currency: 'DKK', name: '丹麦克朗', symbol: 'kr', rate: 6.95 }
 ] as const
 
 const COUNTRIES = [
@@ -66,8 +81,8 @@ export function createFinanceDemoTables(seed = FINANCE_DEMO_SEED, rateDate = FIN
         FINANCE_DEMO_OPERATOR_UID,
         FINANCE_DEMO_OPERATOR_UID
     ])
-    const currencies = CURRENCIES.map(item => [item.currency, item.name, item.symbol, 'enable'])
-    const exchanges = CURRENCIES.map(item => [item.currency, variedRate(faker, item.rate), rateDate])
+    const currencies = FINANCE_COMMON_CURRENCIES.map(item => [item.currency, item.name, item.symbol, 'enable'])
+    const exchanges = FINANCE_COMMON_CURRENCIES.map(item => [item.currency, variedRate(faker, item.rate), rateDate])
     const countries = COUNTRIES.map(item => [item.code, item.mcc, item.cnName, item.enName, 'enable'])
     const smsRates = COUNTRIES.map(item => {
         const upUsd = faker.number.int({ min: 5000, max: 65000 })
@@ -155,9 +170,48 @@ export async function seedFinanceDemoData(
     }
 }
 
+export function shouldSyncFinanceCurrencies(argumentsList: readonly string[]): boolean {
+    return argumentsList.includes('--sync-currencies')
+}
+
+/**
+ * 将常用币种补充到已有的 Finance 数据库。
+ *
+ * 与全量演示数据初始化不同，该操作只新增缺失的币种，不会清空或重置已有业务表，
+ * 也不会覆盖已有币种的启用/禁用状态。
+ */
+export async function syncFinanceCurrencies(
+    connection: Connection,
+    database: string,
+    apply: boolean,
+    currencies = FINANCE_COMMON_CURRENCIES
+): Promise<number> {
+    if (!(await tableExists(connection, database, 'tb_finance_currency'))) {
+        throw new Error('常用币种写入目标表不存在：tb_finance_currency')
+    }
+    if (!apply) return currencies.length
+
+    const sql = `INSERT INTO \`tb_finance_currency\` (\`currency\`, \`name\`, \`symbol\`, \`status\`)
+        VALUES (?, ?, ?, 'enable')
+        ON DUPLICATE KEY UPDATE \`name\` = VALUES(\`name\`), \`symbol\` = VALUES(\`symbol\`)`
+    await connection.beginTransaction()
+    try {
+        for (const item of currencies) {
+            await connection.execute<ResultSetHeader>(sql, [item.currency, item.name, item.symbol])
+        }
+        await connection.commit()
+        return currencies.length
+    } catch (error) {
+        await connection.rollback()
+        throw error
+    }
+}
+
 async function main(): Promise<void> {
     loadLocalEnvironment()
-    const apply = shouldApplyFinanceDemoSeed(process.argv.slice(2))
+    const argumentsList = process.argv.slice(2)
+    const apply = shouldApplyFinanceDemoSeed(argumentsList)
+    const syncCurrencies = shouldSyncFinanceCurrencies(argumentsList)
     const config = await loadFinanceDatabaseConfig()
     const database = getDatabaseName(config)
     const connection = await mysql.createConnection({
@@ -174,12 +228,19 @@ async function main(): Promise<void> {
             grantRows.flatMap(row => Object.values(row).filter((value): value is string => typeof value === 'string')),
             database
         )
-        const rateDate = process.env.FINANCE_DEMO_RATE_DATE?.trim() || FINANCE_DEMO_RATE_DATE
-        const tables = createFinanceDemoTables(FINANCE_DEMO_SEED, rateDate)
-        const counts = await seedFinanceDemoData(connection, database, apply, tables)
-        process.stdout.write(
-            `${JSON.stringify({ mode: apply ? 'apply' : 'dry-run', seed: FINANCE_DEMO_SEED, rateDate, database, counts }, null, 2)}\n`
-        )
+        if (syncCurrencies) {
+            const count = await syncFinanceCurrencies(connection, database, apply)
+            process.stdout.write(
+                `${JSON.stringify({ mode: apply ? 'apply' : 'dry-run', target: 'tb_finance_currency', database, count }, null, 2)}\n`
+            )
+        } else {
+            const rateDate = process.env.FINANCE_DEMO_RATE_DATE?.trim() || FINANCE_DEMO_RATE_DATE
+            const tables = createFinanceDemoTables(FINANCE_DEMO_SEED, rateDate)
+            const counts = await seedFinanceDemoData(connection, database, apply, tables)
+            process.stdout.write(
+                `${JSON.stringify({ mode: apply ? 'apply' : 'dry-run', seed: FINANCE_DEMO_SEED, rateDate, database, counts }, null, 2)}\n`
+            )
+        }
     } finally {
         await connection.end()
     }

@@ -10,7 +10,14 @@ const { HealthService } = require('../dist/modules/health/health.service')
 const { ResolveCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
 const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
-const { createFinanceDemoTables, seedFinanceDemoData, shouldApplyFinanceDemoSeed } = require('../dist/cli/seed-demo-finance')
+const {
+    createFinanceDemoTables,
+    FINANCE_COMMON_CURRENCIES,
+    seedFinanceDemoData,
+    shouldApplyFinanceDemoSeed,
+    shouldSyncFinanceCurrencies,
+    syncFinanceCurrencies
+} = require('../dist/cli/seed-demo-finance')
 const { createFinanceConfig, sanitizeFinanceConfig } = require('../deploy/bootstrap-nacos-config.cjs')
 
 function config(values) {
@@ -143,6 +150,40 @@ test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
         first.some(table => table.table.includes('client')),
         false
     )
+    assert.equal(FINANCE_COMMON_CURRENCIES.length, 28)
+    assert.deepEqual(
+        FINANCE_COMMON_CURRENCIES.map(item => item.currency),
+        [
+            'USD',
+            'EUR',
+            'CNY',
+            'JPY',
+            'GBP',
+            'CHF',
+            'CAD',
+            'AUD',
+            'HKD',
+            'SGD',
+            'NZD',
+            'INR',
+            'BRL',
+            'RUB',
+            'KRW',
+            'MXN',
+            'ZAR',
+            'AED',
+            'SAR',
+            'THB',
+            'IDR',
+            'MYR',
+            'VND',
+            'PHP',
+            'PLN',
+            'NOK',
+            'SEK',
+            'DKK'
+        ]
+    )
 })
 
 test('Finance 演示数据默认只预览，显式 --apply 才写入并提交', async () => {
@@ -154,13 +195,32 @@ test('Finance 演示数据默认只预览，显式 --apply 才写入并提交', 
     assert.equal(dryRunConnection.state.inserts.length, 0)
     assert.equal(
         Object.values(dryRunCounts).reduce((total, count) => total + count, 0),
-        62
+        92
     )
 
     const applyConnection = fakeDemoSeedConnection()
     await seedFinanceDemoData(applyConnection, 'chat_web_finance', true)
     assert.equal(applyConnection.state.transactionStarted, true)
-    assert.equal(applyConnection.state.inserts.length, 62)
+    assert.equal(applyConnection.state.inserts.length, 92)
+    assert.equal(applyConnection.state.committed, true)
+    assert.equal(applyConnection.state.rolledBack, false)
+})
+
+test('Finance 常用币种同步默认只预览，显式 --apply 才写入', async () => {
+    assert.equal(shouldSyncFinanceCurrencies(['--sync-currencies']), true)
+    assert.equal(shouldSyncFinanceCurrencies([]), false)
+
+    const dryRunConnection = fakeDemoSeedConnection()
+    const dryRunCount = await syncFinanceCurrencies(dryRunConnection, 'chat_web_finance', false)
+    assert.equal(dryRunCount, 28)
+    assert.equal(dryRunConnection.state.transactionStarted, false)
+    assert.equal(dryRunConnection.state.inserts.length, 0)
+
+    const applyConnection = fakeDemoSeedConnection()
+    const applyCount = await syncFinanceCurrencies(applyConnection, 'chat_web_finance', true)
+    assert.equal(applyCount, 28)
+    assert.equal(applyConnection.state.transactionStarted, true)
+    assert.equal(applyConnection.state.inserts.length, 28)
     assert.equal(applyConnection.state.committed, true)
     assert.equal(applyConnection.state.rolledBack, false)
 })
