@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectDataSource } from '@nestjs/typeorm'
 import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
 import { DataSource } from 'typeorm'
+import { ServiceDependencyResponseDto, ServiceLivenessResponseDto, ServiceReadinessResponseDto } from '@/dto/api-response.dto'
 
 type TableRow = { tableName: string }
 
@@ -12,14 +13,16 @@ export class HealthService {
         private readonly redisService: RedisService
     ) {}
 
-    getLiveness() {
+    /**财务服务存活状态*/
+    public async getLiveness(): Promise<ServiceLivenessResponseDto> {
         return { status: 'UP', timestamp: new Date().toISOString() }
     }
 
-    async getReadiness() {
+    /**财务服务就绪状态*/
+    public async getReadiness(): Promise<ServiceReadinessResponseDto> {
         const requiredTables = [...new Set(this.dataSource.entityMetadatas.map(metadata => metadata.tableName))].sort()
         let databaseReady = false
-        let database: Record<string, unknown>
+        let database: ServiceDependencyResponseDto
         try {
             const rows = (await this.dataSource.query(
                 `SELECT table_name AS tableName FROM information_schema.tables

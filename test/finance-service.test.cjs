@@ -7,8 +7,12 @@ const { HttpExceptionFilter } = require('@wlisfes/chat-web-base-schema/filters')
 
 const { SizePageDto } = require('@wlisfes/chat-web-base-schema/utils')
 const { HealthService } = require('../dist/modules/health/health.service')
+const { BrandService } = require('../dist/modules/brand/brand.service')
+const { CountryService } = require('../dist/modules/country/country.service')
+const { CurrencyService } = require('../dist/modules/currency/currency.service')
 const { ResolveCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
 const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
+const { SmsRateService } = require('../dist/modules/sms-rate/sms-rate.service')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
 const { FINANCE_COUNTRY_DATA } = require('../dist/cli/finance-country-data')
 const {
@@ -29,6 +33,63 @@ function config(values) {
             return values[key] ?? fallback
         }
     }
+}
+
+function fakeTransactionalRepository() {
+    const state = { transactions: 0, creates: [], merges: [], saves: [] }
+    const manager = {
+        create(entity, values) {
+            state.creates.push({ entity, values })
+            return { ...values }
+        },
+        merge(entity, target, values) {
+            state.merges.push({ entity, target, values })
+            Object.assign(target, values)
+            return target
+        },
+        async save(entity) {
+            state.saves.push(entity)
+            return entity
+        }
+    }
+    const repository = {
+        state,
+        manager: {
+            async transaction(callback) {
+                state.transactions += 1
+                return callback(manager)
+            }
+        }
+    }
+    return { manager, repository }
+}
+
+function fakePageQueryBuilder(items, total) {
+    const calls = []
+    const queryBuilder = {
+        calls,
+        andWhere(sql, parameters) {
+            calls.push({ method: 'andWhere', sql, parameters })
+            return queryBuilder
+        },
+        orderBy(column, direction) {
+            calls.push({ method: 'orderBy', column, direction })
+            return queryBuilder
+        },
+        skip(value) {
+            calls.push({ method: 'skip', value })
+            return queryBuilder
+        },
+        take(value) {
+            calls.push({ method: 'take', value })
+            return queryBuilder
+        },
+        async getManyAndCount() {
+            calls.push({ method: 'getManyAndCount' })
+            return [items, total]
+        }
+    }
+    return queryBuilder
 }
 
 function fakeMigrationConnection() {
@@ -166,6 +227,185 @@ test('分页参数提供默认值并拒绝越界数据', async () => {
 
     const invalid = plainToInstance(SizePageDto, { page: 0, size: 101 })
     assert.equal((await validate(invalid)).length, 2)
+})
+
+test('品牌新增和编辑在事务内完成唯一性校验与写入', async () => {
+    const { manager, repository } = fakeTransactionalRepository()
+    const calls = []
+    const existingBrand = { keyId: 8, name: '旧品牌', document: '旧说明', createBy: '10001', modifyBy: '10001' }
+    const brandUtilsService = {
+        async findNameAvailable(name, transactionManager, excludedKeyId) {
+            calls.push({ method: 'findNameAvailable', name, transactionManager, excludedKeyId })
+        },
+        async findRequired(keyId, transactionManager) {
+            calls.push({ method: 'findRequired', keyId, transactionManager })
+            return existingBrand
+        }
+    }
+    const service = new BrandService(repository, {}, brandUtilsService)
+
+    const createBody = { name: '新品牌', document: '新增说明', status: 'enable' }
+    const created = await service.httpBaseFinanceCreateBrand({ uid: '20001' }, createBody)
+
+    assert.equal(repository.state.transactions, 1)
+    assert.deepEqual(calls[0], {
+        method: 'findNameAvailable',
+        name: '新品牌',
+        transactionManager: manager,
+        excludedKeyId: undefined
+    })
+    assert.deepEqual(repository.state.creates[0].values, {
+        ...createBody,
+        createBy: '20001',
+        modifyBy: '20001'
+    })
+    assert.equal(repository.state.saves[0], created)
+
+    const updateBody = { keyId: 8, name: '更新品牌', document: '更新说明', status: 'disable' }
+    const updated = await service.httpBaseFinanceUpdateBrand({ uid: '30001' }, updateBody)
+
+    assert.equal(repository.state.transactions, 2)
+    assert.deepEqual(calls[1], { method: 'findRequired', keyId: 8, transactionManager: manager })
+    assert.deepEqual(calls[2], {
+        method: 'findNameAvailable',
+        name: '更新品牌',
+        transactionManager: manager,
+        excludedKeyId: 8
+    })
+    assert.deepEqual(repository.state.merges[0].values, { ...updateBody, modifyBy: '30001' })
+    assert.equal(repository.state.saves[1], existingBrand)
+    assert.equal(updated, existingBrand)
+    assert.equal(updated.createBy, '10001')
+    assert.equal(updated.modifyBy, '30001')
+
+    const statusUpdated = await service.httpBaseFinanceUpdateBrandStatus({ uid: '40001' }, { keyId: 8, status: 'enable' })
+    assert.equal(repository.state.transactions, 3)
+    assert.deepEqual(calls[3], { method: 'findRequired', keyId: 8, transactionManager: manager })
+    assert.equal(statusUpdated.status, 'enable')
+    assert.equal(statusUpdated.modifyBy, '40001')
+})
+
+test('国家地区和币种状态更新在事务内锁定实体后写入', async () => {
+    const countryTransactional = fakeTransactionalRepository()
+    const currencyTransactional = fakeTransactionalRepository()
+    const country = { keyId: 1, status: 'enable' }
+    const currency = { keyId: 2, status: 'enable' }
+    const countryUtilsService = {
+        async findRequired(keyId, manager) {
+            assert.equal(keyId, 1)
+            assert.equal(manager, countryTransactional.manager)
+            return country
+        }
+    }
+    const currencyUtilsService = {
+        async findRequired(keyId, manager) {
+            assert.equal(keyId, 2)
+            assert.equal(manager, currencyTransactional.manager)
+            return currency
+        }
+    }
+    const countryService = new CountryService(countryTransactional.repository, {}, countryUtilsService)
+    const currencyService = new CurrencyService(currencyTransactional.repository, {}, {}, currencyUtilsService)
+
+    await countryService.httpBaseFinanceUpdateCountryStatus({ keyId: 1, status: 'disable' })
+    await currencyService.httpBaseFinanceUpdateCurrencyStatus({ keyId: 2, status: 'disable' })
+
+    assert.equal(countryTransactional.repository.state.transactions, 1)
+    assert.equal(currencyTransactional.repository.state.transactions, 1)
+    assert.equal(country.status, 'disable')
+    assert.equal(currency.status, 'disable')
+})
+
+test('短信价格新增和编辑在事务内完成组合唯一性校验与写入', async () => {
+    const { manager, repository } = fakeTransactionalRepository()
+    const calls = []
+    const existingRate = { keyId: 18, code: '86', mcc: '460', upUsd: 0.02, downUsd: 0.01, createBy: '10001', modifyBy: '10001' }
+    const smsRateUtilsService = {
+        async findAvailable(code, mcc, transactionManager, excludedKeyId) {
+            calls.push({ method: 'findAvailable', code, mcc, transactionManager, excludedKeyId })
+        },
+        async findRequired(keyId, transactionManager) {
+            calls.push({ method: 'findRequired', keyId, transactionManager })
+            return existingRate
+        }
+    }
+    const service = new SmsRateService(repository, {}, smsRateUtilsService)
+
+    const createBody = { code: '1', mcc: '310', upUsd: 0.03, downUsd: 0.02, remark: '北美价格' }
+    const created = await service.httpBaseFinanceCreateSmsRate({ uid: '20001' }, createBody)
+
+    assert.equal(repository.state.transactions, 1)
+    assert.deepEqual(calls[0], {
+        method: 'findAvailable',
+        code: '1',
+        mcc: '310',
+        transactionManager: manager,
+        excludedKeyId: undefined
+    })
+    assert.deepEqual(repository.state.creates[0].values, {
+        ...createBody,
+        createBy: '20001',
+        modifyBy: '20001'
+    })
+    assert.equal(repository.state.saves[0], created)
+
+    const updateBody = { keyId: 18, code: '852', mcc: '454', upUsd: 0.04, downUsd: 0.03, remark: '香港价格' }
+    const updated = await service.httpBaseFinanceUpdateSmsRate({ uid: '30001' }, updateBody)
+
+    assert.equal(repository.state.transactions, 2)
+    assert.deepEqual(calls[1], { method: 'findRequired', keyId: 18, transactionManager: manager })
+    assert.deepEqual(calls[2], {
+        method: 'findAvailable',
+        code: '852',
+        mcc: '454',
+        transactionManager: manager,
+        excludedKeyId: 18
+    })
+    assert.deepEqual(repository.state.merges[0].values, { ...updateBody, modifyBy: '30001' })
+    assert.equal(repository.state.saves[1], existingRate)
+    assert.equal(updated, existingRate)
+    assert.equal(updated.createBy, '10001')
+    assert.equal(updated.modifyBy, '30001')
+})
+
+test('品牌分页通过 DataBaseService builder 查询并返回统一分页结构', async () => {
+    const repository = {}
+    const items = [
+        { keyId: 1, name: '品牌一', createBy: '10001', modifyBy: '10002' },
+        { keyId: 2, name: '品牌二', createBy: undefined, modifyBy: undefined }
+    ]
+    const queryBuilder = fakePageQueryBuilder(items, 32)
+    const state = { builderCalls: 0, repository: undefined }
+    const database = {
+        async builder(inputRepository, callback) {
+            state.builderCalls += 1
+            state.repository = inputRepository
+            return callback(queryBuilder)
+        }
+    }
+    const service = new BrandService(repository, database, {})
+
+    const result = await service.httpBaseFinanceColumnBrand({ page: 2, size: 10, name: ' 品牌 ', status: 'enable' })
+
+    assert.equal(state.builderCalls, 1)
+    assert.equal(state.repository, repository)
+    assert.deepEqual(queryBuilder.calls, [
+        { method: 'andWhere', sql: 't.name LIKE :name', parameters: { name: '%品牌%' } },
+        { method: 'andWhere', sql: 't.status = :status', parameters: { status: 'enable' } },
+        { method: 'orderBy', column: 't.createTime', direction: 'DESC' },
+        { method: 'skip', value: 10 },
+        { method: 'take', value: 10 },
+        { method: 'getManyAndCount' }
+    ])
+    assert.deepEqual(result, {
+        page: 2,
+        size: 10,
+        total: 32,
+        list: [
+            { ...items[0], createByOptions: { uid: '10001' }, modifyByOptions: { uid: '10002' } },
+            { ...items[1], createByOptions: undefined, modifyByOptions: undefined }
+        ]
+    })
 })
 
 test('旧数据迁移默认 dry-run，且只迁移 Finance 所属表', async () => {

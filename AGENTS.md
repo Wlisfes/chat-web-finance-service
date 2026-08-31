@@ -41,6 +41,23 @@
 - 本服务独占 Redis index `1`。部署必须显式设置 `REDIS_DATABASE=1`，即使 `REDIS_URL` 自带其他库号也不得降级到 Account 的 index `0`。
 - 禁止导入 Account Entity、连接 `chat_web_account`、读取 Account Redis 会话或持有 Account JWT 密钥。鉴权通过 `AccountAuthClient` 把 Bearer Token 转发到 Account `/auth/token/introspect`，其他跨服务数据访问也使用强类型 HTTP 客户端 Provider。
 
+## HTTP 模块分层与接口实现
+
+- 所有公开 HTTP 模块必须以 `chat-web-account-service/src/modules/menu/` 的 Controller、Service、Utils Service、Module 和 DTO 分层为唯一实现基准；新模块不得自行设计另一套调用结构。
+- Controller 必须保持为薄传输层，只保留路由、鉴权、接口文档等装饰器，使用 `@Query()` 或 `@Body()` 接收入参，并调用同名 Service 方法；禁止在 Controller 中查询数据库、转换参数、拼装响应或执行业务校验。
+- Cookie 读写、Header 解析、流或文件响应、重定向等依赖 Express 的纯 HTTP 协议适配允许保留在 Controller；禁止把 `Request`、`Response`、Cookie、Header 或响应发送逻辑传入业务 Service，协议例外必须写中文职责注释。
+- Controller 与对应 Service 的公开接口方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseFinance<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseFinance<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountMenuTree`、`httpBaseAccountMenuResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 不得再调用 `create`、`list`、`update`、`select` 等短方法名。
+- 每个公开 Service 方法必须添加简洁中文职责注释并声明明确的 `Promise<...>` 返回类型；分页结果使用共享 `PageResult<T>`，对外扩展字段使用独立响应 DTO，禁止依赖隐式推断掩盖响应结构变化。
+- 请求 DTO 必须位于模块自己的 `dto/*.dto.ts`，Controller 和 Service 共同使用同一协议类型；禁止在 Controller、Service 或装饰器配置中声明临时匿名 DTO。
+- 业务 Service 引用本模块请求 DTO 时统一使用 `import * as <Module>Dto` 命名空间归组，并通过 `<Module>Dto.<Type>` 标注参数；响应 DTO 继续按需使用命名导入，禁止把请求与响应协议混在同一组散乱导入中。
+- 每个接口必须通过 `ApiServiceDecorator` 完整声明请求的 `source`、`type` 和响应的 `type`、`isArray`（数组响应时）及中文说明；确实无入参的接口直接省略 request 配置，禁止为文档形式制造空 DTO。
+- DTO 字段必须提供 Swagger 示例/说明、必要的类型转换和中文校验消息；优先使用 `PickType`、`PartialType`、`IntersectionType` 复用共享 DTO，分页 DTO 继承公共 `PageDto`。
+- 查询优先通过共享 `DataBaseService.builder()` 统一创建 QueryBuilder，QueryBuilder 别名固定为 `t`；Service 负责业务流程与结果组装，可复用的详情查找、唯一性校验、批量存在性校验和锁操作必须抽入 `<module>.utils.service.ts`，Utils Service 使用 `@Injectable()` 并由 Module 注册注入。仅调用一次且无复用价值的简单步骤不得机械拆成 Utils Service。
+- 多步校验后写入、唯一性校验后写入和批量关系变更必须由 Service 建立 TypeORM 事务；Utils 方法参与事务时接收 `EntityManager` 并始终使用该 Manager 的 Repository，需要并发保护时先锁定相关数据。Module 按 `imports`、`controllers`、`providers`、`exports` 组织。
+- 普通可选字段和跨服务入参判空统一使用 `class-validator` 的 `isEmpty`、`isNotEmpty`；禁止使用 `value === undefined`、`value === null` 或一般性的隐式 truthy 判断代替判空。TypeORM 的 `getOne()` / `findOne()` 实体结果允许使用 `if (!entity)` 完成 TypeScript 空值收窄，布尔条件和集合长度判断应表达真实业务语义。
+- 三态字段必须保留“未传、显式 null、具体值”的差异；确需区分 `undefined` 与 `null` 时允许明确判断，但必须添加注释说明协议语义，禁止用 `isEmpty` 合并三态。
+- 重构不得改变现有路由、HTTP 方法、鉴权要求、请求字段、响应结构、异常信息、事务边界或业务行为；完成后至少运行格式检查、TypeScript 类型检查、完整测试和 Nest 构建。
+
 ## 分支生命周期
 
 - 远程仓库只保留 `main`、`developer` 两个长期分支；临时需求分支必须先合并到 `developer`，发布时同步合并到 `main`，合并并验证通过后立即删除远程和本地临时分支。

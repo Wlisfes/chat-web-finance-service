@@ -16,8 +16,8 @@ export class BrandController {
         request: { source: 'body', type: CreateBrandDto },
         response: { type: TbFinanceBrandDto, description: '新增后的品牌信息' }
     })
-    httpBaseFinanceCreateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: CreateBrandDto) {
-        return this.brandService.create(principal.uid, input)
+    public async httpBaseFinanceCreateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: CreateBrandDto) {
+        return this.brandService.httpBaseFinanceCreateBrand(principal, input)
     }
 
     @ApiServiceDecorator(Post('update'), {
@@ -25,8 +25,8 @@ export class BrandController {
         request: { source: 'body', type: UpdateBrandDto },
         response: { type: TbFinanceBrandDto, description: '更新后的品牌信息' }
     })
-    httpBaseFinanceUpdateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandDto) {
-        return this.brandService.update(principal.uid, input)
+    public async httpBaseFinanceUpdateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandDto) {
+        return this.brandService.httpBaseFinanceUpdateBrand(principal, input)
     }
 
     @ApiServiceDecorator(Post('update/status'), {
@@ -34,8 +34,8 @@ export class BrandController {
         request: { source: 'body', type: UpdateBrandStatusDto },
         response: { type: TbFinanceBrandDto, description: '更新后的品牌信息' }
     })
-    httpBaseFinanceUpdateBrandStatus(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandStatusDto) {
-        return this.brandService.updateStatus(principal.uid, input)
+    public async httpBaseFinanceUpdateBrandStatus(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandStatusDto) {
+        return this.brandService.httpBaseFinanceUpdateBrandStatus(principal, input)
     }
 
     @ApiServiceDecorator(Post('column'), {
@@ -43,15 +43,15 @@ export class BrandController {
         request: { source: 'body', type: ListBrandDto },
         response: { type: BrandPageResponseDto, description: '品牌分页数据' }
     })
-    httpBaseFinanceColumnBrand(@Body() input: ListBrandDto) {
-        return this.brandService.list(input)
+    public async httpBaseFinanceColumnBrand(@Body() input: ListBrandDto) {
+        return this.brandService.httpBaseFinanceColumnBrand(input)
     }
 
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用品牌下拉选项' },
         response: { type: BrandSelectResponseDto, description: '可用品牌列表' }
     })
-    httpBaseFinanceSelectBrand() {
-        return this.brandService.select()
+    public async httpBaseFinanceSelectBrand() {
+        return this.brandService.httpBaseFinanceSelectBrand()
     }
 }

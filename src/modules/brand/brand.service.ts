@@ -1,67 +1,83 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
+import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { TbFinanceBrand, TbFinanceBrandStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
+import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
+import { isNotEmpty } from 'class-validator'
 import { Repository } from 'typeorm'
-import { CreateBrandDto, ListBrandDto, UpdateBrandDto, UpdateBrandStatusDto } from '@/modules/brand/dto/brand.dto'
+import { BrandListItemResponseDto, BrandSelectResponseDto } from '@/dto/api-response.dto'
+import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
+import * as BrandDto from '@/modules/brand/dto/brand.dto'
 
 @Injectable()
 export class BrandService {
-    constructor(@InjectRepository(TbFinanceBrand) private readonly repository: Repository<TbFinanceBrand>) {}
+    constructor(
+        @InjectRepository(TbFinanceBrand) private readonly brandRepository: Repository<TbFinanceBrand>,
+        private readonly database: DataBaseService,
+        private readonly brandUtilsService: BrandUtilsService
+    ) {}
 
-    async create(actorUid: string, input: CreateBrandDto) {
-        await this.assertNameAvailable(input.name)
-        return this.repository.save(this.repository.create({ ...input, createBy: actorUid, modifyBy: actorUid }))
+    /**新增品牌*/
+    public async httpBaseFinanceCreateBrand(principal: AuthPrincipal, body: BrandDto.CreateBrandDto): Promise<TbFinanceBrand> {
+        return this.brandRepository.manager.transaction(async manager => {
+            await this.brandUtilsService.findNameAvailable(body.name, manager)
+            const brand = manager.create(TbFinanceBrand, { ...body, createBy: principal.uid, modifyBy: principal.uid })
+            return manager.save(brand)
+        })
     }
 
-    async update(actorUid: string, input: UpdateBrandDto) {
-        const brand = await this.findRequired(input.keyId)
-        await this.assertNameAvailable(input.name, input.keyId)
-        this.repository.merge(brand, input, { modifyBy: actorUid })
-        return this.repository.save(brand)
+    /**编辑品牌*/
+    public async httpBaseFinanceUpdateBrand(principal: AuthPrincipal, body: BrandDto.UpdateBrandDto): Promise<TbFinanceBrand> {
+        return this.brandRepository.manager.transaction(async manager => {
+            const brand = await this.brandUtilsService.findRequired(body.keyId, manager)
+            await this.brandUtilsService.findNameAvailable(body.name, manager, body.keyId)
+            manager.merge(TbFinanceBrand, brand, { ...body, modifyBy: principal.uid })
+            return manager.save(brand)
+        })
     }
 
-    async updateStatus(actorUid: string, input: UpdateBrandStatusDto) {
-        const brand = await this.findRequired(input.keyId)
-        brand.status = input.status
-        brand.modifyBy = actorUid
-        return this.repository.save(brand)
+    /**编辑品牌状态*/
+    public async httpBaseFinanceUpdateBrandStatus(principal: AuthPrincipal, body: BrandDto.UpdateBrandStatusDto): Promise<TbFinanceBrand> {
+        return this.brandRepository.manager.transaction(async manager => {
+            const brand = await this.brandUtilsService.findRequired(body.keyId, manager)
+            brand.status = body.status
+            brand.modifyBy = principal.uid
+            return manager.save(brand)
+        })
     }
 
-    async list(input: ListBrandDto) {
-        const query = this.repository.createQueryBuilder('brand')
-        if (input.name?.trim()) query.andWhere('brand.name LIKE :name', { name: `%${input.name.trim()}%` })
-        if (input.status) query.andWhere('brand.status = :status', { status: input.status })
-        query
-            .orderBy('brand.createTime', 'DESC')
-            .skip((input.page - 1) * input.size)
-            .take(input.size)
-        const [items, total] = await query.getManyAndCount()
-        return {
-            page: input.page,
-            size: input.size,
-            total,
-            list: items.map(item => ({
-                ...item,
-                createByOptions: item.createBy ? { uid: item.createBy } : undefined,
-                modifyByOptions: item.modifyBy ? { uid: item.modifyBy } : undefined
-            }))
-        }
+    /**品牌分页数据*/
+    public async httpBaseFinanceColumnBrand(body: BrandDto.ListBrandDto): Promise<PageResult<BrandListItemResponseDto>> {
+        return this.database.builder(this.brandRepository, async qb => {
+            if (isNotEmpty(body.name?.trim())) {
+                qb.andWhere('t.name LIKE :name', { name: `%${body.name?.trim()}%` })
+            }
+            if (isNotEmpty(body.status)) {
+                qb.andWhere('t.status = :status', { status: body.status })
+            }
+            qb.orderBy('t.createTime', 'DESC')
+                .skip((body.page - 1) * body.size)
+                .take(body.size)
+            const [items, total] = await qb.getManyAndCount()
+            return {
+                page: body.page,
+                size: body.size,
+                total,
+                list: items.map(item => ({
+                    ...item,
+                    createByOptions: isNotEmpty(item.createBy) ? { uid: item.createBy } : undefined,
+                    modifyByOptions: isNotEmpty(item.modifyBy) ? { uid: item.modifyBy } : undefined
+                }))
+            }
+        })
     }
 
-    async select() {
-        const list = await this.repository.find({ where: { status: TbFinanceBrandStatus.ENABLE }, order: { createTime: 'DESC' } })
+    /**品牌下拉数据*/
+    public async httpBaseFinanceSelectBrand(): Promise<BrandSelectResponseDto> {
+        const list = await this.database.builder(this.brandRepository, qb => {
+            return qb.where('t.status = :status', { status: TbFinanceBrandStatus.ENABLE }).orderBy('t.createTime', 'DESC').getMany()
+        })
         return { list }
-    }
-
-    private async findRequired(keyId: number) {
-        const brand = await this.repository.findOneBy({ keyId })
-        if (!brand) throw new NotFoundException('品牌不存在')
-        return brand
-    }
-
-    private async assertNameAvailable(name: string, excludedKeyId?: number) {
-        const query = this.repository.createQueryBuilder('brand').where('brand.name = :name', { name: name.trim() })
-        if (excludedKeyId) query.andWhere('brand.keyId <> :excludedKeyId', { excludedKeyId })
-        if (await query.getExists()) throw new ConflictException('品牌名称已存在')
     }
 }

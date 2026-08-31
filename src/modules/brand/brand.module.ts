@@ -3,6 +3,11 @@ import { TypeOrmModule } from '@nestjs/typeorm'
 import { TbFinanceBrand } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { BrandController } from '@/modules/brand/brand.controller'
 import { BrandService } from '@/modules/brand/brand.service'
+import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 
-@Module({ imports: [TypeOrmModule.forFeature([TbFinanceBrand])], controllers: [BrandController], providers: [BrandService] })
+@Module({
+    imports: [TypeOrmModule.forFeature([TbFinanceBrand])],
+    controllers: [BrandController],
+    providers: [BrandService, BrandUtilsService]
+})
 export class BrandModule {}

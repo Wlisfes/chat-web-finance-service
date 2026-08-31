@@ -24,8 +24,8 @@ export class CurrencyController {
         request: { source: 'body', type: ListCurrencyDto },
         response: { type: CurrencyPageResponseDto, description: '币种分页数据' }
     })
-    httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto) {
-        return this.currencyService.list(input)
+    public async httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto) {
+        return this.currencyService.httpBaseFinanceColumnCurrency(input)
     }
 
     @ApiServiceDecorator(Post('update/status'), {
@@ -33,16 +33,16 @@ export class CurrencyController {
         request: { source: 'body', type: UpdateCurrencyStatusDto },
         response: { type: TbFinanceCurrencyDto, description: '更新后的币种信息' }
     })
-    httpBaseFinanceUpdateCurrencyStatus(@Body() input: UpdateCurrencyStatusDto) {
-        return this.currencyService.updateStatus(input)
+    public async httpBaseFinanceUpdateCurrencyStatus(@Body() input: UpdateCurrencyStatusDto) {
+        return this.currencyService.httpBaseFinanceUpdateCurrencyStatus(input)
     }
 
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用币种下拉选项' },
         response: { type: CurrencySelectResponseDto, description: '可用币种列表' }
     })
-    httpBaseFinanceSelectCurrency() {
-        return this.currencyService.select()
+    public async httpBaseFinanceSelectCurrency() {
+        return this.currencyService.httpBaseFinanceSelectCurrency()
     }
 
     @ApiServiceDecorator(Post('exchange/column'), {
@@ -50,8 +50,8 @@ export class CurrencyController {
         request: { source: 'body', type: ListCurrencyExchangeDto },
         response: { type: CurrencyExchangePageResponseDto, description: '币种汇率分页数据' }
     })
-    httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto) {
-        return this.currencyService.listExchange(input)
+    public async httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto) {
+        return this.currencyService.httpBaseFinanceColumnCurrencyExchange(input)
     }
 
     @ApiServiceDecorator(Get('exchange/resolver'), {
@@ -59,7 +59,7 @@ export class CurrencyController {
         request: { source: 'query', type: ResolveCurrencyExchangeDto },
         response: { type: CurrencyExchangeResponseDto, description: '币种最新汇率' }
     })
-    httpBaseFinanceResolverCurrencyExchange(@Query() input: ResolveCurrencyExchangeDto) {
-        return this.currencyService.resolveExchange(input.currency)
+    public async httpBaseFinanceResolverCurrencyExchange(@Query() input: ResolveCurrencyExchangeDto) {
+        return this.currencyService.httpBaseFinanceResolverCurrencyExchange(input)
     }
 }

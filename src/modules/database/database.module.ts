@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
-import { createMysqlOptions } from '@wlisfes/chat-web-base-schema/database'
+import { createMysqlOptions, DataBaseService } from '@wlisfes/chat-web-base-schema/database'
 import { NacosService } from '@wlisfes/chat-web-base-schema/nacos'
 import { FINANCE_MYSQL_CONFIG_KEY, FINANCE_MYSQL_ENTITIES } from '@/modules/database/database.constants'
 
@@ -24,6 +24,7 @@ import { FINANCE_MYSQL_CONFIG_KEY, FINANCE_MYSQL_ENTITIES } from '@/modules/data
         }),
         TypeOrmModule.forFeature([...FINANCE_MYSQL_ENTITIES])
     ],
-    exports: [TypeOrmModule]
+    providers: [DataBaseService],
+    exports: [TypeOrmModule, DataBaseService]
 })
 export class DatabaseModule {}

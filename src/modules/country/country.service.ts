@@ -1,39 +1,58 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { TbFinanceCountry, TbFinanceCountryStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
+import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
+import { isNotEmpty } from 'class-validator'
 import { Repository } from 'typeorm'
-import { ListCountryDto, UpdateCountryStatusDto } from '@/modules/country/dto/country.dto'
+import { CountrySelectResponseDto } from '@/dto/api-response.dto'
+import { CountryUtilsService } from '@/modules/country/country.utils.service'
+import * as CountryDto from '@/modules/country/dto/country.dto'
 
 @Injectable()
 export class CountryService {
-    constructor(@InjectRepository(TbFinanceCountry) private readonly repository: Repository<TbFinanceCountry>) {}
+    constructor(
+        @InjectRepository(TbFinanceCountry) private readonly countryRepository: Repository<TbFinanceCountry>,
+        private readonly database: DataBaseService,
+        private readonly countryUtilsService: CountryUtilsService
+    ) {}
 
-    async list(input: ListCountryDto) {
-        const query = this.repository.createQueryBuilder('country')
-        if (input.cnName?.trim()) {
-            query.andWhere('(country.cnName LIKE :searchTerm OR country.enName LIKE :searchTerm OR country.code LIKE :searchTerm)', {
-                searchTerm: `%${input.cnName.trim()}%`
-            })
-        }
-        if (input.mcc?.trim()) query.andWhere('country.mcc LIKE :mcc', { mcc: `%${input.mcc.trim()}%` })
-        if (input.status) query.andWhere('country.status = :status', { status: input.status })
-        query
-            .orderBy('country.createTime', 'DESC')
-            .skip((input.page - 1) * input.size)
-            .take(input.size)
-        const [list, total] = await query.getManyAndCount()
-        return { page: input.page, size: input.size, total, list }
+    /**国家地区分页数据*/
+    public async httpBaseFinanceColumnCountry(body: CountryDto.ListCountryDto): Promise<PageResult<TbFinanceCountry>> {
+        return this.database.builder(this.countryRepository, async qb => {
+            if (isNotEmpty(body.cnName?.trim())) {
+                qb.andWhere('(t.cnName LIKE :searchTerm OR t.enName LIKE :searchTerm OR t.code LIKE :searchTerm)', {
+                    searchTerm: `%${body.cnName?.trim()}%`
+                })
+            }
+            if (isNotEmpty(body.mcc?.trim())) {
+                qb.andWhere('t.mcc LIKE :mcc', { mcc: `%${body.mcc?.trim()}%` })
+            }
+            if (isNotEmpty(body.status)) {
+                qb.andWhere('t.status = :status', { status: body.status })
+            }
+            qb.orderBy('t.createTime', 'DESC')
+                .skip((body.page - 1) * body.size)
+                .take(body.size)
+            const [list, total] = await qb.getManyAndCount()
+            return { page: body.page, size: body.size, total, list }
+        })
     }
 
-    async updateStatus(input: UpdateCountryStatusDto) {
-        const country = await this.repository.findOneBy({ keyId: input.keyId })
-        if (!country) throw new NotFoundException('国家/地区不存在')
-        country.status = input.status
-        return this.repository.save(country)
+    /**编辑国家地区状态*/
+    public async httpBaseFinanceUpdateCountryStatus(body: CountryDto.UpdateCountryStatusDto): Promise<TbFinanceCountry> {
+        return this.countryRepository.manager.transaction(async manager => {
+            const country = await this.countryUtilsService.findRequired(body.keyId, manager)
+            country.status = body.status
+            return manager.save(country)
+        })
     }
 
-    async select() {
-        const items = await this.repository.find({ where: { status: TbFinanceCountryStatus.ENABLE }, order: { createTime: 'DESC' } })
+    /**国家地区下拉数据*/
+    public async httpBaseFinanceSelectCountry(): Promise<CountrySelectResponseDto> {
+        const items = await this.database.builder(this.countryRepository, qb => {
+            return qb.where('t.status = :status', { status: TbFinanceCountryStatus.ENABLE }).orderBy('t.createTime', 'DESC').getMany()
+        })
         return { list: items.map(item => ({ ...item, showName: `${item.cnName} -${item.enName}` })) }
     }
 }

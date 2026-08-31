@@ -14,8 +14,8 @@ export class CountryController {
         request: { source: 'body', type: ListCountryDto },
         response: { type: CountryPageResponseDto, description: '国家地区分页数据' }
     })
-    httpBaseFinanceColumnCountry(@Body() input: ListCountryDto) {
-        return this.countryService.list(input)
+    public async httpBaseFinanceColumnCountry(@Body() input: ListCountryDto) {
+        return this.countryService.httpBaseFinanceColumnCountry(input)
     }
 
     @ApiServiceDecorator(Post('update/status'), {
@@ -23,15 +23,15 @@ export class CountryController {
         request: { source: 'body', type: UpdateCountryStatusDto },
         response: { type: TbFinanceCountryDto, description: '更新后的国家地区信息' }
     })
-    httpBaseFinanceUpdateCountryStatus(@Body() input: UpdateCountryStatusDto) {
-        return this.countryService.updateStatus(input)
+    public async httpBaseFinanceUpdateCountryStatus(@Body() input: UpdateCountryStatusDto) {
+        return this.countryService.httpBaseFinanceUpdateCountryStatus(input)
     }
 
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用国家地区下拉选项' },
         response: { type: CountrySelectResponseDto, description: '可用国家地区列表' }
     })
-    httpBaseFinanceSelectCountry() {
-        return this.countryService.select()
+    public async httpBaseFinanceSelectCountry() {
+        return this.countryService.httpBaseFinanceSelectCountry()
     }
 }
