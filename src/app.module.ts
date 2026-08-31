@@ -19,7 +19,7 @@ import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
         HttpResponseModule,
         ConfigModule.forRoot({ isGlobal: true }),
         NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
-        RedisModule,
+        RedisModule.forRoot({ database: 1 }),
         DatabaseModule,
         AccountRemoteAuthModule,
         HealthModule,
