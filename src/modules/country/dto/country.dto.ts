@@ -2,10 +2,10 @@ import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/sw
 import { Type } from 'class-transformer'
 import { IsInt, Min } from 'class-validator'
 import { TbFinanceCountryDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { SizePageDto } from '@wlisfes/chat-web-base-schema/utils'
+import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 
 export class ListCountryDto extends IntersectionType(
-    SizePageDto,
+    PageDto,
     PartialType(PickType(TbFinanceCountryDto, ['cnName', 'status', 'mcc'] as const))
 ) {}
 export class UpdateCountryStatusDto extends PickType(TbFinanceCountryDto, ['status'] as const) {

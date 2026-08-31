@@ -2,12 +2,9 @@ import { ApiProperty, ApiPropertyOptional, IntersectionType, PartialType, PickTy
 import { Type } from 'class-transformer'
 import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 import { TbFinanceCurrencyDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { SizePageDto } from '@wlisfes/chat-web-base-schema/utils'
+import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 
-export class ListCurrencyDto extends IntersectionType(
-    SizePageDto,
-    PartialType(PickType(TbFinanceCurrencyDto, ['name', 'status'] as const))
-) {}
+export class ListCurrencyDto extends IntersectionType(PageDto, PartialType(PickType(TbFinanceCurrencyDto, ['name', 'status'] as const))) {}
 export class UpdateCurrencyStatusDto extends PickType(TbFinanceCurrencyDto, ['status'] as const) {
     @ApiProperty({ description: '币种主键', example: 1 })
     @Type(() => Number)
@@ -16,7 +13,7 @@ export class UpdateCurrencyStatusDto extends PickType(TbFinanceCurrencyDto, ['st
     keyId: number
 }
 
-export class ListCurrencyExchangeDto extends SizePageDto {
+export class ListCurrencyExchangeDto extends PageDto {
     @ApiPropertyOptional({ description: '币种编码', example: 'CNY' })
     @IsOptional()
     @IsString({ message: '币种编码必须是字符串' })

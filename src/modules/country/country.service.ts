@@ -11,8 +11,8 @@ export class CountryService {
     async list(input: ListCountryDto) {
         const query = this.repository.createQueryBuilder('country')
         if (input.cnName?.trim()) {
-            query.andWhere('(country.cnName LIKE :keyword OR country.enName LIKE :keyword OR country.code LIKE :keyword)', {
-                keyword: `%${input.cnName.trim()}%`
+            query.andWhere('(country.cnName LIKE :searchTerm OR country.enName LIKE :searchTerm OR country.code LIKE :searchTerm)', {
+                searchTerm: `%${input.cnName.trim()}%`
             })
         }
         if (input.mcc?.trim()) query.andWhere('country.mcc LIKE :mcc', { mcc: `%${input.mcc.trim()}%` })

@@ -2,7 +2,7 @@ import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/sw
 import { Type } from 'class-transformer'
 import { IsInt, Min } from 'class-validator'
 import { TbFinanceBrandDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { SizePageDto } from '@wlisfes/chat-web-base-schema/utils'
+import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 
 export class CreateBrandDto extends PickType(TbFinanceBrandDto, ['name', 'document', 'status'] as const) {}
 export class UpdateBrandDto extends IntersectionType(
@@ -22,4 +22,4 @@ export class UpdateBrandStatusDto extends PickType(TbFinanceBrandDto, ['status']
     @Min(1, { message: '品牌主键必须大于0' })
     keyId: number
 }
-export class ListBrandDto extends IntersectionType(SizePageDto, PartialType(PickType(TbFinanceBrandDto, ['name', 'status'] as const))) {}
+export class ListBrandDto extends IntersectionType(PageDto, PartialType(PickType(TbFinanceBrandDto, ['name', 'status'] as const))) {}
