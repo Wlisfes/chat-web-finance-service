@@ -106,6 +106,22 @@ function fakeCountrySyncConnection(initialRows = []) {
         state,
         async execute(sql, parameters) {
             if (sql.includes('information_schema.tables')) return [[{ count: 1 }]]
+            if (sql.startsWith('SELECT COUNT(*) count')) {
+                const count = [...state.rows.values()].filter(
+                    row => row.code.startsWith('+') && state.rows.has(`${row.code.slice(1)}:${row.mcc}`)
+                ).length
+                return [[{ count }]]
+            }
+            if (sql.startsWith('UPDATE `tb_finance_country`')) {
+                for (const [key, row] of [...state.rows]) {
+                    if (!row.code.startsWith('+')) continue
+                    state.rows.delete(key)
+                    const normalized = { ...row, code: row.code.slice(1) }
+                    state.rows.set(`${normalized.code}:${normalized.mcc}`, normalized)
+                }
+                return [{ affectedRows: 0 }]
+            }
+            if (sql.startsWith('UPDATE `tb_finance_basic_sms_rate`')) return [{ affectedRows: 0 }]
             if (!sql.startsWith('INSERT INTO')) throw new Error(`Unexpected execute: ${sql}`)
 
             const [code, mcc, cnName, enName] = parameters
@@ -114,6 +130,7 @@ function fakeCountrySyncConnection(initialRows = []) {
             const updatesStatus = /`status`\s*=\s*VALUES\(`status`\)/i.test(sql)
             state.inserts.push({ sql, parameters })
             state.rows.set(key, {
+                ...existing,
                 code,
                 mcc,
                 cnName,
@@ -272,7 +289,7 @@ test('Finance 国家地区主数据包含 137 条合法且唯一的区号 MCC �
     assert.equal(FINANCE_COUNTRY_DATA.length, 137)
     const uniqueKeys = new Set()
     for (const item of FINANCE_COUNTRY_DATA) {
-        assert.match(item.code, /^\+\d{1,3}$/, `${item.cnName} 的国际区号格式错误`)
+        assert.match(item.code, /^\d{1,3}$/, `${item.cnName} 的国际区号格式错误`)
         assert.match(item.mcc, /^\d{3}$/, `${item.cnName} 的 MCC 格式错误`)
         uniqueKeys.add(`${item.code}:${item.mcc}`)
     }
@@ -301,17 +318,33 @@ test('Finance 国家地区同步默认只预览，显式 --apply 才写入', asy
 })
 
 test('Finance 国家地区同步保持幂等且不覆盖人工禁用状态', async () => {
-    const disabledCountry = { ...FINANCE_COUNTRY_DATA[0], status: 'disable' }
+    const disabledCountry = { ...FINANCE_COUNTRY_DATA[0], keyId: 1000, code: `+${FINANCE_COUNTRY_DATA[0].code}`, status: 'disable' }
     const connection = fakeCountrySyncConnection([disabledCountry])
 
     await syncFinanceCountries(connection, 'chat_web_finance', true)
     await syncFinanceCountries(connection, 'chat_web_finance', true)
 
     assert.equal(connection.state.rows.size, FINANCE_COUNTRY_DATA.length)
-    assert.equal(connection.state.rows.get(`${disabledCountry.code}:${disabledCountry.mcc}`).status, 'disable')
+    assert.equal(connection.state.rows.has(`${disabledCountry.code}:${disabledCountry.mcc}`), false)
+    assert.equal(connection.state.rows.get(`${FINANCE_COUNTRY_DATA[0].code}:${disabledCountry.mcc}`).status, 'disable')
+    assert.equal(connection.state.rows.get(`${FINANCE_COUNTRY_DATA[0].code}:${disabledCountry.mcc}`).keyId, 1000)
     assert.equal(connection.state.transactions, 2)
     assert.equal(connection.state.commits, 2)
     assert.equal(connection.state.rollbacks, 0)
+})
+
+test('Finance 国家区号转换发现新旧格式冲突时回滚', async () => {
+    const country = FINANCE_COUNTRY_DATA[0]
+    const connection = fakeCountrySyncConnection([
+        { ...country, keyId: 1000, code: `+${country.code}`, status: 'disable' },
+        { ...country, keyId: 2000, status: 'enable' }
+    ])
+
+    await assert.rejects(() => syncFinanceCountries(connection, 'chat_web_finance', true), /国家区号格式转换存在重复记录/)
+
+    assert.equal(connection.state.rows.size, 2)
+    assert.equal(connection.state.commits, 0)
+    assert.equal(connection.state.rollbacks, 1)
 })
 
 test('Finance 任一目标表已有数据时拒绝混入演示数据', async () => {

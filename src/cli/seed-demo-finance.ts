@@ -48,18 +48,18 @@ export const FINANCE_COMMON_CURRENCIES = [
 ] as const
 
 const COUNTRIES = [
-    { code: '+86', mcc: '460', cnName: '中国', enName: 'China' },
-    { code: '+1', mcc: '310', cnName: '美国', enName: 'United States' },
-    { code: '+44', mcc: '234', cnName: '英国', enName: 'United Kingdom' },
-    { code: '+65', mcc: '525', cnName: '新加坡', enName: 'Singapore' },
-    { code: '+91', mcc: '404', cnName: '印度', enName: 'India' },
-    { code: '+81', mcc: '440', cnName: '日本', enName: 'Japan' },
-    { code: '+82', mcc: '450', cnName: '韩国', enName: 'South Korea' },
-    { code: '+62', mcc: '510', cnName: '印度尼西亚', enName: 'Indonesia' },
-    { code: '+66', mcc: '520', cnName: '泰国', enName: 'Thailand' },
-    { code: '+60', mcc: '502', cnName: '马来西亚', enName: 'Malaysia' },
-    { code: '+84', mcc: '452', cnName: '越南', enName: 'Vietnam' },
-    { code: '+63', mcc: '515', cnName: '菲律宾', enName: 'Philippines' }
+    { code: '86', mcc: '460', cnName: '中国', enName: 'China' },
+    { code: '1', mcc: '311', cnName: '美国', enName: 'United States' },
+    { code: '44', mcc: '234', cnName: '英国', enName: 'United Kingdom' },
+    { code: '65', mcc: '525', cnName: '新加坡', enName: 'Singapore' },
+    { code: '91', mcc: '405', cnName: '印度', enName: 'India' },
+    { code: '81', mcc: '440', cnName: '日本', enName: 'Japan' },
+    { code: '82', mcc: '450', cnName: '韩国', enName: 'South Korea' },
+    { code: '62', mcc: '510', cnName: '印度尼西亚', enName: 'Indonesia' },
+    { code: '66', mcc: '520', cnName: '泰国', enName: 'Thailand' },
+    { code: '60', mcc: '502', cnName: '马来西亚', enName: 'Malaysia' },
+    { code: '84', mcc: '452', cnName: '越南', enName: 'Vietnam' },
+    { code: '63', mcc: '515', cnName: '菲律宾', enName: 'Philippines' }
 ] as const
 
 function variedRate(faker: Faker, rate: number): number {
@@ -179,6 +179,21 @@ export function shouldSyncFinanceCountries(argumentsList: readonly string[]): bo
     return argumentsList.includes('--sync-countries')
 }
 
+async function prefixedCodeConflictCount(
+    connection: Connection,
+    table: 'tb_finance_country' | 'tb_finance_basic_sms_rate'
+): Promise<number> {
+    const [rows] = await connection.execute<(RowDataPacket & { count: number })[]>(
+        `SELECT COUNT(*) count
+        FROM \`${table}\` legacy
+        INNER JOIN \`${table}\` normalized
+            ON normalized.\`code\` = TRIM(LEADING '+' FROM legacy.\`code\`)
+            AND normalized.\`mcc\` = legacy.\`mcc\`
+        WHERE legacy.\`code\` LIKE '+%'`
+    )
+    return Number(rows[0].count)
+}
+
 /**
  * 将常用币种补充到已有的 Finance 数据库。
  *
@@ -226,6 +241,9 @@ export async function syncFinanceCountries(
     if (!(await tableExists(connection, database, 'tb_finance_country'))) {
         throw new Error('国家/地区写入目标表不存在：tb_finance_country')
     }
+    if (!(await tableExists(connection, database, 'tb_finance_basic_sms_rate'))) {
+        throw new Error('国家/地区关联表不存在：tb_finance_basic_sms_rate')
+    }
     if (!apply) return countries.length
 
     const sql = `INSERT INTO \`tb_finance_country\` (\`code\`, \`mcc\`, \`cn_name\`, \`en_name\`, \`status\`)
@@ -235,6 +253,17 @@ export async function syncFinanceCountries(
             \`en_name\` = VALUES(\`en_name\`)`
     await connection.beginTransaction()
     try {
+        const countryConflicts = await prefixedCodeConflictCount(connection, 'tb_finance_country')
+        const smsRateConflicts = await prefixedCodeConflictCount(connection, 'tb_finance_basic_sms_rate')
+        if (countryConflicts > 0 || smsRateConflicts > 0) {
+            throw new Error(`国家区号格式转换存在重复记录：country=${countryConflicts}, smsRate=${smsRateConflicts}`)
+        }
+        await connection.execute(`UPDATE \`tb_finance_country\`
+            SET \`code\` = TRIM(LEADING '+' FROM \`code\`)
+            WHERE \`code\` LIKE '+%'`)
+        await connection.execute(`UPDATE \`tb_finance_basic_sms_rate\`
+            SET \`code\` = TRIM(LEADING '+' FROM \`code\`)
+            WHERE \`code\` LIKE '+%'`)
         for (const item of countries) await connection.execute<ResultSetHeader>(sql, [item.code, item.mcc, item.cnName, item.enName])
         await connection.commit()
         return countries.length
