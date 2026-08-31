@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, Min } from 'class-validator'
 import { TbFinanceBasicSmsRateDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { SizePageDto } from '@wlisfes/chat-web-base-schema/utils'
+import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 
 export class CreateSmsRateDto extends PickType(TbFinanceBasicSmsRateDto, ['code', 'mcc', 'upUsd', 'downUsd', 'remark'] as const) {}
 export class UpdateSmsRateDto extends IntersectionType(
@@ -16,10 +16,7 @@ export class UpdateSmsRateDto extends IntersectionType(
     @Min(1, { message: '短信基础价格主键必须大于0' })
     keyId: number
 }
-export class ListSmsRateDto extends IntersectionType(
-    SizePageDto,
-    PartialType(PickType(TbFinanceBasicSmsRateDto, ['code', 'mcc'] as const))
-) {}
+export class ListSmsRateDto extends IntersectionType(PageDto, PartialType(PickType(TbFinanceBasicSmsRateDto, ['code', 'mcc'] as const))) {}
 
 export class BatchSmsRateDto {
     @ApiProperty({ description: '国家/地区主键集合', type: [Number], example: [1, 2, 3] })

@@ -1,4 +1,5 @@
 import { ApiProperty, PickType } from '@nestjs/swagger'
+import { PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import {
     TbFinanceBasicSmsRateDto,
     TbFinanceBrandDto,
@@ -64,16 +65,7 @@ export class BrandListItemResponseDto extends TbFinanceBrandDto {
     modifyByOptions?: OperatorOptionResponseDto
 }
 
-export class BrandPageResponseDto {
-    @ApiProperty({ description: '当前页码', example: 1 })
-    page: number
-
-    @ApiProperty({ description: '每页数量', example: 50 })
-    size: number
-
-    @ApiProperty({ description: '数据总数', example: 12 })
-    total: number
-
+export class BrandPageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '品牌列表', type: [BrandListItemResponseDto] })
     list: BrandListItemResponseDto[]
 }
@@ -83,16 +75,7 @@ export class BrandSelectResponseDto {
     list: TbFinanceBrandDto[]
 }
 
-export class CountryPageResponseDto {
-    @ApiProperty({ description: '当前页码', example: 1 })
-    page: number
-
-    @ApiProperty({ description: '每页数量', example: 50 })
-    size: number
-
-    @ApiProperty({ description: '数据总数', example: 240 })
-    total: number
-
+export class CountryPageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '国家地区列表', type: [TbFinanceCountryDto] })
     list: TbFinanceCountryDto[]
 }
@@ -107,16 +90,7 @@ export class CountrySelectResponseDto {
     list: CountrySelectItemResponseDto[]
 }
 
-export class CurrencyPageResponseDto {
-    @ApiProperty({ description: '当前页码', example: 1 })
-    page: number
-
-    @ApiProperty({ description: '每页数量', example: 50 })
-    size: number
-
-    @ApiProperty({ description: '数据总数', example: 8 })
-    total: number
-
+export class CurrencyPageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '币种列表', type: [TbFinanceCurrencyDto] })
     list: TbFinanceCurrencyDto[]
 }
@@ -136,16 +110,7 @@ export class CurrencyExchangeResponseDto extends PickType(TbFinanceCurrencyExcha
     date: string
 }
 
-export class CurrencyExchangePageResponseDto {
-    @ApiProperty({ description: '当前页码', example: 1 })
-    page: number
-
-    @ApiProperty({ description: '每页数量', example: 50 })
-    size: number
-
-    @ApiProperty({ description: '数据总数', example: 365 })
-    total: number
-
+export class CurrencyExchangePageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '汇率列表', type: [CurrencyExchangeListItemResponseDto] })
     list: CurrencyExchangeListItemResponseDto[]
 }
@@ -161,16 +126,7 @@ export class SmsRateListItemResponseDto extends TbFinanceBasicSmsRateDto {
     modifyByOptions?: OperatorOptionResponseDto
 }
 
-export class SmsRatePageResponseDto {
-    @ApiProperty({ description: '当前页码', example: 1 })
-    page: number
-
-    @ApiProperty({ description: '每页数量', example: 50 })
-    size: number
-
-    @ApiProperty({ description: '数据总数', example: 240 })
-    total: number
-
+export class SmsRatePageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '短信基础价格列表', type: [SmsRateListItemResponseDto] })
     list: SmsRateListItemResponseDto[]
 }

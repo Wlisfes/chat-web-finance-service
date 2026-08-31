@@ -27,6 +27,15 @@ yarn seed:demo --apply
 
 初始化器会同时检查品牌、币种、汇率、国家地区和短信基础价格五张表；任一表已有数据即拒绝写入。旧 `tb_finance_client*` 表由 Schema 增量直接删除，不会生成客户演示数据。
 
+已有数据库只补充国际常用币种时，使用币种同步命令。该命令默认只预览，显式添加 `--apply` 才会写入；已有币种的启用/禁用状态不会被重置：
+
+```bash
+yarn currency:sync
+yarn currency:sync --apply
+```
+
+同步集合包含 USD、EUR、CNY、JPY、GBP、CHF、CAD、AUD、HKD、SGD、NZD、INR、BRL、RUB、KRW、MXN、ZAR、AED、SAR、THB、IDR、MYR、VND、PHP、PLN、NOK、SEK 和 DKK，共 28 种。
+
 ## 可观测性
 
 Docker 部署输出结构化单行 JSON 日志，日志包含 `requestId` 并支持通过容器标准输出直接排障，完整命令见 `deploy/RUNBOOK.md`。

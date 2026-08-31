@@ -1,5 +1,20 @@
 # Repository instructions
 
+本文件在本仓库内独立生效，不依赖 `F:/chat-web-service/AGENTS.md` 或其他工作区文件。
+
+## 通用工程规则
+
+- 使用 Node.js 22、Yarn 1.22.22、NestJS 11 和 TypeScript；源码使用 UTF-8，Shell、YAML 和 Dockerfile 使用 LF。
+- 统一使用 4 空格、无分号、单引号、`printWidth: 140`、无尾随逗号；内部源码统一使用 `@/*` 路径别名。
+- 文件名使用小写 kebab-case 和职责后缀；类、接口、枚举使用 PascalCase，变量、函数使用 camelCase，常量和注入 Token 使用 UPPER_SNAKE_CASE。
+- 日志、校验消息、Swagger 描述和面向维护者的错误信息使用中文，代码标识符使用英文。
+- HTTP Controller 只允许 GET、POST；GET 使用 query，POST 使用 body；多选参数必须是数组，禁止使用 `/:uid` 等路径参数。
+- 分页接口统一使用 `page`（从 1 开始）和 `size`（默认 50、最大 100）作为入参，响应统一返回 `page`、`size`、`total`、`list`；禁止使用 `pageSize`、`items`、`records` 或 `rows` 作为同义字段。
+- 请求日志必须包含 logId、方法、URL、状态码、来源、入参和耗时，并脱敏密码、Token 等敏感字段。
+- TypeORM 必须保持 `synchronize: false` 和 `migrationsRun: false`；Finance 不得连接其他业务数据库或读取其他服务 Redis。
+- `.env.example` 只列出启动所需参数和明确占位符；真实密钥、Token、私钥和生产 `.env` 不得提交。
+- 每次改动至少执行格式检查、TypeScript 类型检查和 Nest 构建；涉及数据库、代理、服务发现或部署时增加运行级验证。
+
 ## 单机部署规则
 
 - 本服务只部署到当前主机 `chat-home-server`，原另一台部署机器已废弃并下线，不得再为废弃机器创建部署任务或多机矩阵。
@@ -25,6 +40,10 @@
 - 本服务独占 MySQL 数据库 `chat_web_finance` 和独立账号。运行与 Schema 升级账号只能访问 `chat_web_finance.*`，不得拥有全局权限、Account 库权限或跨库角色；数据库由外部基础设施预创建，升级器不得执行 `CREATE DATABASE`。
 - 本服务独占 Redis index `1`。部署必须显式设置 `REDIS_DATABASE=1`，即使 `REDIS_URL` 自带其他库号也不得降级到 Account 的 index `0`。
 - 禁止导入 Account Entity、连接 `chat_web_account`、读取 Account Redis 会话或持有 Account JWT 密钥。鉴权通过 `AccountAuthClient` 把 Bearer Token 转发到 Account `/auth/token/introspect`，其他跨服务数据访问也使用强类型 HTTP 客户端 Provider。
+
+## 分支生命周期
+
+- 远程仓库只保留 `main`、`developer` 两个长期分支；临时需求分支必须先合并到 `developer`，发布时同步合并到 `main`，合并并验证通过后立即删除远程和本地临时分支。
 
 ## Git 提交规范
 
