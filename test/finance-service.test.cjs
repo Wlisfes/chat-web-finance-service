@@ -418,6 +418,10 @@ test('业务异常使用 HTTP 200 和响应体自定义 code', () => {
     const response = {
         statusCode: undefined,
         body: undefined,
+        headers: {},
+        setHeader(name, value) {
+            this.headers[name] = value
+        },
         status(code) {
             this.statusCode = code
             return this
@@ -443,5 +447,6 @@ test('业务异常使用 HTTP 200 和响应体自定义 code', () => {
     assert.equal(response.statusCode, 200)
     assert.equal(response.body.code, 400)
     assert.equal(response.body.message, '品牌参数错误')
-    assert.deepEqual(Object.keys(response.body), ['data', 'code', 'message', 'timestamp'])
+    assert.equal(response.headers['x-request-id'], response.body.logId)
+    assert.deepEqual(Object.keys(response.body), ['data', 'code', 'message', 'logId', 'timestamp'])
 })
