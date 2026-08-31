@@ -72,11 +72,43 @@ database:
     password: ${scalar(required('FINANCE_MYSQL_PASSWORD', environment, false))}
     charset: ${scalar(environment.FINANCE_MYSQL_CHARSET?.trim() || 'utf8mb4')}
     timezone: ${scalar(environment.FINANCE_MYSQL_TIMEZONE?.trim() || '+08:00')}
-`
+${createRedisConfig(environment)}`
 }
 
-function sanitizeFinanceConfig(content) {
-    const forbiddenSections = new Set(['security', 'redis'])
+function createRedisConfig(environment = process.env) {
+    const port = Number(environment.REDIS_PORT || 6379)
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error('REDIS_PORT must be an integer between 1 and 65535')
+    }
+    const timeout = Number(environment.REDIS_CONNECT_TIMEOUT_MS || 5000)
+    if (!Number.isInteger(timeout) || timeout < 100 || timeout > 60000) {
+        throw new Error('REDIS_CONNECT_TIMEOUT_MS must be an integer between 100 and 60000')
+    }
+    const tls = environment.REDIS_TLS === undefined || environment.REDIS_TLS === '' ? false : environment.REDIS_TLS === 'true'
+    if (environment.REDIS_TLS !== undefined && environment.REDIS_TLS !== '' && !['true', 'false'].includes(environment.REDIS_TLS)) {
+        throw new Error('REDIS_TLS must be true or false')
+    }
+    const scalar = value => JSON.stringify(value)
+    const lines = [
+        'redis:',
+        `  host: ${scalar(environment.REDIS_HOST?.trim() || 'chat-web-redis')}`,
+        `  port: ${port}`,
+        '  database: 1',
+        `  tls: ${tls}`,
+        `  connectTimeoutMs: ${timeout}`
+    ]
+    for (const [key, name] of [
+        ['REDIS_URL', 'url'],
+        ['REDIS_USERNAME', 'username'],
+        ['REDIS_PASSWORD', 'password']
+    ]) {
+        if (environment[key] !== undefined && environment[key] !== '') lines.push(`  ${name}: ${scalar(environment[key])}`)
+    }
+    return `${lines.join('\n')}\n`
+}
+
+function sanitizeFinanceConfig(content, environment = process.env) {
+    const forbiddenSections = new Set(['security'])
     let section = ''
     const lines = []
     for (const originalLine of content.split(/\r?\n/)) {
@@ -89,13 +121,24 @@ function sanitizeFinanceConfig(content) {
                 : originalLine
         lines.push(line)
     }
-    const sanitized = lines.join('\n').trim()
+    let sanitized = lines.join('\n').trim()
 
     if (!/^server:\s*$/m.test(sanitized) || !/^database:\s*$/m.test(sanitized) || !/^\s+chat-web-finance:\s*$/m.test(sanitized)) {
         throw new Error('Existing Finance Nacos config must contain server and database.chat-web-finance')
     }
     if (/chat-web-account/.test(sanitized)) {
         throw new Error('Existing Finance Nacos config still references chat-web-account')
+    }
+    const configLines = sanitized.split('\n')
+    const redisStart = configLines.findIndex(line => /^redis:\s*$/.test(line))
+    if (redisStart >= 0) {
+        const redisEnd = configLines.findIndex((line, index) => index > redisStart && /^[A-Za-z0-9_-]+:/.test(line))
+        const redisBlock = configLines.slice(redisStart, redisEnd >= 0 ? redisEnd : configLines.length)
+        if (!redisBlock.some(line => /^\s+database:\s*1\s*$/.test(line))) {
+            throw new Error('Existing Finance Nacos redis.database must be 1')
+        }
+    } else {
+        sanitized = `${sanitized}\n${createRedisConfig(environment).trim()}`
     }
     return `${sanitized}\n`
 }
@@ -146,4 +189,4 @@ if (require.main === module) {
     })
 }
 
-module.exports = { createFinanceConfig, sanitizeFinanceConfig }
+module.exports = { createFinanceConfig, createRedisConfig, sanitizeFinanceConfig }

@@ -244,6 +244,7 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     assert.match(financeConfig, /database:\n  chat-web-finance:/)
     assert.match(financeConfig, /name: "chat_web_finance"/)
     assert.match(financeConfig, /username: "finance-service"/)
+    assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 1/)
     assert.doesNotMatch(financeConfig, /chat-web-account/)
 })
 
@@ -260,11 +261,14 @@ security:
   jwt:
     secret: account-secret
 redis:
-  database: 0
+  host: chat-web-redis
+  port: 6379
+  database: 1
 `)
     assert.match(sanitized, /server:\n  port: 5030/)
     assert.match(sanitized, /database:\n  chat-web-finance:/)
-    assert.doesNotMatch(sanitized, /security|account-secret|redis/)
+    assert.doesNotMatch(sanitized, /security|account-secret/)
+    assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
 })
 
 test('就绪检查覆盖数据库表、独立 Redis 与远程鉴权模式', async () => {

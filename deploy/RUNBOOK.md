@@ -43,6 +43,8 @@ Finance 部署不读取 Account 的 `.env`、JWT 密钥或 Redis 会话。`/opt/
 
 仓库根目录 `.env.example` 只用于本地进程启动和 Nacos 建连；Finance 数据库、Redis index `1`、Account 上游地址和超时直接读取远端 `chat-web-finance-service.yaml`。服务器 `deploy/.env.example` 还服务于 Compose 和数据库引导，不得用根示例覆盖。
 
+Nacos 的 Redis 节点使用 `redis.host`、`redis.port`、`redis.database: 1`、`redis.tls` 和 `redis.connectTimeoutMs`；Redis 密码、用户名或 URL 只放在该 Data ID 中，不写入 `.env`。
+
 Finance Nacos Data ID 由运维预先在云端 Nacos 创建并维护，包含 Finance 专用数据库、Redis 和 Account 上游配置；部署不会从服务器 `.env` 生成或覆盖业务配置。数据库 `chat_web_finance` 必须由外部基础设施预创建。
 
 使用 Finance 连接参数进入 MySQL 后核对：

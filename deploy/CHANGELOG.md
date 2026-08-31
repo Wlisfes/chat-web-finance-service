@@ -1,5 +1,22 @@
 # 部署变更记录
 
+## 2026-08-31：Redis 改用 Nacos 嵌套配置并固定 index
+
+- 影响范围：Finance 本地运行与后续部署；Redis index 固定为 `1`。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.19`。
+- 变更内容：Finance 使用 `RedisModule.forRoot({ database: 1 })`；Redis 连接在 Nacos 配置加载后创建，并从 `redis.host`、`redis.port`、`redis.database`、`redis.tls` 和 `redis.connectTimeoutMs` 读取，凭据仍只放在 Nacos。旧 `REDIS_*` 变量仅保留为应急覆盖。
+- 机器侧操作：发布共享包并升级 Finance 后，在本服务 Data ID 中维护 `redis.database: 1`；不要把 Redis 运行字段补回 `.env`。
+- 验证命令：执行 `yarn build && yarn test`，并检查 `/health` 与 Nacos 中的 Redis index。
+- 回滚方法：恢复上一条健康 Finance 镜像及共享包版本；Nacos 配置和 Redis 数据不回滚。
+
+## 2026-08-31：升级共享基础包并统一本地依赖认证
+
+- 影响范围：Finance 本地开发与后续部署构建。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.18`。
+- 变更内容：Finance 依赖安装统一通过 `scripts/yarn-auth.cjs` 临时读取 GitHub CLI 凭据，避免 GitHub Packages 返回 401；不保存真实 Token。
+- 验证命令：`yarn install`、`yarn build`、`yarn test`。
+- 回滚方法：恢复上一版 package.json/yarn.lock 与依赖认证脚本。
+
 ## 2026-08-29：部署前清理旧版 Nacos 覆盖项
 
 - 变更内容：部署流水线自动从主机 `.env` 移除 `NACOS_REQUEST_TIMEOUT`、`NACOS_REGISTER_PORT`、`NACOS_REGISTER_IP`、`NACOS_REGISTER_REQUIRED`、`NACOS_GROUP` 和 `NACOS_CONFIG_GROUP`，统一使用共享包默认值。
