@@ -2,6 +2,7 @@ import { Faker, zh_CN } from '@faker-js/faker'
 import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 import mysql, { Connection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
+import { FINANCE_COUNTRY_DATA } from '@/cli/finance-country-data'
 
 export const FINANCE_DEMO_SEED = 20260822
 export const FINANCE_DEMO_RATE_DATE = '2026-08-22'
@@ -174,6 +175,10 @@ export function shouldSyncFinanceCurrencies(argumentsList: readonly string[]): b
     return argumentsList.includes('--sync-currencies')
 }
 
+export function shouldSyncFinanceCountries(argumentsList: readonly string[]): boolean {
+    return argumentsList.includes('--sync-countries')
+}
+
 /**
  * 将常用币种补充到已有的 Finance 数据库。
  *
@@ -207,11 +212,44 @@ export async function syncFinanceCurrencies(
     }
 }
 
+/**
+ * 将国家/地区主数据补充到 Finance 数据库。
+ *
+ * 以国际区号和代表 MCC 作为唯一键，重复执行只同步名称，不会生成重复数据或覆盖人工维护的启停状态。
+ */
+export async function syncFinanceCountries(
+    connection: Connection,
+    database: string,
+    apply: boolean,
+    countries = FINANCE_COUNTRY_DATA
+): Promise<number> {
+    if (!(await tableExists(connection, database, 'tb_finance_country'))) {
+        throw new Error('国家/地区写入目标表不存在：tb_finance_country')
+    }
+    if (!apply) return countries.length
+
+    const sql = `INSERT INTO \`tb_finance_country\` (\`code\`, \`mcc\`, \`cn_name\`, \`en_name\`, \`status\`)
+        VALUES (?, ?, ?, ?, 'enable')
+        ON DUPLICATE KEY UPDATE
+            \`cn_name\` = VALUES(\`cn_name\`),
+            \`en_name\` = VALUES(\`en_name\`)`
+    await connection.beginTransaction()
+    try {
+        for (const item of countries) await connection.execute<ResultSetHeader>(sql, [item.code, item.mcc, item.cnName, item.enName])
+        await connection.commit()
+        return countries.length
+    } catch (error) {
+        await connection.rollback()
+        throw error
+    }
+}
+
 async function main(): Promise<void> {
     loadLocalEnvironment()
     const argumentsList = process.argv.slice(2)
     const apply = shouldApplyFinanceDemoSeed(argumentsList)
     const syncCurrencies = shouldSyncFinanceCurrencies(argumentsList)
+    const syncCountries = shouldSyncFinanceCountries(argumentsList)
     const config = await loadFinanceDatabaseConfig()
     const database = getDatabaseName(config)
     const connection = await mysql.createConnection({
@@ -228,7 +266,12 @@ async function main(): Promise<void> {
             grantRows.flatMap(row => Object.values(row).filter((value): value is string => typeof value === 'string')),
             database
         )
-        if (syncCurrencies) {
+        if (syncCountries) {
+            const count = await syncFinanceCountries(connection, database, apply)
+            process.stdout.write(
+                `${JSON.stringify({ mode: apply ? 'apply' : 'dry-run', target: 'tb_finance_country', database, count }, null, 2)}\n`
+            )
+        } else if (syncCurrencies) {
             const count = await syncFinanceCurrencies(connection, database, apply)
             process.stdout.write(
                 `${JSON.stringify({ mode: apply ? 'apply' : 'dry-run', target: 'tb_finance_currency', database, count }, null, 2)}\n`

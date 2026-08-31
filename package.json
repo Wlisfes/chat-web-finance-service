@@ -11,6 +11,7 @@
         "schema:apply": "node dist/cli/apply-schema.js",
         "legacy:migrate": "node dist/cli/migrate-legacy-finance.js",
         "seed:demo": "node dist/cli/seed-demo-finance.js",
+        "country:sync": "node dist/cli/seed-demo-finance.js --sync-countries",
         "currency:sync": "node dist/cli/seed-demo-finance.js --sync-currencies",
         "test": "yarn test:unit",
         "test:unit": "node --test test/*.test.cjs",
