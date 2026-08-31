@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-08-31：修复 Redis 共享模块接入
+
+- 影响范围：Finance 本地构建与后续 `chat-home-server` 部署；本次不合并 `main`、不触发部署。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.19`。
+- 变更内容：移除共享 `RedisModule` 不支持的 `forRoot` 调用，恢复为直接导入全局模块；Redis index 继续由 Nacos `redis.database: 1` 管理，不在应用代码中写死。
+- 机器侧操作：无需修改 `.env`、Nacos、Redis 数据或容器参数。
+- 验证命令：执行 `yarn build` 和单元测试；发布时检查 `/health` 中 Redis 状态及日志中的 `database=1`。
+- 回滚方法：恢复上一条可正常构建的健康 Finance 镜像；Nacos 配置和 Redis 数据不回滚。
+
 ## 2026-08-31：拆分快速单测与完整校验
 
 - 影响范围：Finance 本地测试命令与 GitHub Actions 验证阶段；部署机器运行参数不变。
