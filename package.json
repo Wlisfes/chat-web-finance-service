@@ -12,7 +12,9 @@
         "legacy:migrate": "node dist/cli/migrate-legacy-finance.js",
         "seed:demo": "node dist/cli/seed-demo-finance.js",
         "currency:sync": "node dist/cli/seed-demo-finance.js --sync-currencies",
-        "test": "yarn build && node --test test/*.test.cjs",
+        "test": "yarn test:unit",
+        "test:unit": "node --test test/*.test.cjs",
+        "test:full": "yarn build && yarn test:unit",
         "start": "nest start",
         "dev": "nest start --watch",
         "start:prod": "node dist/main.js"
