@@ -43,10 +43,10 @@
 
 ## HTTP 模块分层与接口实现
 
-- 所有公开 HTTP 模块必须以 `chat-web-account-service/src/modules/menu/` 的 Controller、Service、Utils Service、Module 和 DTO 分层为唯一实现基准；新模块不得自行设计另一套调用结构。
+- 所有公开 HTTP 模块必须以 `chat-web-account-service/src/modules/sheet/` 的 Controller、Service、Utils Service、Module 和 DTO 分层为唯一实现基准；新模块不得自行设计另一套调用结构。
 - Controller 必须保持为薄传输层，只保留路由、鉴权、接口文档等装饰器，使用 `@Query()` 或 `@Body()` 接收入参，并调用同名 Service 方法；禁止在 Controller 中查询数据库、转换参数、拼装响应或执行业务校验。
 - Cookie 读写、Header 解析、流或文件响应、重定向等依赖 Express 的纯 HTTP 协议适配允许保留在 Controller；禁止把 `Request`、`Response`、Cookie、Header 或响应发送逻辑传入业务 Service，协议例外必须写中文职责注释。
-- Controller 与对应 Service 的公开接口方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseFinance<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseFinance<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountMenuTree`、`httpBaseAccountMenuResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 不得再调用 `create`、`list`、`update`、`select` 等短方法名。
+- Controller 与对应 Service 的公开接口方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseFinance<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseFinance<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountSheetTree`、`httpBaseAccountSheetResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 不得再调用 `create`、`list`、`update`、`select` 等短方法名。
 - 每个公开 Service 方法必须添加简洁中文职责注释并声明明确的 `Promise<...>` 返回类型；分页结果使用共享 `PageResult<T>`，对外扩展字段使用独立响应 DTO，禁止依赖隐式推断掩盖响应结构变化。
 - 请求 DTO 必须位于模块自己的 `dto/*.dto.ts`，Controller 和 Service 共同使用同一协议类型；禁止在 Controller、Service 或装饰器配置中声明临时匿名 DTO。
 - 业务 Service 引用本模块请求 DTO 时统一使用 `import * as <Module>Dto` 命名空间归组，并通过 `<Module>Dto.<Type>` 标注参数；响应 DTO 继续按需使用命名导入，禁止把请求与响应协议混在同一组散乱导入中。
