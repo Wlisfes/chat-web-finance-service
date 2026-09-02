@@ -776,7 +776,32 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     assert.doesNotMatch(financeConfig, /chat-web-account/)
 })
 
-test('已有 Finance Nacos 配置会移除 Account 安全配置', () => {
+test('已有 Finance Nacos 配置只保留服务间凭据并移除 Account 安全配置', () => {
+    const sanitized = sanitizeFinanceConfig(`server:
+  port: 3000
+database:
+  chat-web-finance:
+    host: mysql
+    name: chat_web_finance
+    username: finance-service
+    password: redacted
+security:
+  jwt:
+    secret: account-secret
+  serviceToken: finance-sync-secret
+redis:
+  host: chat-web-redis
+  port: 6379
+  database: 1
+`)
+    assert.match(sanitized, /server:\n  port: 5030/)
+    assert.match(sanitized, /database:\n  chat-web-finance:/)
+    assert.match(sanitized, /security:\n  serviceToken: finance-sync-secret/)
+    assert.doesNotMatch(sanitized, /jwt|account-secret/)
+    assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
+})
+
+test('缺少服务间凭据时仍移除整个安全配置段', () => {
     const sanitized = sanitizeFinanceConfig(`server:
   port: 3000
 database:
@@ -793,10 +818,7 @@ redis:
   port: 6379
   database: 1
 `)
-    assert.match(sanitized, /server:\n  port: 5030/)
-    assert.match(sanitized, /database:\n  chat-web-finance:/)
     assert.doesNotMatch(sanitized, /security|account-secret/)
-    assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
 })
 
 test('就绪检查覆盖数据库表、独立 Redis 与远程鉴权模式', async () => {

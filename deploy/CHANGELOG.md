@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-09-03：保留 Finance 服务间 Nacos 凭据
+
+- 影响范围：Finance 部署脚本生成和清理 Nacos 配置；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 变更内容：清理历史配置时仅保留顶层 `security.serviceToken`，继续移除 Account/JWT 等无关安全字段；缺少服务凭据时删除整个 `security` 段，避免误开放匿名访问。
+- 机器侧操作：发布前确认 Finance 与 Skyline 的 Nacos 配置使用同一服务凭据；不得将真实凭据提交到仓库或写入日志。
+- 验证命令：执行 `yarn format:check`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build` 和 `node --test --experimental-test-isolation=none test/finance-service.test.cjs test/api-documentation.test.cjs`。
+- 回滚方法：切换到上一版健康 Finance 镜像，并按需恢复上一版 Nacos 配置；不回滚已写入的汇率数据。
+
 ## 2026-09-02：新增汇率批量同步接口
 
 - 影响范围：Finance 币种汇率 HTTP 接口；本次仅提交 `developer`，未合并 `main`、未触发部署。
