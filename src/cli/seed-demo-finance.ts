@@ -105,7 +105,7 @@ export function createFinanceDemoTables(seed = FINANCE_DEMO_SEED, rateDate = FIN
         },
         {
             table: 'tb_finance_currency_exchange',
-            columns: ['currency', 'rate', 'rate_date'],
+            columns: ['currency', 'rate', 'date'],
             rows: exchanges
         },
         {

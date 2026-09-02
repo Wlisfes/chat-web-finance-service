@@ -17,7 +17,7 @@ export const TABLE_MIGRATIONS = [
     {
         source: 'tb_windows_currency_exchange',
         target: 'tb_finance_currency_exchange',
-        columns: 'key_id,currency,rate,rate_date,create_time,modify_time',
+        columns: 'key_id,currency,rate,date,create_time,modify_time',
         select: 'key_id,currency,rate,date,create_time,modify_time'
     },
     {

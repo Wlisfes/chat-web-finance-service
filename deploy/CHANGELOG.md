@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-02：统一汇率日期列名
+
+- 影响范围：Finance 数据库结构及演示/旧数据迁移脚本；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：等待 `@wlisfes/chat-web-base-schema` 发布包含 `20260902090000__tb_finance_currency_exchange__rename_rate_date_to_date.sql` 的新版本。
+- 变更内容：`tb_finance_currency_exchange.rate_date` 重命名为 `date`；共享 Entity 仍以 `rateDate` 作为兼容的 TypeScript 属性，种子数据和旧库迁移改为写入新的物理列名。
+- 机器侧操作：发布共享包后先升级 Finance 依赖，再执行 `yarn schema:apply`；确认列、唯一索引和普通索引均指向 `date` 后再重启服务。已执行的历史增量 SQL 不得修改。
+- 验证命令：执行 `yarn format:check`、`yarn build`、`yarn test`；运行级验证执行 `SHOW COLUMNS FROM tb_finance_currency_exchange`、`SHOW INDEX FROM tb_finance_currency_exchange` 和 `/health/live`。
+- 回滚方法：增量 DDL 执行后不可通过镜像回滚恢复旧列名；如需回滚，使用经备份验证的反向 DDL 并同步回退共享包和 Finance 镜像。
+
 ## 2026-08-31：修复 Redis 共享模块接入
 
 - 影响范围：Finance 本地构建与后续 `chat-home-server` 部署；本次不合并 `main`、不触发部署。

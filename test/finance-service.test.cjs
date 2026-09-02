@@ -435,7 +435,7 @@ test('迁移 SQL 保留旧自增主键并映射汇率日期', () => {
     const exchange = TABLE_MIGRATIONS.find(item => item.source === 'tb_windows_currency_exchange')
     const sql = buildInsertSelectSql(exchange, 'legacy_windows', 'chat_web_finance')
     assert.match(sql, /^INSERT INTO `chat_web_finance`.`tb_finance_currency_exchange` \(`key_id`/)
-    assert.match(sql, /`rate_date`.*SELECT.*`date`/)
+    assert.match(sql, /`date`.*SELECT.*`date`/)
 })
 
 test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
@@ -446,6 +446,7 @@ test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
         first.map(table => table.table),
         ['tb_finance_brand', 'tb_finance_currency', 'tb_finance_currency_exchange', 'tb_finance_country', 'tb_finance_basic_sms_rate']
     )
+    assert.deepEqual(first.find(table => table.table === 'tb_finance_currency_exchange').columns, ['currency', 'rate', 'date'])
     assert.equal(
         first.some(table => table.table.includes('client')),
         false
