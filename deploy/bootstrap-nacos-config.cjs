@@ -221,7 +221,9 @@ async function main() {
     const existingConfig = await readConfig(financeDataId)
     if (existingConfig) {
         const sanitized = sanitizeFinanceConfig(existingConfig)
-        if (sanitized !== `${existingConfig.trim()}\n`) {
+        // Nacos 可能按 CRLF 返回历史配置；统一换行后比较，避免每次部署重复发布同一份配置。
+        const normalizedExisting = `${existingConfig.replace(/\r\n?/g, '\n').trim()}\n`
+        if (sanitized !== normalizedExisting) {
             await publishConfig(financeDataId, sanitized)
             process.stdout.write(`Nacos config sanitized: ${financeDataId}\n`)
             return

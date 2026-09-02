@@ -821,6 +821,25 @@ redis:
     assert.doesNotMatch(sanitized, /security|account-secret/)
 })
 
+test('Nacos 返回 CRLF 时清理结果与规范化配置一致', () => {
+    const content = `server:
+  port: 5030
+database:
+  chat-web-finance:
+    host: mysql
+    name: chat_web_finance
+    username: finance-service
+    password: redacted
+redis:
+  host: chat-web-redis
+  port: 6379
+  database: 1
+`
+    const crlfContent = content.replace(/\n/g, '\r\n')
+    const sanitized = sanitizeFinanceConfig(crlfContent)
+    assert.equal(sanitized, `${content.trim()}\n`)
+})
+
 test('就绪检查覆盖数据库表、独立 Redis 与远程鉴权模式', async () => {
     const service = new HealthService(
         {
