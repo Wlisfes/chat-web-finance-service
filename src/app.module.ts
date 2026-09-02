@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
-import { AccountRemoteAuthModule, JwtAuthGuard } from '@wlisfes/chat-web-base-schema/auth'
+import { AccountRemoteAuthModule } from '@wlisfes/chat-web-base-schema/auth'
 import { HttpResponseModule } from '@wlisfes/chat-web-base-schema/interceptor'
 import { forRootNacosRuntimeOptions, NacosModule } from '@wlisfes/chat-web-base-schema/nacos'
 import { RedisModule } from '@wlisfes/chat-web-base-schema/redis'
