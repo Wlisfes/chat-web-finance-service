@@ -115,6 +115,28 @@ export class CurrencyExchangePageResponseDto extends PageResponseDataDto {
     list: CurrencyExchangeListItemResponseDto[]
 }
 
+export class CurrencyExchangeSyncListItemResponseDto {
+    @ApiProperty({ description: '币种编码', example: 'CNY' })
+    currency: string
+
+    @ApiProperty({ description: '基于 USD 的汇率', example: 7.2534 })
+    rate: number
+
+    @ApiProperty({ description: '汇率日期', format: 'date', example: '2026-09-02' })
+    date: string
+}
+
+export class CurrencyExchangeSyncResponseDto {
+    @ApiProperty({ description: '汇率日期', format: 'date', example: '2026-09-02' })
+    date: string
+
+    @ApiProperty({ description: '已同步汇率数量', example: 28 })
+    count: number
+
+    @ApiProperty({ description: '已同步汇率列表', type: [CurrencyExchangeSyncListItemResponseDto] })
+    list: CurrencyExchangeSyncListItemResponseDto[]
+}
+
 export class SmsRateListItemResponseDto extends TbFinanceBasicSmsRateDto {
     @ApiProperty({ description: '国家地区信息', type: TbFinanceCountryDto, required: false })
     countryOptions?: TbFinanceCountryDto

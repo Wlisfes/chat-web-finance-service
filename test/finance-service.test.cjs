@@ -10,7 +10,7 @@ const { HealthService } = require('../dist/modules/health/health.service')
 const { BrandService } = require('../dist/modules/brand/brand.service')
 const { CountryService } = require('../dist/modules/country/country.service')
 const { CurrencyService } = require('../dist/modules/currency/currency.service')
-const { ResolveCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
+const { ResolveCurrencyExchangeDto, SyncCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
 const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
 const { SmsRateService } = require('../dist/modules/sms-rate/sms-rate.service')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
@@ -62,6 +62,25 @@ function fakeTransactionalRepository() {
         }
     }
     return { manager, repository }
+}
+
+function fakeExchangeSyncRepository() {
+    const state = { transactions: 0, upserts: [] }
+    const manager = {
+        async upsert(entity, values, conflictPaths) {
+            state.upserts.push({ entity, values, conflictPaths })
+            return { identifiers: values.map((_, index) => ({ keyId: index + 1 })) }
+        }
+    }
+    const repository = {
+        manager: {
+            async transaction(callback) {
+                state.transactions += 1
+                return callback(manager)
+            }
+        }
+    }
+    return { repository, state }
 }
 
 function fakePageQueryBuilder(items, total) {
@@ -217,6 +236,64 @@ test('CRM 聚合接口使用国家数组和单一币种查询 DTO', async () => 
     assert.deepEqual(await validate(batch), [])
     assert.ok((await validate(plainToInstance(BatchSmsRateDto, { countryKeyIds: 1 }))).length > 0)
     assert.deepEqual(await validate(plainToInstance(ResolveCurrencyExchangeDto, { currency: 'CNY' })), [])
+})
+
+test('汇率同步 DTO 校验数组并规范化币种编码', async () => {
+    const dto = plainToInstance(SyncCurrencyExchangeDto, {
+        date: '2026-09-02',
+        rates: [
+            { currency: ' cny ', rate: '7.2534' },
+            { currency: 'EUR', rate: 0.92 }
+        ]
+    })
+    assert.deepEqual(await validate(dto), [])
+    assert.equal(dto.rates[0].currency, 'CNY')
+    assert.equal(dto.rates[0].rate, 7.2534)
+    assert.ok((await validate(plainToInstance(SyncCurrencyExchangeDto, { date: '2026-09-02', rates: {} }))).length > 0)
+})
+
+test('汇率同步按币种和日期事务幂等写入并返回统一结果', async () => {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const service = new CurrencyService({}, repository, {}, {})
+    const result = await service.httpBaseFinanceSyncCurrencyExchange({
+        date: '2026-09-02T00:00:00.000Z',
+        rates: [
+            { currency: ' cny ', rate: 7.2534 },
+            { currency: 'eur', rate: 0.92 }
+        ]
+    })
+
+    assert.equal(state.transactions, 1)
+    assert.deepEqual(state.upserts[0].values, [
+        { currency: 'CNY', rate: 7.2534, rateDate: '2026-09-02' },
+        { currency: 'EUR', rate: 0.92, rateDate: '2026-09-02' }
+    ])
+    assert.deepEqual(state.upserts[0].conflictPaths, ['currency', 'rateDate'])
+    assert.deepEqual(result, {
+        date: '2026-09-02',
+        count: 2,
+        list: [
+            { currency: 'CNY', rate: 7.2534, date: '2026-09-02' },
+            { currency: 'EUR', rate: 0.92, date: '2026-09-02' }
+        ]
+    })
+})
+
+test('汇率同步拒绝重复币种，避免覆盖请求内数据', async () => {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const service = new CurrencyService({}, repository, {}, {})
+    await assert.rejects(
+        () =>
+            service.httpBaseFinanceSyncCurrencyExchange({
+                date: '2026-09-02',
+                rates: [
+                    { currency: 'CNY', rate: 7 },
+                    { currency: 'cny', rate: 8 }
+                ]
+            }),
+        /汇率币种重复：CNY/
+    )
+    assert.equal(state.transactions, 0)
 })
 
 test('分页参数提供默认值并拒绝越界数据', async () => {

@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-02：新增汇率批量同步接口
+
+- 影响范围：Finance 币种汇率 HTTP 接口；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：服务当前版本 `0.0.1`，共享 Schema 依赖沿用已发布版本。
+- 变更内容：新增受 Bearer 鉴权保护的 `POST /currency/exchange/sync`，按“币种 + 日期”幂等写入汇率，供 Skyline 定时任务通过 Feign 调用；请求和响应 DTO 补充字段类型、示例与校验。
+- 机器侧操作：发布时按正常 Finance 镜像更新流程滚动替换，无需修改 Nacos、数据库结构或外部基础设施。
+- 验证命令：执行 `yarn prettier --check "src/**/*.ts" "test/**/*.cjs"`、`yarn build`、`node --test --experimental-test-isolation=none test/finance-service.test.cjs` 和 `node --test --experimental-test-isolation=none test/api-documentation.test.cjs`；部署后使用有效 Bearer 调用同步接口并检查 `tb_finance_currency_exchange` 的日期唯一记录。
+- 回滚方法：切换到上一版健康 Finance 镜像；已写入的汇率记录按日期保留，不执行破坏性回滚。
+
 ## 2026-09-02：统一汇率日期列名
 
 - 影响范围：Finance 数据库结构及演示/旧数据迁移脚本；本次仅提交 `developer`，未合并 `main`、未触发部署。

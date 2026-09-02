@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { TbFinanceCurrency, TbFinanceCurrencyExchange, TbFinanceCurrencyStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
@@ -87,5 +87,38 @@ export class CurrencyService {
         }
         const exchange = await this.currencyUtilsService.findExchangeRequired(normalizedCurrency)
         return { ...exchange, date: exchange.rateDate }
+    }
+
+    /**批量同步指定日期的币种汇率。*/
+    public async httpBaseFinanceSyncCurrencyExchange(
+        body: CurrencyDto.SyncCurrencyExchangeDto
+    ): Promise<ResponseDto.CurrencyExchangeSyncResponseDto> {
+        const normalizedRates = body.rates.map(item => ({ currency: item.currency.trim().toUpperCase(), rate: item.rate }))
+        const currencies = new Set<string>()
+        const duplicated: string[] = []
+        for (const item of normalizedRates) {
+            if (currencies.has(item.currency)) {
+                duplicated.push(item.currency)
+            }
+            currencies.add(item.currency)
+        }
+        if (duplicated.length) {
+            throw new BadRequestException(`汇率币种重复：${[...new Set(duplicated)].join('、')}`)
+        }
+
+        const date = body.date.slice(0, 10)
+        await this.exchangeRepository.manager.transaction(async manager => {
+            await manager.upsert(
+                TbFinanceCurrencyExchange,
+                normalizedRates.map(item => ({ ...item, rateDate: date })),
+                ['currency', 'rateDate']
+            )
+        })
+
+        return {
+            date,
+            count: normalizedRates.length,
+            list: normalizedRates.map(item => ({ ...item, date }))
+        }
     }
 }

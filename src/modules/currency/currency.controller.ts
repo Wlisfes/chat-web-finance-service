@@ -6,11 +6,13 @@ import {
     ListCurrencyDto,
     ListCurrencyExchangeDto,
     ResolveCurrencyExchangeDto,
+    SyncCurrencyExchangeDto,
     UpdateCurrencyStatusDto
 } from '@/modules/currency/dto/currency.dto'
 import {
     CurrencyExchangePageResponseDto,
     CurrencyExchangeResponseDto,
+    CurrencyExchangeSyncResponseDto,
     CurrencyPageResponseDto,
     CurrencySelectResponseDto
 } from '@/dto/api-response.dto'
@@ -61,5 +63,14 @@ export class CurrencyController {
     })
     public async httpBaseFinanceResolverCurrencyExchange(@Query() input: ResolveCurrencyExchangeDto) {
         return this.currencyService.httpBaseFinanceResolverCurrencyExchange(input)
+    }
+
+    @ApiServiceDecorator(Post('exchange/sync'), {
+        operation: { summary: '批量同步币种汇率' },
+        request: { source: 'body', type: SyncCurrencyExchangeDto },
+        response: { type: CurrencyExchangeSyncResponseDto, description: '汇率同步结果' }
+    })
+    public async httpBaseFinanceSyncCurrencyExchange(@Body() input: SyncCurrencyExchangeDto) {
+        return this.currencyService.httpBaseFinanceSyncCurrencyExchange(input)
     }
 }
