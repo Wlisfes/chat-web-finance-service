@@ -11,6 +11,8 @@ const { BrandService } = require('../dist/modules/brand/brand.service')
 const { CountryService } = require('../dist/modules/country/country.service')
 const { CurrencyService } = require('../dist/modules/currency/currency.service')
 const { ResolveCurrencyExchangeDto, SyncCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
+const { FinanceAuthGuard } = require('../dist/modules/auth/finance-auth.guard')
+const { FINANCE_SERVICE_TOKEN_ALLOWED } = require('../dist/modules/auth/finance-auth.decorator')
 const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
 const { SmsRateService } = require('../dist/modules/sms-rate/sms-rate.service')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
@@ -254,7 +256,16 @@ test('汇率同步 DTO 校验数组并规范化币种编码', async () => {
 
 test('汇率同步按币种和日期事务幂等写入并返回统一结果', async () => {
     const { repository, state } = fakeExchangeSyncRepository()
-    const service = new CurrencyService({}, repository, {}, {})
+    const service = new CurrencyService(
+        {},
+        repository,
+        {},
+        {
+            async findEnabledCurrencies(currencies) {
+                return new Set(currencies)
+            }
+        }
+    )
     const result = await service.httpBaseFinanceSyncCurrencyExchange({
         date: '2026-09-02T00:00:00.000Z',
         rates: [
@@ -281,7 +292,16 @@ test('汇率同步按币种和日期事务幂等写入并返回统一结果', as
 
 test('汇率同步拒绝重复币种，避免覆盖请求内数据', async () => {
     const { repository, state } = fakeExchangeSyncRepository()
-    const service = new CurrencyService({}, repository, {}, {})
+    const service = new CurrencyService(
+        {},
+        repository,
+        {},
+        {
+            async findEnabledCurrencies(currencies) {
+                return new Set(currencies)
+            }
+        }
+    )
     await assert.rejects(
         () =>
             service.httpBaseFinanceSyncCurrencyExchange({
@@ -294,6 +314,74 @@ test('汇率同步拒绝重复币种，避免覆盖请求内数据', async () =>
         /汇率币种重复：CNY/
     )
     assert.equal(state.transactions, 0)
+})
+
+test('汇率同步只写入已启用币种并保留明确传入的 USD', async () => {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const service = new CurrencyService(
+        {},
+        repository,
+        {},
+        {
+            async findEnabledCurrencies() {
+                return new Set(['CNY'])
+            }
+        }
+    )
+    const result = await service.httpBaseFinanceSyncCurrencyExchange({
+        date: '2026-09-02',
+        rates: [
+            { currency: 'USD', rate: 1 },
+            { currency: 'CNY', rate: 7.25 },
+            { currency: 'EUR', rate: 0.92 }
+        ]
+    })
+
+    assert.deepEqual(state.upserts[0].values, [
+        { currency: 'USD', rate: 1, rateDate: '2026-09-02' },
+        { currency: 'CNY', rate: 7.25, rateDate: '2026-09-02' }
+    ])
+    assert.deepEqual(result.list, [
+        { currency: 'USD', rate: 1, date: '2026-09-02' },
+        { currency: 'CNY', rate: 7.25, date: '2026-09-02' }
+    ])
+})
+
+test('Finance 汇率同步支持专用服务凭据且不绕过普通 Bearer 鉴权', async () => {
+    const calls = { jwt: 0 }
+    const reflector = {
+        getAllAndOverride(key) {
+            return key === FINANCE_SERVICE_TOKEN_ALLOWED
+        }
+    }
+    const configService = {
+        get(key) {
+            return key === 'security.serviceToken' ? 'finance-sync-secret' : undefined
+        }
+    }
+    const jwtAuthGuard = {
+        async canActivate() {
+            calls.jwt += 1
+            return true
+        }
+    }
+    const guard = new FinanceAuthGuard(reflector, configService, jwtAuthGuard)
+    const context = authorization => ({
+        getHandler() {},
+        getClass() {},
+        switchToHttp() {
+            return { getRequest: () => ({ header: () => authorization }) }
+        }
+    })
+
+    assert.equal(await guard.canActivate(context('Bearer finance-sync-secret')), true)
+    assert.equal(calls.jwt, 0)
+    assert.equal(await guard.canActivate(context('Bearer account-token')), true)
+    assert.equal(calls.jwt, 1)
+
+    const missingConfigGuard = new FinanceAuthGuard(reflector, { get: () => undefined }, jwtAuthGuard)
+    assert.equal(await missingConfigGuard.canActivate(context('Bearer finance-sync-secret')), true)
+    assert.equal(calls.jwt, 2)
 })
 
 test('分页参数提供默认值并拒绝越界数据', async () => {

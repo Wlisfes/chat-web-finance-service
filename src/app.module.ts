@@ -13,6 +13,7 @@ import { CurrencyModule } from '@/modules/currency/currency.module'
 import { DatabaseModule } from '@/modules/database/database.module'
 import { HealthModule } from '@/modules/health/health.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
+import { FinanceAuthGuard } from '@/modules/auth/finance-auth.guard'
 
 @Module({
     imports: [
@@ -29,6 +30,6 @@ import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
         SmsRateModule
     ],
     controllers: [AppController],
-    providers: [AppService, { provide: APP_GUARD, useExisting: JwtAuthGuard }]
+    providers: [AppService, FinanceAuthGuard, { provide: APP_GUARD, useExisting: FinanceAuthGuard }]
 })
 export class AppModule {}

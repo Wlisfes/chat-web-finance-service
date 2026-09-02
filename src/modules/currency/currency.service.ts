@@ -107,18 +107,27 @@ export class CurrencyService {
         }
 
         const date = body.date.slice(0, 10)
+        let writableRates: Array<{ currency: string; rate: number }> = []
         await this.exchangeRepository.manager.transaction(async manager => {
+            const enabledCurrencies = await this.currencyUtilsService.findEnabledCurrencies(
+                normalizedRates.map(item => item.currency),
+                manager
+            )
+            writableRates = normalizedRates.filter(item => item.currency === 'USD' || enabledCurrencies.has(item.currency))
+            if (!writableRates.length) {
+                throw new BadRequestException('没有可同步的启用币种')
+            }
             await manager.upsert(
                 TbFinanceCurrencyExchange,
-                normalizedRates.map(item => ({ ...item, rateDate: date })),
+                writableRates.map(item => ({ ...item, rateDate: date })),
                 ['currency', 'rateDate']
             )
         })
 
         return {
             date,
-            count: normalizedRates.length,
-            list: normalizedRates.map(item => ({ ...item, date }))
+            count: writableRates.length,
+            list: writableRates.map(item => ({ ...item, date }))
         }
     }
 }

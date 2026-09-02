@@ -9,6 +9,15 @@
 - 验证命令：执行 `yarn prettier --check "src/**/*.ts" "test/**/*.cjs"`、`yarn build`、`node --test --experimental-test-isolation=none test/finance-service.test.cjs` 和 `node --test --experimental-test-isolation=none test/api-documentation.test.cjs`；部署后使用有效 Bearer 调用同步接口并检查 `tb_finance_currency_exchange` 的日期唯一记录。
 - 回滚方法：切换到上一版健康 Finance 镜像；已写入的汇率记录按日期保留，不执行破坏性回滚。
 
+## 2026-09-02：限制汇率同步写入范围并支持服务凭据
+
+- 影响范围：Finance 汇率同步接口鉴权和币种过滤；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：服务当前版本 `0.0.1`，共享 Schema 依赖不变。
+- 变更内容：同步接口继续接受有效 Account Bearer Token，并额外允许与 Nacos `security.serviceToken`（或 `FINANCE_SERVICE_TOKEN`）完全匹配的服务间 Bearer；未配置服务凭据时不会开放匿名访问。写入前只保留已启用币种，USD 仅在请求明确提供时作为特殊基础币种保留。
+- 机器侧操作：在 Skyline 与 Finance 的 Nacos 配置中使用同一服务凭据，禁止写入仓库或日志；无需修改数据库结构和外部基础设施。
+- 验证命令：执行 `yarn prettier --check "src/**/*.ts" "test/**/*.cjs"`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build` 及 Finance 单元/API 文档测试。
+- 回滚方法：切换到上一版健康 Finance 镜像；服务凭据配置保持不变。
+
 ## 2026-09-02：统一汇率日期列名
 
 - 影响范围：Finance 数据库结构及演示/旧数据迁移脚本；本次仅提交 `developer`，未合并 `main`、未触发部署。

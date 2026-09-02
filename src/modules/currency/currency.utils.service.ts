@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { TbFinanceCurrency, TbFinanceCurrencyExchange } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
+import { TbFinanceCurrency, TbFinanceCurrencyExchange, TbFinanceCurrencyStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
 import { isNotEmpty } from 'class-validator'
 import { EntityManager, Repository } from 'typeorm'
@@ -38,5 +38,18 @@ export class CurrencyUtilsService {
             throw new NotFoundException(`币种 ${currency} 暂无可用汇率`)
         }
         return exchange
+    }
+
+    /**获取已启用的币种编码；用于过滤外部汇率同步数据。*/
+    public async findEnabledCurrencies(currencies: string[], manager?: EntityManager): Promise<Set<string>> {
+        if (!currencies.length) return new Set()
+        const repository = (manager ?? this.currencyRepository.manager).getRepository(TbFinanceCurrency)
+        const list = await this.database.builder(repository, qb => {
+            return qb
+                .where('t.status = :status', { status: TbFinanceCurrencyStatus.ENABLE })
+                .andWhere('t.currency IN (:...currencies)', { currencies })
+                .getMany()
+        })
+        return new Set(list.map(item => item.currency.trim().toUpperCase()))
     }
 }
