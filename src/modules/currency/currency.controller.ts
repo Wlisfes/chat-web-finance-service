@@ -27,7 +27,7 @@ export class CurrencyController {
         request: { source: 'body', type: ListCurrencyDto },
         response: { type: CurrencyPageResponseDto, description: '币种分页数据' }
     })
-    public async httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto) {
+    public async httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto): Promise<CurrencyPageResponseDto> {
         return this.currencyService.httpBaseFinanceColumnCurrency(input)
     }
 
@@ -36,7 +36,7 @@ export class CurrencyController {
         request: { source: 'body', type: UpdateCurrencyStatusDto },
         response: { type: TbFinanceCurrencyDto, description: '更新后的币种信息' }
     })
-    public async httpBaseFinanceUpdateCurrencyStatus(@Body() input: UpdateCurrencyStatusDto) {
+    public async httpBaseFinanceUpdateCurrencyStatus(@Body() input: UpdateCurrencyStatusDto): Promise<TbFinanceCurrencyDto> {
         return this.currencyService.httpBaseFinanceUpdateCurrencyStatus(input)
     }
 
@@ -44,7 +44,7 @@ export class CurrencyController {
         operation: { summary: '获取可用币种下拉选项' },
         response: { type: CurrencySelectResponseDto, description: '可用币种列表' }
     })
-    public async httpBaseFinanceSelectCurrency() {
+    public async httpBaseFinanceSelectCurrency(): Promise<CurrencySelectResponseDto> {
         return this.currencyService.httpBaseFinanceSelectCurrency()
     }
 
@@ -53,7 +53,7 @@ export class CurrencyController {
         request: { source: 'body', type: ListCurrencyExchangeDto },
         response: { type: CurrencyExchangePageResponseDto, description: '币种汇率分页数据' }
     })
-    public async httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto) {
+    public async httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto): Promise<CurrencyExchangePageResponseDto> {
         return this.currencyService.httpBaseFinanceColumnCurrencyExchange(input)
     }
 
@@ -62,7 +62,7 @@ export class CurrencyController {
         request: { source: 'query', type: ResolveCurrencyExchangeDto },
         response: { type: CurrencyExchangeResponseDto, description: '币种最新汇率' }
     })
-    public async httpBaseFinanceResolverCurrencyExchange(@Query() input: ResolveCurrencyExchangeDto) {
+    public async httpBaseFinanceResolverCurrencyExchange(@Query() input: ResolveCurrencyExchangeDto): Promise<CurrencyExchangeResponseDto> {
         return this.currencyService.httpBaseFinanceResolverCurrencyExchange(input)
     }
 
@@ -72,7 +72,7 @@ export class CurrencyController {
         response: { type: CurrencyExchangeSyncResponseDto, description: '汇率同步结果' }
     })
     @AllowFinanceServiceToken()
-    public async httpBaseFinanceSyncCurrencyExchange(@Body() input: SyncCurrencyExchangeDto) {
+    public async httpBaseFinanceSyncCurrencyExchange(@Body() input: SyncCurrencyExchangeDto): Promise<CurrencyExchangeSyncResponseDto> {
         return this.currencyService.httpBaseFinanceSyncCurrencyExchange(input)
     }
 }
