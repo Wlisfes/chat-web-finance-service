@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
-import mysql from 'mysql2/promise'
+import mysql, { RowDataPacket } from 'mysql2/promise'
+import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 import { applySchema } from '@/cli/apply-schema'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
 
@@ -36,6 +37,21 @@ export async function dropMigrationUser(connection: mysql.Connection, credential
     await connection.query(`DROP USER IF EXISTS ${account}`)
 }
 
+/** 判断当前连接是否已经是仅限 Finance 数据库的业务账号。 */
+export function isDatabaseAccountIsolated(grants: readonly string[], database: string): boolean {
+    try {
+        assertMysqlDatabaseIsolation(grants, database)
+        return true
+    } catch {
+        return false
+    }
+}
+
+async function currentGrants(connection: mysql.Connection): Promise<string[]> {
+    const [rows] = await connection.query<RowDataPacket[]>('SHOW GRANTS FOR CURRENT_USER()')
+    return rows.flatMap(row => Object.values(row).filter((value): value is string => typeof value === 'string'))
+}
+
 /** 使用 Nacos 中的管理员连接临时授权，再以受限账号执行 Schema。 */
 async function main(): Promise<void> {
     loadLocalEnvironment()
@@ -53,6 +69,12 @@ async function main(): Promise<void> {
         charset: process.env.FINANCE_MYSQL_CHARSET || config.charset || 'utf8mb4'
     })
     const credentials = createMigrationCredentials()
+
+    if (isDatabaseAccountIsolated(await currentGrants(adminConnection), database)) {
+        await adminConnection.end()
+        await applySchema()
+        return
+    }
 
     try {
         await createMigrationUser(adminConnection, database, credentials)
