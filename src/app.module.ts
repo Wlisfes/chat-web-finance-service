@@ -15,6 +15,7 @@ import { HealthModule } from '@/modules/health/health.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
 import { FinanceAuthGuard } from '@/modules/auth/finance-auth.guard'
 import { FeignConfigModule } from '@/modules/feign/feign-config.module'
+import { IntegrationModule } from '@/modules/integration/integration.module'
 
 @Module({
     imports: [
@@ -22,6 +23,7 @@ import { FeignConfigModule } from '@/modules/feign/feign-config.module'
         ConfigModule.forRoot({ isGlobal: true }),
         NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
         FeignConfigModule,
+        IntegrationModule,
         RedisModule,
         DatabaseModule,
         AccountRemoteAuthModule,
