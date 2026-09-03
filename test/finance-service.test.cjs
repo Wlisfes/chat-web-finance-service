@@ -374,7 +374,7 @@ test('Finance 汇率同步支持专用服务凭据且不绕过普通 Bearer 鉴�
     }
     const configService = {
         get(key) {
-            return key === 'security.serviceToken' ? 'finance-sync-secret' : undefined
+            return key === 'feign.service_token' ? 'finance-sync-secret' : undefined
         }
     }
     const jwtAuthGuard = {
@@ -799,44 +799,64 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
         FINANCE_MYSQL_PORT: '3306',
         FINANCE_MYSQL_DATABASE: 'chat_web_finance',
         FINANCE_MYSQL_USERNAME: 'finance-service',
-        FINANCE_MYSQL_PASSWORD: 'redacted'
+        FINANCE_MYSQL_PASSWORD: 'redacted',
+        FINANCE_SERVICE_TOKEN: 'redacted-token'
     })
     assert.match(financeConfig, /server:\n  port: 5030/)
     assert.match(financeConfig, /database:\n  chat-web-finance:/)
     assert.match(financeConfig, /name: "chat_web_finance"/)
     assert.match(financeConfig, /username: "finance-service"/)
-    assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 1/)
-    assert.doesNotMatch(financeConfig, /chat-web-account/)
+    assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 3/)
+    assert.match(financeConfig, /feign:\n  service_token: "redacted-token"/)
+    assert.match(financeConfig, /chat-web-account/)
 })
 
-test('已有 Finance Nacos 配置只保留服务间凭据并移除 Account 安全配置', () => {
+test('已有 Finance Nacos 配置只读校验并保留人工配置', () => {
     const sanitized = sanitizeFinanceConfig(`server:
-  port: 3000
+  port: 5030
+feign:
+  service_token: finance-sync-secret
+  chat-web-account:
+    url: http://chat-web-account-service:5010
+    timeout: 3000
+  chat-web-crm:
+    url: http://chat-web-crm-service:5020
+    timeout: 3000
+  chat-web-skyline:
+    url: http://chat-web-skyline-service:5040
+    timeout: 3000
 database:
   chat-web-finance:
     host: mysql
     name: chat_web_finance
     username: finance-service
     password: redacted
-security:
-  jwt:
-    secret: account-secret
-  serviceToken: finance-sync-secret
 redis:
   host: chat-web-redis
   port: 6379
   database: 1
 `)
     assert.match(sanitized, /server:\n  port: 5030/)
-    assert.match(sanitized, /database:\n  chat-web-finance:/)
-    assert.match(sanitized, /security:\n  serviceToken: finance-sync-secret/)
-    assert.doesNotMatch(sanitized, /jwt|account-secret/)
+    assert.match(sanitized, /feign:\n  service_token: finance-sync-secret/)
+    assert.match(sanitized, /chat-web-crm|chat-web-skyline/)
     assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
 })
 
-test('缺少服务间凭据时仍移除整个安全配置段', () => {
-    const sanitized = sanitizeFinanceConfig(`server:
-  port: 3000
+test('缺少 Feign 服务间凭据时拒绝配置', () => {
+    assert.throws(
+        () =>
+            sanitizeFinanceConfig(`server:
+  port: 5030
+feign:
+  chat-web-account:
+    url: http://chat-web-account-service:5010
+    timeout: 3000
+  chat-web-crm:
+    url: http://chat-web-crm-service:5020
+    timeout: 3000
+  chat-web-skyline:
+    url: http://chat-web-skyline-service:5040
+    timeout: 3000
 database:
   chat-web-finance:
     host: mysql
@@ -850,13 +870,25 @@ redis:
   host: chat-web-redis
   port: 6379
   database: 1
-`)
-    assert.doesNotMatch(sanitized, /security|account-secret/)
+`),
+        /feign\.service_token/
+    )
 })
 
-test('Nacos 返回 CRLF 时清理结果与规范化配置一致', () => {
+test('Nacos 返回 CRLF 时只规范换行且不改写配置', () => {
     const content = `server:
   port: 5030
+feign:
+  service_token: token
+  chat-web-account:
+    url: http://chat-web-account-service:5010
+    timeout: 3000
+  chat-web-crm:
+    url: http://chat-web-crm-service:5020
+    timeout: 3000
+  chat-web-skyline:
+    url: http://chat-web-skyline-service:5040
+    timeout: 3000
 database:
   chat-web-finance:
     host: mysql
