@@ -7,7 +7,33 @@ import mysql, { RowDataPacket } from 'mysql2/promise'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
 
 type MigrationRow = RowDataPacket & { checksum: string }
+type ColumnRow = RowDataPacket & { columnName: string }
 const MIGRATION_TABLE = 'tb_finance_schema_migration'
+export const RATE_DATE_RENAME_MIGRATION = '20260902090000__tb_finance_currency_exchange__rename_rate_date_to_date.sql'
+
+/** 确保汇率日期列已从旧名称迁移到 date，兼容已由完整建表 SQL 创建新列的数据库。 */
+export async function ensureCurrencyExchangeDateColumn(connection: mysql.Connection): Promise<boolean> {
+    const [rows] = await connection.query<ColumnRow[]>(
+        `SELECT COLUMN_NAME AS columnName
+           FROM information_schema.columns
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'tb_finance_currency_exchange'
+            AND COLUMN_NAME IN ('rate_date', 'date')`
+    )
+    const hasRateDate = rows.some(row => row.columnName === 'rate_date')
+    const hasDate = rows.some(row => row.columnName === 'date')
+
+    if (hasDate && !hasRateDate) return false
+    if (hasRateDate && hasDate) {
+        throw new Error('汇率表同时存在 rate_date 和 date 字段，请先人工确认数据后再执行 Schema 迁移')
+    }
+    if (!hasRateDate) {
+        throw new Error('汇率表缺少 rate_date 字段，无法执行日期列重命名迁移')
+    }
+
+    await connection.query("ALTER TABLE `tb_finance_currency_exchange` CHANGE COLUMN `rate_date` `date` date NOT NULL COMMENT '汇率日期'")
+    return true
+}
 
 function changesDirectory(): string {
     const schemaEntry = createRequire(__filename).resolve('@wlisfes/chat-web-base-schema/chat-web-finance-mysql')
@@ -54,9 +80,11 @@ async function main(): Promise<void> {
                 process.stdout.write(`Schema migration skipped: ${filename}\n`)
                 continue
             }
-            await connection.query(sql)
+            let applied = true
+            if (filename === RATE_DATE_RENAME_MIGRATION) applied = await ensureCurrencyExchangeDateColumn(connection)
+            else await connection.query(sql)
             await connection.execute(`INSERT INTO \`${MIGRATION_TABLE}\` (filename, checksum) VALUES (?, ?)`, [filename, checksum])
-            process.stdout.write(`Schema migration applied: ${filename}\n`)
+            process.stdout.write(`Schema migration ${applied ? 'applied' : 'skipped (date 列已存在)'}: ${filename}\n`)
         }
     } finally {
         await connection.end()

@@ -28,6 +28,7 @@ const {
     syncFinanceCurrencies
 } = require('../dist/cli/seed-demo-finance')
 const { createFinanceConfig, sanitizeFinanceConfig } = require('../deploy/bootstrap-nacos-config.cjs')
+const { RATE_DATE_RENAME_MIGRATION, ensureCurrencyExchangeDateColumn } = require('../dist/cli/apply-schema')
 
 function config(values) {
     return {
@@ -144,6 +145,23 @@ function fakeMigrationConnection() {
         },
         async rollback() {
             state.rolledBack = true
+        }
+    }
+}
+
+function fakeRateDateMigrationConnection(columns) {
+    const state = { altered: false }
+    return {
+        state,
+        async query(sql) {
+            if (sql.includes('information_schema.columns')) {
+                return [columns.map(columnName => ({ columnName }))]
+            }
+            if (sql.startsWith('ALTER TABLE `tb_finance_currency_exchange`')) {
+                state.altered = true
+                return []
+            }
+            throw new Error(`Unexpected query: ${sql}`)
         }
     }
 }
@@ -601,6 +619,21 @@ test('迁移 SQL 保留旧自增主键并映射汇率日期', () => {
     const sql = buildInsertSelectSql(exchange, 'legacy_windows', 'chat_web_finance')
     assert.match(sql, /^INSERT INTO `chat_web_finance`.`tb_finance_currency_exchange` \(`key_id`/)
     assert.match(sql, /`date`.*SELECT.*`date`/)
+})
+
+test('汇率日期重命名迁移兼容完整建表 SQL 已创建 date 列的数据库', async () => {
+    assert.equal(RATE_DATE_RENAME_MIGRATION, '20260902090000__tb_finance_currency_exchange__rename_rate_date_to_date.sql')
+
+    const legacy = fakeRateDateMigrationConnection(['rate_date'])
+    assert.equal(await ensureCurrencyExchangeDateColumn(legacy), true)
+    assert.equal(legacy.state.altered, true)
+
+    const alreadyMigrated = fakeRateDateMigrationConnection(['date'])
+    assert.equal(await ensureCurrencyExchangeDateColumn(alreadyMigrated), false)
+    assert.equal(alreadyMigrated.state.altered, false)
+
+    const inconsistent = fakeRateDateMigrationConnection(['rate_date', 'date'])
+    await assert.rejects(() => ensureCurrencyExchangeDateColumn(inconsistent), /同时存在 rate_date 和 date 字段/)
 })
 
 test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
