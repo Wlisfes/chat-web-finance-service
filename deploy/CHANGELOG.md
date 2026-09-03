@@ -6,7 +6,7 @@
 - 关联版本：服务版本 `0.0.1`；共享 Schema 版本由 `package.json` 依赖声明决定。
 - 变更内容：Dockerfile 根据 `npm view` 返回的 tarball 地址更新 `yarn.lock` 时，同时兼容 GitHub Packages 的 `/download/...` 地址和旧版 `/-/...tgz` 地址，并在安装前校验替换确实生效，避免干净构建继续使用失效链接。
 - 机器侧操作：无需修改 Nacos、数据库、Redis、Runner 或部署目录；发布前确认构建密钥仍通过 BuildKit Secret 提供。
-- 验证命令：执行 `yarn format:check`、`yarn typecheck`、`yarn build`、`yarn test:full`；构建日志确认私有 Schema 包安装成功。
+- 验证命令：执行 `yarn format:check`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build`、`yarn test:full`；构建日志确认私有 Schema 包安装成功。
 - 回滚方法：切换到上一版健康 Finance 镜像；本次仅影响依赖下载阶段，不涉及数据库或业务数据变更。
 
 ## 2026-09-03：兼容汇率日期列迁移状态
