@@ -16,6 +16,7 @@
         "test": "yarn test:unit",
         "test:unit": "node --test test/*.test.cjs",
         "test:full": "yarn build && yarn test:unit",
+        "schema:apply:bootstrap": "node dist/cli/apply-schema-bootstrap.js",
         "start": "node scripts/start-with-cluster-port.cjs start",
         "dev": "node scripts/start-with-cluster-port.cjs start --watch",
         "start:prod": "node dist/main.js"

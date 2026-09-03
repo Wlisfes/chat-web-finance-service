@@ -40,7 +40,8 @@ function changesDirectory(): string {
     return path.join(path.resolve(path.dirname(schemaEntry), '../../../..'), 'src/schema/chat-web-finance-mysql/sql/changes')
 }
 
-async function main(): Promise<void> {
+/** 按文件名顺序幂等执行 Finance 数据库增量 SQL。 */
+export async function applySchema(): Promise<void> {
     loadLocalEnvironment()
     const config = await loadFinanceDatabaseConfig()
     const database = getDatabaseName(config)
@@ -92,7 +93,7 @@ async function main(): Promise<void> {
 }
 
 if (require.main === module) {
-    main().catch(error => {
+    applySchema().catch(error => {
         process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
         process.exitCode = 1
     })

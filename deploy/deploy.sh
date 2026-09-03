@@ -47,7 +47,8 @@ done
 network=$(sed -n 's/^DOCKER_NETWORK=//p' .env | tail -n 1)
 network=${network:-chat-web-infrastructure}
 
-docker run --rm --network "$network" --env-file .env --entrypoint node "$IMAGE" dist/cli/apply-schema.js
+# 先以临时的单库账号执行共享包提供的增量 SQL，避免 Nacos 中的管理员账号触发权限隔离检查。
+docker run --rm --network "$network" --env-file .env --entrypoint node "$IMAGE" dist/cli/apply-schema-bootstrap.js
 
 if ! compose up -d --no-deps "$SERVICE"; then
     rollback
