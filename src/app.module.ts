@@ -14,12 +14,14 @@ import { DatabaseModule } from '@/modules/database/database.module'
 import { HealthModule } from '@/modules/health/health.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
 import { FinanceAuthGuard } from '@/modules/auth/finance-auth.guard'
+import { FeignConfigModule } from '@/modules/feign/feign-config.module'
 
 @Module({
     imports: [
         HttpResponseModule,
         ConfigModule.forRoot({ isGlobal: true }),
         NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
+        FeignConfigModule,
         RedisModule,
         DatabaseModule,
         AccountRemoteAuthModule,

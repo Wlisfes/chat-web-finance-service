@@ -1,5 +1,23 @@
 # 部署变更记录
 
+## 2026-09-03：本地 Nacos 客户端端口冲突自动避让
+
+- 影响范围：Finance 本地开发启动；`chat-home-server` 的生产容器启动命令不变。
+- 关联版本：Finance 本次 `developer` 分支提交。
+- 变更内容：`yarn dev` 和 `yarn start` 启动前检测 Nacos Node 客户端默认端口 `7777`，冲突时在 `20000-45000` 中随机选择本机可用端口并仅注入当前子进程；不修改 `.env`、Nacos 或 Docker 配置。
+- 机器侧操作：无需配置固定 `NODE_CLUSTER_CLIENT_PORT`；继续按现有 Nacos 启动参数运行。
+- 验证命令：执行 `yarn prettier --check scripts/start-with-cluster-port.cjs`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build`，并分别验证默认端口空闲和占用场景。
+- 回滚方法：恢复本次提交前的 `package.json` 并删除启动包装器；Nacos 与业务数据无需回滚。
+
+## 2026-09-03：适配嵌套 Feign 配置并停止部署回写 Nacos
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Finance 本次完整 Git SHA 镜像。
+- 变更内容：启动时将 Nacos `feign.chat-web-*.url/timeout` 映射为共享客户端兼容键，服务凭据读取 `feign.service_token`；部署前脚本改为只读校验，不再清理或回写人工配置。
+- 机器侧操作：确认 Finance Nacos 已配置 `server.port`、`database.chat-web-finance`、`redis` 及 Account/CRM/Skyline Feign 节点；`.env` 仅保留 Nacos 启动参数。
+- 验证命令：执行 `yarn build`、`yarn tsc -p tsconfig.json --noEmit` 和 `node --test test/*.test.cjs`；部署后检查 `/health/live`、远程 Account 鉴权和 Feign 调用。
+- 回滚方法：恢复上一版 Finance 镜像和部署脚本；Nacos 配置不回滚。
+
 ## 2026-09-03：兼容私有 Schema 包锁文件地址
 
 - 影响范围：Finance Docker 依赖安装阶段；本次仅提交 `developer`，未合并 `main`、未触发部署。
