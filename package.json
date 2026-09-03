@@ -6,8 +6,8 @@
     "scripts": {
         "install": "node scripts/yarn-auth.cjs install --ignore-scripts",
         "build": "nest build",
-        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.cjs\" \"deploy/**/*.cjs\" \".github/workflows/*.yml\"",
-        "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.cjs\" \"deploy/**/*.cjs\" \".github/workflows/*.yml\"",
+        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \"deploy/**/*.cjs\" \".github/workflows/*.yml\"",
+        "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \"deploy/**/*.cjs\" \".github/workflows/*.yml\"",
         "schema:apply": "node dist/cli/apply-schema.js",
         "legacy:migrate": "node dist/cli/migrate-legacy-finance.js",
         "seed:demo": "node dist/cli/seed-demo-finance.js",
@@ -16,8 +16,8 @@
         "test": "yarn test:unit",
         "test:unit": "node --test test/*.test.cjs",
         "test:full": "yarn build && yarn test:unit",
-        "start": "nest start",
-        "dev": "nest start --watch",
+        "start": "node scripts/start-with-cluster-port.cjs start",
+        "dev": "node scripts/start-with-cluster-port.cjs start --watch",
         "start:prod": "node dist/main.js"
     },
     "dependencies": {
