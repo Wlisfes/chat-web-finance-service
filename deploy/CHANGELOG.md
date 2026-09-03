@@ -9,6 +9,15 @@
 - 验证命令：执行 `yarn prettier --check scripts/start-with-cluster-port.cjs`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build`，并分别验证默认端口空闲和占用场景。
 - 回滚方法：恢复本次提交前的 `package.json` 并删除启动包装器；Nacos 与业务数据无需回滚。
 
+## 2026-09-04：部署 Schema 使用临时单库账号
+
+- 影响范围：Finance `chat-home-server` 部署流水线的 Schema 阶段。
+- 关联版本：Finance 本次 `developer` 分支修复提交。
+- 变更内容：部署前从 Nacos 读取现有数据库连接；使用该连接创建仅授权 Finance 数据库的随机临时迁移账号，执行增量 Schema 后立即删除，避免管理员账号被权限隔离检查拒绝；不修改 Nacos 配置。
+- 机器侧操作：无需新增环境变量、数据库账号或手工 SQL；确认 Nacos 中已有可连接目标库且具备创建/授权临时账号的管理员权限。
+- 验证命令：执行 `yarn format:check`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build`、`yarn test:full`；部署后检查 `/health/live` 和 Schema 迁移台账。
+- 回滚方法：恢复上一版 Finance 镜像和 `deploy/deploy.sh`；已完成的幂等 Schema 迁移无需回滚，临时账号会在脚本结束时清理。
+
 ## 2026-09-03：适配嵌套 Feign 配置并停止部署回写 Nacos
 
 - 影响机器：`chat-home-server`。
