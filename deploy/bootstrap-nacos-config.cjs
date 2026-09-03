@@ -108,19 +108,71 @@ function createRedisConfig(environment = process.env) {
 }
 
 function sanitizeFinanceConfig(content, environment = process.env) {
-    const forbiddenSections = new Set(['security'])
-    let section = ''
     const lines = []
+    let block = []
+    let blockRoot
+    const flushBlock = () => {
+        if (!block.length) return
+        if (blockRoot !== 'security') {
+            lines.push(...block)
+            block = []
+            blockRoot = undefined
+            return
+        }
+
+        const rootIndex = block.findIndex(line => /^security:(?:\s.*)?$/.test(line))
+        const tokenPattern = /^(\s+)serviceToken\s*:\s*(\S.*)$/
+        const childIndentations = block
+            .slice(rootIndex + 1)
+            .filter(line => line.trim() && !line.trim().startsWith('#'))
+            .map(line => line.match(/^\s*/)?.[0].length ?? 0)
+            .filter(indent => indent > 0)
+        const childIndent = childIndentations.length ? Math.min(...childIndentations) : 0
+        const tokenIndex = block.findIndex((line, index) => {
+            const match = line.match(tokenPattern)
+            return index > rootIndex && Boolean(match) && (childIndent === 0 || match?.[1].length === childIndent)
+        })
+        if (rootIndex < 0 || tokenIndex < 0) {
+            block = []
+            blockRoot = undefined
+            return
+        }
+
+        const tokenMatch = block[tokenIndex].match(tokenPattern)
+        if (!tokenMatch) {
+            block = []
+            blockRoot = undefined
+            return
+        }
+
+        lines.push(...block.slice(0, rootIndex + 1), block[tokenIndex])
+        // 仅在明确使用 YAML block scalar 时保留 serviceToken 的续行，其他 security 子项全部丢弃。
+        if (/^[|>][-+0-9]*$/.test(tokenMatch[2].trim())) {
+            for (let index = tokenIndex + 1; index < block.length; index += 1) {
+                const line = block[index]
+                const indentation = line.match(/^\s*/)?.[0].length ?? 0
+                if (!line.trim() || indentation > tokenMatch[1].length) {
+                    lines.push(line)
+                    continue
+                }
+                break
+            }
+        }
+        block = []
+        blockRoot = undefined
+    }
+
     for (const originalLine of content.split(/\r?\n/)) {
-        const root = originalLine.match(/^([A-Za-z0-9_-]+):(?:\s.*)?$/)
-        if (root) section = root[1]
-        if (forbiddenSections.has(section)) continue
+        const root = originalLine.match(/^([A-Za-z0-9_-]+):(?:\s.*)?$/)?.[1]
+        if (root && blockRoot !== undefined) flushBlock()
+        if (root) blockRoot = root
         const line =
-            section === 'server' && /^\s+port:\s*/.test(originalLine)
+            blockRoot === 'server' && /^\s+port:\s*/.test(originalLine)
                 ? originalLine.replace(/^(\s*)port:.*$/, '$1port: 5030')
                 : originalLine
-        lines.push(line)
+        block.push(line)
     }
+    flushBlock()
     let sanitized = lines.join('\n').trim()
 
     if (!/^server:\s*$/m.test(sanitized) || !/^database:\s*$/m.test(sanitized) || !/^\s+chat-web-finance:\s*$/m.test(sanitized)) {
@@ -169,7 +221,9 @@ async function main() {
     const existingConfig = await readConfig(financeDataId)
     if (existingConfig) {
         const sanitized = sanitizeFinanceConfig(existingConfig)
-        if (sanitized !== `${existingConfig.trim()}\n`) {
+        // Nacos 可能按 CRLF 返回历史配置；统一换行后比较，避免每次部署重复发布同一份配置。
+        const normalizedExisting = `${existingConfig.replace(/\r\n?/g, '\n').trim()}\n`
+        if (sanitized !== normalizedExisting) {
             await publishConfig(financeDataId, sanitized)
             process.stdout.write(`Nacos config sanitized: ${financeDataId}\n`)
             return

@@ -14,7 +14,12 @@ RUN --mount=type=cache,id=yarn-cache,target=/usr/local/share/.cache/yarn,sharing
     schema_version="$(node -p "require('./package.json').dependencies['@wlisfes/chat-web-base-schema']")"; \
     schema_tarball="$(npm view "@wlisfes/chat-web-base-schema@${schema_version}" dist.tarball --silent)"; \
     test -n "$schema_tarball"; \
-    sed -i "s|https://npm.pkg.github.com/@wlisfes/chat-web-base-schema/-/chat-web-base-schema-${schema_version}.tgz|${schema_tarball}|g" yarn.lock; \
+    schema_tarball_sed="$(printf '%s' "$schema_tarball" | sed 's/[&|]/\\&/g')"; \
+    sed -i \
+      -e "s|https://npm.pkg.github.com/@wlisfes/chat-web-base-schema/-/chat-web-base-schema-[^\" ]*|${schema_tarball_sed}|g" \
+      -e "s|https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/[^\" ]*|${schema_tarball_sed}|g" \
+      yarn.lock; \
+    grep -Fq "$schema_tarball" yarn.lock; \
     yarn install --frozen-lockfile --non-interactive --ignore-scripts
 
 FROM dependencies AS builder

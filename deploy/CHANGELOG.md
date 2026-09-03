@@ -1,5 +1,58 @@
 # 部署变更记录
 
+## 2026-09-03：兼容私有 Schema 包锁文件地址
+
+- 影响范围：Finance Docker 依赖安装阶段；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：服务版本 `0.0.1`；共享 Schema 版本由 `package.json` 依赖声明决定。
+- 变更内容：Dockerfile 根据 `npm view` 返回的 tarball 地址更新 `yarn.lock` 时，同时兼容 GitHub Packages 的 `/download/...` 地址和旧版 `/-/...tgz` 地址，并在安装前校验替换确实生效，避免干净构建继续使用失效链接。
+- 机器侧操作：无需修改 Nacos、数据库、Redis、Runner 或部署目录；发布前确认构建密钥仍通过 BuildKit Secret 提供。
+- 验证命令：执行 `yarn format:check`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build`、`yarn test:full`；构建日志确认私有 Schema 包安装成功。
+- 回滚方法：切换到上一版健康 Finance 镜像；本次仅影响依赖下载阶段，不涉及数据库或业务数据变更。
+
+## 2026-09-03：兼容汇率日期列迁移状态
+
+- 影响范围：Finance Schema 增量迁移执行器；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：服务版本 `0.0.1`，共享 Schema 迁移文件校验和保持不变。
+- 变更内容：执行 `rate_date` 重命名迁移前检查目标表字段；已由完整建表 SQL 创建 `date` 列时记录迁移并跳过重复 DDL，旧列存在时继续执行重命名，同时对双列或缺列状态报出明确错误。
+- 机器侧操作：发布前确认 `tb_finance_currency_exchange` 仅存在 `rate_date` 或 `date` 其中一列；无需修改 Nacos、Redis 或业务数据。
+- 验证命令：执行 `yarn prettier --check "src/**/*.ts" "test/**/*.cjs"`、`yarn build` 和 `node test/finance-service.test.cjs`；发布后执行 `SHOW COLUMNS FROM tb_finance_currency_exchange` 与 `yarn schema:apply`。
+- 回滚方法：切换到上一版健康 Finance 镜像；已执行的列重命名不可通过镜像回滚恢复，必要时使用备份验证后的反向 DDL 并同步回退共享 Schema 版本。
+
+## 2026-09-03：保留 Finance 服务间 Nacos 凭据
+
+- 影响范围：Finance 部署脚本生成和清理 Nacos 配置；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 变更内容：清理历史配置时仅保留顶层 `security.serviceToken`，继续移除 Account/JWT 等无关安全字段；缺少服务凭据时删除整个 `security` 段，避免误开放匿名访问。
+- 机器侧操作：发布前确认 Finance 与 Skyline 的 Nacos 配置使用同一服务凭据；不得将真实凭据提交到仓库或写入日志。
+- 验证命令：执行 `yarn format:check`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build` 和 `node --test --experimental-test-isolation=none test/finance-service.test.cjs test/api-documentation.test.cjs`。
+- 回滚方法：切换到上一版健康 Finance 镜像，并按需恢复上一版 Nacos 配置；不回滚已写入的汇率数据。
+
+## 2026-09-02：新增汇率批量同步接口
+
+- 影响范围：Finance 币种汇率 HTTP 接口；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：服务当前版本 `0.0.1`，共享 Schema 依赖沿用已发布版本。
+- 变更内容：新增受 Bearer 鉴权保护的 `POST /currency/exchange/sync`，按“币种 + 日期”幂等写入汇率，供 Skyline 定时任务通过 Feign 调用；请求和响应 DTO 补充字段类型、示例与校验。
+- 机器侧操作：发布时按正常 Finance 镜像更新流程滚动替换，无需修改 Nacos、数据库结构或外部基础设施。
+- 验证命令：执行 `yarn prettier --check "src/**/*.ts" "test/**/*.cjs"`、`yarn build`、`node --test --experimental-test-isolation=none test/finance-service.test.cjs` 和 `node --test --experimental-test-isolation=none test/api-documentation.test.cjs`；部署后使用有效 Bearer 调用同步接口并检查 `tb_finance_currency_exchange` 的日期唯一记录。
+- 回滚方法：切换到上一版健康 Finance 镜像；已写入的汇率记录按日期保留，不执行破坏性回滚。
+
+## 2026-09-02：限制汇率同步写入范围并支持服务凭据
+
+- 影响范围：Finance 汇率同步接口鉴权和币种过滤；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：服务当前版本 `0.0.1`，共享 Schema 依赖不变。
+- 变更内容：同步接口继续接受有效 Account Bearer Token，并额外允许与 Nacos `security.serviceToken`（或 `FINANCE_SERVICE_TOKEN`）完全匹配的服务间 Bearer；未配置服务凭据时不会开放匿名访问。写入前只保留已启用币种，USD 仅在请求明确提供时作为特殊基础币种保留。
+- 机器侧操作：在 Skyline 与 Finance 的 Nacos 配置中使用同一服务凭据，禁止写入仓库或日志；无需修改数据库结构和外部基础设施。
+- 验证命令：执行 `yarn prettier --check "src/**/*.ts" "test/**/*.cjs"`、`yarn tsc -p tsconfig.json --noEmit`、`yarn build` 及 Finance 单元/API 文档测试。
+- 回滚方法：切换到上一版健康 Finance 镜像；服务凭据配置保持不变。
+
+## 2026-09-02：统一汇率日期列名
+
+- 影响范围：Finance 数据库结构及演示/旧数据迁移脚本；本次仅提交 `developer`，未合并 `main`、未触发部署。
+- 关联版本：等待 `@wlisfes/chat-web-base-schema` 发布包含 `20260902090000__tb_finance_currency_exchange__rename_rate_date_to_date.sql` 的新版本。
+- 变更内容：`tb_finance_currency_exchange.rate_date` 重命名为 `date`；共享 Entity 仍以 `rateDate` 作为兼容的 TypeScript 属性，种子数据和旧库迁移改为写入新的物理列名。
+- 机器侧操作：发布共享包后先升级 Finance 依赖，再执行 `yarn schema:apply`；确认列、唯一索引和普通索引均指向 `date` 后再重启服务。已执行的历史增量 SQL 不得修改。
+- 验证命令：执行 `yarn format:check`、`yarn build`、`yarn test`；运行级验证执行 `SHOW COLUMNS FROM tb_finance_currency_exchange`、`SHOW INDEX FROM tb_finance_currency_exchange` 和 `/health/live`。
+- 回滚方法：增量 DDL 执行后不可通过镜像回滚恢复旧列名；如需回滚，使用经备份验证的反向 DDL 并同步回退共享包和 Finance 镜像。
+
 ## 2026-08-31：修复 Redis 共享模块接入
 
 - 影响范围：Finance 本地构建与后续 `chat-home-server` 部署；本次不合并 `main`、不触发部署。

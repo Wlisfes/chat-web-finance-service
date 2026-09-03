@@ -36,6 +36,10 @@ yarn currency:sync --apply
 
 同步集合包含 USD、EUR、CNY、JPY、GBP、CHF、CAD、AUD、HKD、SGD、NZD、INR、BRL、RUB、KRW、MXN、ZAR、AED、SAR、THB、IDR、MYR、VND、PHP、PLN、NOK、SEK 和 DKK，共 28 种。
 
+## 汇率同步接口
+
+Skyline 定时任务通过服务间 Bearer Token 调用 `POST /currency/exchange/sync` 写入指定日期的汇率。请求体为 `{ date, rates }`，其中 `rates` 是包含 `currency` 和 `rate` 的数组；接口按“币种 + 日期”幂等更新，并返回 `{ date, count, list }` 同步结果。该接口不开放匿名访问，调用方可转发有效的 Account Bearer Token，或使用 Nacos `security.serviceToken`（环境变量 `FINANCE_SERVICE_TOKEN` 仅作为覆盖）配置的服务凭据。
+
 ## 可观测性
 
 Docker 部署输出结构化单行 JSON 日志，日志包含 `requestId` 并支持通过容器标准输出直接排障，完整命令见 `deploy/RUNBOOK.md`。

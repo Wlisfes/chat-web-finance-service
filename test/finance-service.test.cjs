@@ -10,7 +10,9 @@ const { HealthService } = require('../dist/modules/health/health.service')
 const { BrandService } = require('../dist/modules/brand/brand.service')
 const { CountryService } = require('../dist/modules/country/country.service')
 const { CurrencyService } = require('../dist/modules/currency/currency.service')
-const { ResolveCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
+const { ResolveCurrencyExchangeDto, SyncCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
+const { FinanceAuthGuard } = require('../dist/modules/auth/finance-auth.guard')
+const { FINANCE_SERVICE_TOKEN_ALLOWED } = require('../dist/modules/auth/finance-auth.decorator')
 const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
 const { SmsRateService } = require('../dist/modules/sms-rate/sms-rate.service')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
@@ -26,6 +28,7 @@ const {
     syncFinanceCurrencies
 } = require('../dist/cli/seed-demo-finance')
 const { createFinanceConfig, sanitizeFinanceConfig } = require('../deploy/bootstrap-nacos-config.cjs')
+const { RATE_DATE_RENAME_MIGRATION, ensureCurrencyExchangeDateColumn } = require('../dist/cli/apply-schema')
 
 function config(values) {
     return {
@@ -62,6 +65,25 @@ function fakeTransactionalRepository() {
         }
     }
     return { manager, repository }
+}
+
+function fakeExchangeSyncRepository() {
+    const state = { transactions: 0, upserts: [] }
+    const manager = {
+        async upsert(entity, values, conflictPaths) {
+            state.upserts.push({ entity, values, conflictPaths })
+            return { identifiers: values.map((_, index) => ({ keyId: index + 1 })) }
+        }
+    }
+    const repository = {
+        manager: {
+            async transaction(callback) {
+                state.transactions += 1
+                return callback(manager)
+            }
+        }
+    }
+    return { repository, state }
 }
 
 function fakePageQueryBuilder(items, total) {
@@ -123,6 +145,23 @@ function fakeMigrationConnection() {
         },
         async rollback() {
             state.rolledBack = true
+        }
+    }
+}
+
+function fakeRateDateMigrationConnection(columns) {
+    const state = { altered: false }
+    return {
+        state,
+        async query(sql) {
+            if (sql.includes('information_schema.columns')) {
+                return [columns.map(columnName => ({ columnName }))]
+            }
+            if (sql.startsWith('ALTER TABLE `tb_finance_currency_exchange`')) {
+                state.altered = true
+                return []
+            }
+            throw new Error(`Unexpected query: ${sql}`)
         }
     }
 }
@@ -217,6 +256,150 @@ test('CRM 聚合接口使用国家数组和单一币种查询 DTO', async () => 
     assert.deepEqual(await validate(batch), [])
     assert.ok((await validate(plainToInstance(BatchSmsRateDto, { countryKeyIds: 1 }))).length > 0)
     assert.deepEqual(await validate(plainToInstance(ResolveCurrencyExchangeDto, { currency: 'CNY' })), [])
+})
+
+test('汇率同步 DTO 校验数组并规范化币种编码', async () => {
+    const dto = plainToInstance(SyncCurrencyExchangeDto, {
+        date: '2026-09-02',
+        rates: [
+            { currency: ' cny ', rate: '7.2534' },
+            { currency: 'EUR', rate: 0.92 }
+        ]
+    })
+    assert.deepEqual(await validate(dto), [])
+    assert.equal(dto.rates[0].currency, 'CNY')
+    assert.equal(dto.rates[0].rate, 7.2534)
+    assert.ok((await validate(plainToInstance(SyncCurrencyExchangeDto, { date: '2026-09-02', rates: {} }))).length > 0)
+})
+
+test('汇率同步按币种和日期事务幂等写入并返回统一结果', async () => {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const service = new CurrencyService(
+        {},
+        repository,
+        {},
+        {
+            async findEnabledCurrencies(currencies) {
+                return new Set(currencies)
+            }
+        }
+    )
+    const result = await service.httpBaseFinanceSyncCurrencyExchange({
+        date: '2026-09-02T00:00:00.000Z',
+        rates: [
+            { currency: ' cny ', rate: 7.2534 },
+            { currency: 'eur', rate: 0.92 }
+        ]
+    })
+
+    assert.equal(state.transactions, 1)
+    assert.deepEqual(state.upserts[0].values, [
+        { currency: 'CNY', rate: 7.2534, rateDate: '2026-09-02' },
+        { currency: 'EUR', rate: 0.92, rateDate: '2026-09-02' }
+    ])
+    assert.deepEqual(state.upserts[0].conflictPaths, ['currency', 'rateDate'])
+    assert.deepEqual(result, {
+        date: '2026-09-02',
+        count: 2,
+        list: [
+            { currency: 'CNY', rate: 7.2534, date: '2026-09-02' },
+            { currency: 'EUR', rate: 0.92, date: '2026-09-02' }
+        ]
+    })
+})
+
+test('汇率同步拒绝重复币种，避免覆盖请求内数据', async () => {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const service = new CurrencyService(
+        {},
+        repository,
+        {},
+        {
+            async findEnabledCurrencies(currencies) {
+                return new Set(currencies)
+            }
+        }
+    )
+    await assert.rejects(
+        () =>
+            service.httpBaseFinanceSyncCurrencyExchange({
+                date: '2026-09-02',
+                rates: [
+                    { currency: 'CNY', rate: 7 },
+                    { currency: 'cny', rate: 8 }
+                ]
+            }),
+        /汇率币种重复：CNY/
+    )
+    assert.equal(state.transactions, 0)
+})
+
+test('汇率同步只写入已启用币种并保留明确传入的 USD', async () => {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const service = new CurrencyService(
+        {},
+        repository,
+        {},
+        {
+            async findEnabledCurrencies() {
+                return new Set(['CNY'])
+            }
+        }
+    )
+    const result = await service.httpBaseFinanceSyncCurrencyExchange({
+        date: '2026-09-02',
+        rates: [
+            { currency: 'USD', rate: 1 },
+            { currency: 'CNY', rate: 7.25 },
+            { currency: 'EUR', rate: 0.92 }
+        ]
+    })
+
+    assert.deepEqual(state.upserts[0].values, [
+        { currency: 'USD', rate: 1, rateDate: '2026-09-02' },
+        { currency: 'CNY', rate: 7.25, rateDate: '2026-09-02' }
+    ])
+    assert.deepEqual(result.list, [
+        { currency: 'USD', rate: 1, date: '2026-09-02' },
+        { currency: 'CNY', rate: 7.25, date: '2026-09-02' }
+    ])
+})
+
+test('Finance 汇率同步支持专用服务凭据且不绕过普通 Bearer 鉴权', async () => {
+    const calls = { jwt: 0 }
+    const reflector = {
+        getAllAndOverride(key) {
+            return key === FINANCE_SERVICE_TOKEN_ALLOWED
+        }
+    }
+    const configService = {
+        get(key) {
+            return key === 'security.serviceToken' ? 'finance-sync-secret' : undefined
+        }
+    }
+    const jwtAuthGuard = {
+        async canActivate() {
+            calls.jwt += 1
+            return true
+        }
+    }
+    const guard = new FinanceAuthGuard(reflector, configService, jwtAuthGuard)
+    const context = authorization => ({
+        getHandler() {},
+        getClass() {},
+        switchToHttp() {
+            return { getRequest: () => ({ header: () => authorization }) }
+        }
+    })
+
+    assert.equal(await guard.canActivate(context('Bearer finance-sync-secret')), true)
+    assert.equal(calls.jwt, 0)
+    assert.equal(await guard.canActivate(context('Bearer account-token')), true)
+    assert.equal(calls.jwt, 1)
+
+    const missingConfigGuard = new FinanceAuthGuard(reflector, { get: () => undefined }, jwtAuthGuard)
+    assert.equal(await missingConfigGuard.canActivate(context('Bearer finance-sync-secret')), true)
+    assert.equal(calls.jwt, 2)
 })
 
 test('分页参数提供默认值并拒绝越界数据', async () => {
@@ -435,7 +618,22 @@ test('迁移 SQL 保留旧自增主键并映射汇率日期', () => {
     const exchange = TABLE_MIGRATIONS.find(item => item.source === 'tb_windows_currency_exchange')
     const sql = buildInsertSelectSql(exchange, 'legacy_windows', 'chat_web_finance')
     assert.match(sql, /^INSERT INTO `chat_web_finance`.`tb_finance_currency_exchange` \(`key_id`/)
-    assert.match(sql, /`rate_date`.*SELECT.*`date`/)
+    assert.match(sql, /`date`.*SELECT.*`date`/)
+})
+
+test('汇率日期重命名迁移兼容完整建表 SQL 已创建 date 列的数据库', async () => {
+    assert.equal(RATE_DATE_RENAME_MIGRATION, '20260902090000__tb_finance_currency_exchange__rename_rate_date_to_date.sql')
+
+    const legacy = fakeRateDateMigrationConnection(['rate_date'])
+    assert.equal(await ensureCurrencyExchangeDateColumn(legacy), true)
+    assert.equal(legacy.state.altered, true)
+
+    const alreadyMigrated = fakeRateDateMigrationConnection(['date'])
+    assert.equal(await ensureCurrencyExchangeDateColumn(alreadyMigrated), false)
+    assert.equal(alreadyMigrated.state.altered, false)
+
+    const inconsistent = fakeRateDateMigrationConnection(['rate_date', 'date'])
+    await assert.rejects(() => ensureCurrencyExchangeDateColumn(inconsistent), /同时存在 rate_date 和 date 字段/)
 })
 
 test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
@@ -446,6 +644,7 @@ test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
         first.map(table => table.table),
         ['tb_finance_brand', 'tb_finance_currency', 'tb_finance_currency_exchange', 'tb_finance_country', 'tb_finance_basic_sms_rate']
     )
+    assert.deepEqual(first.find(table => table.table === 'tb_finance_currency_exchange').columns, ['currency', 'rate', 'date'])
     assert.equal(
         first.some(table => table.table.includes('client')),
         false
@@ -610,7 +809,32 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     assert.doesNotMatch(financeConfig, /chat-web-account/)
 })
 
-test('已有 Finance Nacos 配置会移除 Account 安全配置', () => {
+test('已有 Finance Nacos 配置只保留服务间凭据并移除 Account 安全配置', () => {
+    const sanitized = sanitizeFinanceConfig(`server:
+  port: 3000
+database:
+  chat-web-finance:
+    host: mysql
+    name: chat_web_finance
+    username: finance-service
+    password: redacted
+security:
+  jwt:
+    secret: account-secret
+  serviceToken: finance-sync-secret
+redis:
+  host: chat-web-redis
+  port: 6379
+  database: 1
+`)
+    assert.match(sanitized, /server:\n  port: 5030/)
+    assert.match(sanitized, /database:\n  chat-web-finance:/)
+    assert.match(sanitized, /security:\n  serviceToken: finance-sync-secret/)
+    assert.doesNotMatch(sanitized, /jwt|account-secret/)
+    assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
+})
+
+test('缺少服务间凭据时仍移除整个安全配置段', () => {
     const sanitized = sanitizeFinanceConfig(`server:
   port: 3000
 database:
@@ -627,10 +851,26 @@ redis:
   port: 6379
   database: 1
 `)
-    assert.match(sanitized, /server:\n  port: 5030/)
-    assert.match(sanitized, /database:\n  chat-web-finance:/)
     assert.doesNotMatch(sanitized, /security|account-secret/)
-    assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
+})
+
+test('Nacos 返回 CRLF 时清理结果与规范化配置一致', () => {
+    const content = `server:
+  port: 5030
+database:
+  chat-web-finance:
+    host: mysql
+    name: chat_web_finance
+    username: finance-service
+    password: redacted
+redis:
+  host: chat-web-redis
+  port: 6379
+  database: 1
+`
+    const crlfContent = content.replace(/\n/g, '\r\n')
+    const sanitized = sanitizeFinanceConfig(crlfContent)
+    assert.equal(sanitized, `${content.trim()}\n`)
 })
 
 test('就绪检查覆盖数据库表、独立 Redis 与远程鉴权模式', async () => {
