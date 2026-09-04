@@ -56,7 +56,7 @@ SHOW GRANTS FOR CURRENT_USER();
 
 Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现全局权限、其他数据库权限或角色授权时，部署会在切换容器前失败。真实用户名和密码不得写入仓库、命令日志或完整 `.env` 示例。
 
-业务请求的 Bearer Token 由 `AccountAuthClient` 转发到 `GET /auth/token/introspect`。Account 不可达返回上游不可用，Token 无效返回未授权；Finance 不在本地验签，也不访问 Account Redis index `0`。
+业务请求的 Bearer Token 由 `AuthClient` 转发到 `GET /auth/token/introspect`。Account 不可达返回上游不可用，Token 无效返回未授权；Finance 不在本地验签，也不访问 Account Redis index `0`。
 
 Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 

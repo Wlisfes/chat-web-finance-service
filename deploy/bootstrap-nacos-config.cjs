@@ -121,6 +121,17 @@ function findServiceBlock(lines, name) {
     return { start, end: end < 0 ? lines.length : end }
 }
 
+function findRootChildValue(lines, rootName, childNames) {
+    const root = lines.findIndex(line => line.trim() === `${rootName}:` && !line.startsWith(' '))
+    if (root < 0) return undefined
+    const end = lines.findIndex((line, index) => index > root && line.trim() && !line.startsWith(' '))
+    const pattern = new RegExp(`^  (?:${childNames.join('|')}):\\s*(.*)$`)
+    return lines
+        .slice(root + 1, end < 0 ? lines.length : end)
+        .find(line => pattern.test(line))
+        ?.match(pattern)?.[1]
+}
+
 function validateFeignService(lines, name) {
     const block = findServiceBlock(lines, name)
     if (!block) throw new Error(`Finance Nacos 配置缺少 feign.${name}`)
@@ -143,7 +154,7 @@ function validateFeignService(lines, name) {
         throw new Error(`Finance Nacos 配置 feign.${name}.timeout 必须是 100-30000 之间的整数`)
 }
 
-function validateFinanceConfig(content, environment = process.env) {
+function validateFinanceConfig(content) {
     if (typeof content !== 'string' || !content.trim()) throw new Error('Finance Nacos 配置不能为空')
     const normalized = normalizeContent(content)
     const lines = normalized.trimEnd().split('\n')
@@ -152,25 +163,22 @@ function validateFinanceConfig(content, environment = process.env) {
     if (!lines.some(line => line.trim() === 'database:') || !lines.some(line => line.trim() === 'chat-web-finance:'))
         throw new Error('Finance Nacos 配置必须包含 database.chat-web-finance')
     if (!lines.some(line => line.trim() === 'feign:')) throw new Error('Finance Nacos 配置必须包含 feign 节点')
-    const token = lines
-        .find(line => /^  service_token:\s*/.test(line) || /^  serviceToken:\s*/.test(line))
-        ?.replace(/^  (?:service_token|serviceToken):\s*/, '')
-        .trim()
-    if (!token && !(typeof environment.FINANCE_SERVICE_TOKEN === 'string' && environment.FINANCE_SERVICE_TOKEN.trim()))
-        throw new Error('Finance Nacos 配置缺少 feign.service_token')
+    const token = findRootChildValue(lines, 'feign', ['service_token', 'serviceToken'])
+    const legacyToken = findRootChildValue(lines, 'security', ['serviceToken'])
+    if (!(token && token.trim()) && !(legacyToken && legacyToken.trim())) throw new Error('Finance Nacos 配置缺少 feign.service_token')
     for (const service of ['chat-web-account', 'chat-web-crm', 'chat-web-skyline']) validateFeignService(lines, service)
     return normalized
 }
 
-function sanitizeFinanceConfig(content, environment = process.env) {
-    return validateFinanceConfig(content, environment)
+function sanitizeFinanceConfig(content) {
+    return validateFinanceConfig(content)
 }
 
 async function main() {
     const dataId = required('NACOS_CONFIG_DATA_ID')
     const existing = await readConfig(dataId)
     if (!existing) throw new Error(`未找到 Finance Nacos 配置：${dataId}；请先在 Nacos 中完成人工配置`)
-    const normalized = sanitizeFinanceConfig(existing, process.env)
+    const normalized = sanitizeFinanceConfig(existing)
     process.stdout.write(
         normalized === existing ? `Finance Nacos 配置校验通过且未修改：${dataId}\n` : `Finance Nacos 配置格式已规范化但未回写：${dataId}\n`
     )

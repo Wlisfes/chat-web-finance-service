@@ -1,5 +1,12 @@
 # 部署变更记录
 
+## 2026-09-04：兼容历史 Nacos 凭据字段并保留示例配置
+
+- 影响范围：Finance 本地启动与 `chat-home-server` 部署镜像。
+- 变更内容：服务间凭据优先读取 Nacos `feign.service_token`，同时兼容历史 `security.serviceToken`；数据库 `name` 字段仅在进程内映射，不修改远端配置；恢复环境示例中原有注册开关、权重字段和中文注释。
+- 机器侧操作：无需修改 Nacos；继续使用现有 Data ID、字段名、注释和凭据。
+- 验证命令：执行 `yarn build`、`yarn tsc -p tsconfig.json --noEmit` 和 `yarn test:unit`。
+
 ## 2026-09-04：升级共享运行时并统一 Nacos 配置读取
 
 - 影响范围：Finance 本地开发与 `chat-home-server` 部署。
