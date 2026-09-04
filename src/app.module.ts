@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
-import { AccountRemoteAuthModule } from '@wlisfes/chat-web-base-schema/auth'
+import { AuthModule } from '@wlisfes/chat-web-base-schema/auth'
 import { HttpResponseModule } from '@wlisfes/chat-web-base-schema/interceptor'
 import { forRootNacosRuntimeOptions, NacosModule } from '@wlisfes/chat-web-base-schema/nacos'
 import { RedisModule } from '@wlisfes/chat-web-base-schema/redis'
@@ -14,7 +14,6 @@ import { DatabaseModule } from '@/modules/database/database.module'
 import { HealthModule } from '@/modules/health/health.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
 import { FinanceAuthGuard } from '@/modules/auth/finance-auth.guard'
-import { FeignConfigModule } from '@/modules/feign/feign-config.module'
 import { IntegrationModule } from '@/modules/integration/integration.module'
 
 @Module({
@@ -22,11 +21,10 @@ import { IntegrationModule } from '@/modules/integration/integration.module'
         HttpResponseModule,
         ConfigModule.forRoot({ isGlobal: true }),
         NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
-        FeignConfigModule,
         IntegrationModule,
         RedisModule,
         DatabaseModule,
-        AccountRemoteAuthModule,
+        AuthModule,
         HealthModule,
         BrandModule,
         CurrencyModule,

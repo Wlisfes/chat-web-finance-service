@@ -4,10 +4,8 @@ import type { AccountUserSummary } from '@/modules/feign/account-user-feign.inte
 /**账号服务用户查询 Feign 客户端。*/
 @FeignClient({
     name: '账号服务',
-    baseUrlConfigKey: 'ACCOUNT_SERVICE_URL',
-    defaultBaseUrl: 'http://chat-web-account-service:5010',
-    timeoutConfigKey: 'ACCOUNT_AUTH_TIMEOUT_MS',
-    defaultTimeoutMs: 3000
+    baseUrlConfigKey: 'feign.chat-web-account.url',
+    timeoutConfigKey: 'feign.chat-web-account.timeout'
 })
 export class AccountUserFeignClient {
     @FeignGet('/user/resolver')
