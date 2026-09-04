@@ -13,11 +13,14 @@ import { FINANCE_MYSQL_CONFIG_KEY, FINANCE_MYSQL_ENTITIES } from '@/modules/data
             inject: [ConfigService, NacosService],
             useFactory: async (configService: ConfigService, nacosService: NacosService) => {
                 await nacosService.loadConfig()
+                const configured = configService.get<Record<string, unknown>>(FINANCE_MYSQL_CONFIG_KEY)
+                // 兼容尚未迁移的历史 Nacos 字段；后续保存配置统一使用 database。
+                if (configured && typeof configured.database !== 'string' && typeof configured.name === 'string') {
+                    configService.set(FINANCE_MYSQL_CONFIG_KEY, { ...configured, database: configured.name })
+                }
                 return createMysqlOptions(configService, {
                     configKey: FINANCE_MYSQL_CONFIG_KEY,
                     entities: [...FINANCE_MYSQL_ENTITIES],
-                    environmentPrefix: 'FINANCE_MYSQL',
-                    environmentOverrides: ['host', 'port', 'username', 'password', 'database'],
                     decimalNumbers: true
                 })
             }

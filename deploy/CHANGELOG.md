@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-04：升级共享运行时并统一 Nacos 配置读取
+
+- 影响范围：Finance 本地开发与 `chat-home-server` 部署。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.4.25`。
+- 变更内容：移除旧版数据库和 Feign 环境变量覆盖，改为直接读取 Nacos `database.chat-web-finance` 与 `feign.chat-web-account`；删除重复的本地 Feign 配置同步模块；历史数据库 `name` 字段仅在运行时读取时兼容，并统一按 `database` 使用。
+- 机器侧操作：确认 Finance Nacos 已配置数据库、Redis 和 Feign 节点；无需新增业务环境变量，真实凭据继续只保存在 Nacos/部署主机。
+- 验证命令：执行 `yarn build`、`yarn tsc -p tsconfig.json --noEmit`、`yarn test:unit`，并在 Docker 网络中验证 `/health/live`。
+- 回滚方法：恢复上一版 Finance 完整 SHA 镜像和共享 Schema 依赖；Nacos 配置不回滚。
+
 ## 2026-09-03：本地 Nacos 客户端端口冲突自动避让
 
 - 影响范围：Finance 本地开发启动；`chat-home-server` 的生产容器启动命令不变。

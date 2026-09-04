@@ -6,16 +6,18 @@ import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
 import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
 import { isNotEmpty } from 'class-validator'
 import { Repository } from 'typeorm'
-import { BrandListItemResponseDto, BrandSelectResponseDto } from '@/dto/api-response.dto'
+import { BrandListItemResponseDto, BrandSelectResponseDto, OperatorOptionResponseDto } from '@/dto/api-response.dto'
 import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 import * as BrandDto from '@/modules/brand/dto/brand.dto'
+import { AccountUserFeignClient } from '@/modules/feign/account-user-feign.client'
 
 @Injectable()
 export class BrandService {
     constructor(
         @InjectRepository(TbFinanceBrand) private readonly brandRepository: Repository<TbFinanceBrand>,
         private readonly database: DataBaseService,
-        private readonly brandUtilsService: BrandUtilsService
+        private readonly brandUtilsService: BrandUtilsService,
+        private readonly accountUserClient: AccountUserFeignClient
     ) {}
 
     /**新增品牌*/
@@ -48,7 +50,10 @@ export class BrandService {
     }
 
     /**品牌分页数据*/
-    public async httpBaseFinanceColumnBrand(body: BrandDto.ListBrandDto): Promise<PageResult<BrandListItemResponseDto>> {
+    public async httpBaseFinanceColumnBrand(
+        body: BrandDto.ListBrandDto,
+        authorization: string
+    ): Promise<PageResult<BrandListItemResponseDto>> {
         return this.database.builder(this.brandRepository, async qb => {
             if (isNotEmpty(body.name?.trim())) {
                 qb.andWhere('t.name LIKE :name', { name: `%${body.name?.trim()}%` })
@@ -57,20 +62,38 @@ export class BrandService {
                 qb.andWhere('t.status = :status', { status: body.status })
             }
             qb.orderBy('t.createTime', 'DESC')
-                .skip((body.page - 1) * body.size)
-                .take(body.size)
-            const [items, total] = await qb.getManyAndCount()
-            return {
-                page: body.page,
-                size: body.size,
-                total,
-                list: items.map(item => ({
-                    ...item,
-                    createByOptions: isNotEmpty(item.createBy) ? { uid: item.createBy } : undefined,
-                    modifyByOptions: isNotEmpty(item.modifyBy) ? { uid: item.modifyBy } : undefined
-                }))
-            }
+            qb.skip((body.page - 1) * body.size)
+            qb.take(body.size)
+            return await qb.getManyAndCount().then(async ([items, total]) => {
+                const operatorUids = [...new Set(items.flatMap(item => [item.createBy, item.modifyBy]).filter(uid => isNotEmpty(uid)))]
+                const users = await Promise.all(operatorUids.map(uid => this.accountUserClient.resolveUser(authorization, uid)))
+                const userOptionsByUid = new Map<string, OperatorOptionResponseDto>(
+                    users.map(user => {
+                        const option: OperatorOptionResponseDto = { uid: user.uid, number: user.number, name: user.name }
+                        if (isNotEmpty(user.avatar)) option.avatar = user.avatar
+                        return [user.uid, option]
+                    })
+                )
+                return {
+                    page: body.page,
+                    size: body.size,
+                    total,
+                    list: items.map(item => ({
+                        ...item,
+                        createByOptions: this.toOperatorOption(item.createBy, userOptionsByUid),
+                        modifyByOptions: this.toOperatorOption(item.modifyBy, userOptionsByUid)
+                    }))
+                }
+            })
         })
+    }
+
+    private toOperatorOption(
+        uid: string | undefined,
+        userOptionsByUid: Map<string, OperatorOptionResponseDto>
+    ): OperatorOptionResponseDto | undefined {
+        if (!isNotEmpty(uid)) return undefined
+        return userOptionsByUid.get(uid) ?? { uid }
     }
 
     /**品牌下拉数据*/

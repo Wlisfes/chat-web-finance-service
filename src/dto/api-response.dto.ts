@@ -55,6 +55,15 @@ export class ServiceReadinessResponseDto {
 export class OperatorOptionResponseDto {
     @ApiProperty({ description: '账号 UID', example: '2149446185344106496' })
     uid: string
+
+    @ApiProperty({ description: '工号', required: false, example: '1234' })
+    number?: string
+
+    @ApiProperty({ description: '姓名', required: false, example: '张三' })
+    name?: string
+
+    @ApiProperty({ description: '头像地址', required: false, example: 'https://picsum.photos/500' })
+    avatar?: string
 }
 
 export class BrandListItemResponseDto extends TbFinanceBrandDto {

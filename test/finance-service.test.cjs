@@ -425,7 +425,7 @@ test('品牌新增和编辑在事务内完成唯一性校验与写入', async ()
             return existingBrand
         }
     }
-    const service = new BrandService(repository, {}, brandUtilsService)
+    const service = new BrandService(repository, {}, brandUtilsService, {})
 
     const createBody = { name: '新品牌', document: '新增说明', status: 'enable' }
     const created = await service.httpBaseFinanceCreateBrand({ uid: '20001' }, createBody)
@@ -555,7 +555,8 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
     const repository = {}
     const items = [
         { keyId: 1, name: '品牌一', createBy: '10001', modifyBy: '10002' },
-        { keyId: 2, name: '品牌二', createBy: undefined, modifyBy: undefined }
+        { keyId: 2, name: '品牌二', createBy: '10001', modifyBy: undefined },
+        { keyId: 3, name: '品牌三', createBy: undefined, modifyBy: undefined }
     ]
     const queryBuilder = fakePageQueryBuilder(items, 32)
     const state = { builderCalls: 0, repository: undefined }
@@ -566,9 +567,16 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
             return callback(queryBuilder)
         }
     }
-    const service = new BrandService(repository, database, {})
+    const accountUserClient = {
+        calls: [],
+        async resolveUser(authorization, uid) {
+            this.calls.push({ authorization, uid })
+            return { uid, number: `00${uid}`, name: `用户${uid}`, avatar: `https://example.com/${uid}.png` }
+        }
+    }
+    const service = new BrandService(repository, database, {}, accountUserClient)
 
-    const result = await service.httpBaseFinanceColumnBrand({ page: 2, size: 10, name: ' 品牌 ', status: 'enable' })
+    const result = await service.httpBaseFinanceColumnBrand({ page: 2, size: 10, name: ' 品牌 ', status: 'enable' }, 'Bearer account-token')
 
     assert.equal(state.builderCalls, 1)
     assert.equal(state.repository, repository)
@@ -585,10 +593,36 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
         size: 10,
         total: 32,
         list: [
-            { ...items[0], createByOptions: { uid: '10001' }, modifyByOptions: { uid: '10002' } },
-            { ...items[1], createByOptions: undefined, modifyByOptions: undefined }
+            {
+                ...items[0],
+                createByOptions: { uid: '10001', number: '0010001', name: '用户10001', avatar: 'https://example.com/10001.png' },
+                modifyByOptions: { uid: '10002', number: '0010002', name: '用户10002', avatar: 'https://example.com/10002.png' }
+            },
+            {
+                ...items[1],
+                createByOptions: { uid: '10001', number: '0010001', name: '用户10001', avatar: 'https://example.com/10001.png' },
+                modifyByOptions: undefined
+            },
+            { ...items[2], createByOptions: undefined, modifyByOptions: undefined }
         ]
     })
+    assert.deepEqual(accountUserClient.calls, [
+        { authorization: 'Bearer account-token', uid: '10001' },
+        { authorization: 'Bearer account-token', uid: '10002' }
+    ])
+})
+
+test('品牌分页组合账号信息失败时透传账号服务异常', async () => {
+    const queryBuilder = fakePageQueryBuilder([{ keyId: 1, name: '品牌一', createBy: '10001', modifyBy: undefined }], 1)
+    const database = { builder: async (_repository, callback) => callback(queryBuilder) }
+    const accountUserClient = {
+        resolveUser: async () => {
+            throw new Error('账号服务异常')
+        }
+    }
+    const service = new BrandService({}, database, {}, accountUserClient)
+
+    await assert.rejects(() => service.httpBaseFinanceColumnBrand({ page: 1, size: 10 }, 'Bearer account-token'), /账号服务异常/)
 })
 
 test('旧数据迁移默认 dry-run，且只迁移 Finance 所属表', async () => {
