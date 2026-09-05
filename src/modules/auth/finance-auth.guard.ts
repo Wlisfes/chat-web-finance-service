@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { JwtAuthGuard } from '@wlisfes/chat-web-base-schema/auth'
+import { GatewayPrincipalGuard } from '@wlisfes/chat-web-base-schema/auth'
 import { timingSafeEqual } from 'node:crypto'
 import type { Request } from 'express'
 import { FINANCE_SERVICE_TOKEN_ALLOWED } from '@/modules/auth/finance-auth.decorator'
@@ -8,7 +8,7 @@ import { Reflector } from '@nestjs/core'
 
 /**
  * Finance 鉴权守卫。
- * 普通 Bearer 令牌继续交由 Account 远程鉴权；标记为服务间接口时，允许匹配 Nacos
+ * 普通请求校验网关签发的身份上下文；标记为服务间接口时，允许匹配 Nacos
  * `feign.service_token` 的专用凭据，并兼容历史 `security.serviceToken` 字段。
  */
 @Injectable()
@@ -16,7 +16,7 @@ export class FinanceAuthGuard implements CanActivate {
     constructor(
         private readonly reflector: Reflector,
         private readonly configService: ConfigService,
-        private readonly jwtAuthGuard: JwtAuthGuard
+        private readonly gatewayPrincipalGuard: GatewayPrincipalGuard
     ) {}
 
     public async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -27,7 +27,7 @@ export class FinanceAuthGuard implements CanActivate {
         if (allowsServiceToken && this.matchesServiceToken(context.switchToHttp().getRequest<Request>())) {
             return true
         }
-        return this.jwtAuthGuard.canActivate(context)
+        return this.gatewayPrincipalGuard.canActivate(context)
     }
 
     private matchesServiceToken(request: Request): boolean {

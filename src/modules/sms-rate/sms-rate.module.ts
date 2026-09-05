@@ -8,6 +8,7 @@ import { SmsRateUtilsService } from '@/modules/sms-rate/sms-rate.utils.service'
 @Module({
     imports: [TypeOrmModule.forFeature([TbFinanceBasicSmsRate, TbFinanceCountry])],
     controllers: [SmsRateController],
-    providers: [SmsRateService, SmsRateUtilsService]
+    providers: [SmsRateService, SmsRateUtilsService],
+    exports: [SmsRateService]
 })
 export class SmsRateModule {}

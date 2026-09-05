@@ -8,6 +8,7 @@ import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
 @Module({
     imports: [TypeOrmModule.forFeature([TbFinanceCurrency, TbFinanceCurrencyExchange])],
     controllers: [CurrencyController],
-    providers: [CurrencyService, CurrencyUtilsService]
+    providers: [CurrencyService, CurrencyUtilsService],
+    exports: [CurrencyService]
 })
 export class CurrencyModule {}
