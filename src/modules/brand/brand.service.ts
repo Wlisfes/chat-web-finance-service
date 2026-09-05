@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { TbFinanceBrand, TbFinanceBrandStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
+import { FeignClientAccountManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
 import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
 import { isNotEmpty } from 'class-validator'
 import { Repository } from 'typeorm'
 import { BrandListItemResponseDto, BrandSelectResponseDto, OperatorOptionResponseDto } from '@/dto/api-response.dto'
 import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 import * as BrandDto from '@/modules/brand/dto/brand.dto'
-import { AccountUserFeignClient } from '@/modules/feign/account-user-feign.client'
 
 @Injectable()
 export class BrandService {
@@ -17,7 +18,8 @@ export class BrandService {
         @InjectRepository(TbFinanceBrand) private readonly brandRepository: Repository<TbFinanceBrand>,
         private readonly database: DataBaseService,
         private readonly brandUtilsService: BrandUtilsService,
-        private readonly accountUserClient: AccountUserFeignClient
+        private readonly accountFeignClient: FeignClientAccountManager,
+        private readonly configService: ConfigService
     ) {}
 
     /**新增品牌*/
@@ -50,10 +52,7 @@ export class BrandService {
     }
 
     /**品牌分页数据*/
-    public async httpBaseFinanceColumnBrand(
-        body: BrandDto.ListBrandDto,
-        authorization: string
-    ): Promise<PageResult<BrandListItemResponseDto>> {
+    public async httpBaseFinanceColumnBrand(body: BrandDto.ListBrandDto): Promise<PageResult<BrandListItemResponseDto>> {
         return this.database.builder(this.brandRepository, async qb => {
             if (isNotEmpty(body.name?.trim())) {
                 qb.andWhere('t.name LIKE :name', { name: `%${body.name?.trim()}%` })
@@ -66,7 +65,13 @@ export class BrandService {
             qb.take(body.size)
             return await qb.getManyAndCount().then(async ([items, total]) => {
                 const operatorUids = [...new Set(items.flatMap(item => [item.createBy, item.modifyBy]).filter(uid => isNotEmpty(uid)))]
-                const users = await Promise.all(operatorUids.map(uid => this.accountUserClient.resolveUser(authorization, uid)))
+                // 操作人姓名属于展示元数据，使用服务间凭据批量还原，不转发终端用户令牌。
+                const users =
+                    operatorUids.length > 0
+                        ? await this.accountFeignClient.batchResolveUsers(resolveFeignServiceAuthorization(this.configService), {
+                              uids: operatorUids
+                          })
+                        : []
                 const userOptionsByUid = new Map<string, OperatorOptionResponseDto>(
                     users.map(user => {
                         const option: OperatorOptionResponseDto = { uid: user.uid, number: user.number, name: user.name }

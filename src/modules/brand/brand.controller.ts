@@ -1,4 +1,4 @@
-import { Body, Headers, Post } from '@nestjs/common'
+import { Body, Post } from '@nestjs/common'
 import { CurrentPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
@@ -43,8 +43,8 @@ export class BrandController {
         request: { source: 'body', type: ListBrandDto },
         response: { type: BrandPageResponseDto, description: '品牌分页数据' }
     })
-    public async httpBaseFinanceColumnBrand(@Body() input: ListBrandDto, @Headers('authorization') authorization: string) {
-        return this.brandService.httpBaseFinanceColumnBrand(input, authorization)
+    public async httpBaseFinanceColumnBrand(@Body() input: ListBrandDto) {
+        return this.brandService.httpBaseFinanceColumnBrand(input)
     }
 
     @ApiServiceDecorator(Post('select'), {
