@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-05：Nacos 配置项收敛到网关
+
+- 影响机器：`chat-home-server`。
+- 关联版本：共享包 `@wlisfes/chat-web-base-schema@1.6.0`。
+- 变更内容：新增 `feign.gateway.url`、`feign.gateway.timeout` 和 `gateway.principal.secret`；删除 `feign.chat-web-*` 逐服务地址。部署前的 Nacos 校验脚本已同步更新，缺失新字段时直接中止部署。
+- 机器侧操作：按本仓库 `deploy/RUNBOOK.md` 的「Nacos 配置清单」增删字段；`gateway.principal.secret` 必须与网关及其他业务服务使用同一个值。
+- 验证命令：`yarn format:check && yarn test && yarn build`；部署日志中确认 Nacos 配置校验通过。
+- 回滚方法：恢复上一版镜像与共享包版本，并把 `feign.chat-web-*` 字段改回 Nacos。
+
 ## 2026-09-05：适配鉴权服务拆分并修复跨服务操作人查询
 
 - 影响机器：`chat-home-server`。

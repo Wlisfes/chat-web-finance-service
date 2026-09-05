@@ -93,15 +93,13 @@ function createFinanceConfig(environment = process.env) {
   port: 5030
 feign:
   service_token: ${scalar(serviceToken)}
-  chat-web-account:
-    url: ${scalar(environment.ACCOUNT_SERVICE_URL || 'http://chat-web-account-service:5010')}
-    timeout: ${Number(environment.ACCOUNT_AUTH_TIMEOUT_MS || 3000)}
-  chat-web-crm:
-    url: ${scalar(environment.CRM_SERVICE_URL || 'http://chat-web-crm-service:5020')}
-    timeout: ${Number(environment.CRM_SERVICE_TIMEOUT_MS || 3000)}
-  chat-web-skyline:
-    url: ${scalar(environment.SKYLINE_SERVICE_URL || 'http://chat-web-skyline-service:5040')}
-    timeout: ${Number(environment.SKYLINE_SERVICE_TIMEOUT_MS || 3000)}
+  gateway:
+    url: ${scalar(environment.GATEWAY_SERVICE_URL || 'http://chat-web-gateway-service:5000')}
+    timeout: ${Number(environment.GATEWAY_SERVICE_TIMEOUT_MS || 3000)}
+gateway:
+  principal:
+    secret: ${scalar(required('GATEWAY_PRINCIPAL_SECRET', environment, false))}
+    maxAgeSeconds: ${Number(environment.GATEWAY_PRINCIPAL_MAX_AGE_SECONDS || 60)}
 database:
   chat-web-finance:
     host: ${scalar(required('FINANCE_MYSQL_HOST', environment))}
@@ -166,8 +164,25 @@ function validateFinanceConfig(content) {
     const token = findRootChildValue(lines, 'feign', ['service_token', 'serviceToken'])
     const legacyToken = findRootChildValue(lines, 'security', ['serviceToken'])
     if (!(token && token.trim()) && !(legacyToken && legacyToken.trim())) throw new Error('Finance Nacos 配置缺少 feign.service_token')
-    for (const service of ['chat-web-account', 'chat-web-crm', 'chat-web-skyline']) validateFeignService(lines, service)
+    // 服务间调用统一经网关转发，只保留单个网关地址，不再逐个配置目标服务。
+    validateFeignService(lines, 'gateway')
+    validateGatewayPrincipal(lines)
     return normalized
+}
+
+/** 校验网关身份上下文签名配置；密钥缺失会让所有受保护接口在启动后立即失败。 */
+function validateGatewayPrincipal(lines) {
+    const gateway = lines.findIndex(line => line.trim() === 'gateway:' && !line.startsWith(' '))
+    if (gateway < 0) throw new Error('Finance Nacos 配置缺少 gateway.principal.secret')
+    const end = lines.findIndex((line, index) => index > gateway && line.trim() && !line.startsWith(' '))
+    const scoped = lines.slice(gateway + 1, end < 0 ? lines.length : end)
+    if (!scoped.some(line => line.trim() === 'principal:')) throw new Error('Finance Nacos 配置缺少 gateway.principal')
+    const secret = scoped
+        .find(line => /^\s{4}secret:\s*/.test(line))
+        ?.replace(/^\s{4}secret:\s*/, '')
+        .trim()
+        .replace(/^(['"])(.*)\1$/, '$2')
+    if (!secret || secret.length < 32) throw new Error('Finance Nacos 配置 gateway.principal.secret 必须至少32位')
 }
 
 function sanitizeFinanceConfig(content) {

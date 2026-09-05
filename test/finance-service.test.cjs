@@ -865,7 +865,8 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
         FINANCE_MYSQL_DATABASE: 'chat_web_finance',
         FINANCE_MYSQL_USERNAME: 'finance-service',
         FINANCE_MYSQL_PASSWORD: 'redacted',
-        FINANCE_SERVICE_TOKEN: 'redacted-token'
+        FINANCE_SERVICE_TOKEN: 'redacted-token',
+        GATEWAY_PRINCIPAL_SECRET: '0123456789abcdef0123456789abcdef'
     })
     assert.match(financeConfig, /server:\n  port: 5030/)
     assert.match(financeConfig, /database:\n  chat-web-finance:/)
@@ -873,7 +874,10 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     assert.match(financeConfig, /username: "finance-service"/)
     assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 3/)
     assert.match(financeConfig, /feign:\n  service_token: "redacted-token"/)
-    assert.match(financeConfig, /chat-web-account/)
+    // 服务间调用统一经网关转发，配置里只保留网关地址和身份上下文密钥。
+    assert.match(financeConfig, /gateway:\n    url: "http:\/\/chat-web-gateway-service:5000"/)
+    assert.match(financeConfig, /gateway:\n  principal:\n    secret: "0123456789abcdef0123456789abcdef"/)
+    assert.doesNotMatch(financeConfig, /chat-web-account:|chat-web-crm:|chat-web-skyline:/)
 })
 
 test('已有 Finance Nacos 配置只读校验并保留人工配置', () => {
@@ -881,15 +885,13 @@ test('已有 Finance Nacos 配置只读校验并保留人工配置', () => {
   port: 5030
 feign:
   service_token: finance-sync-secret
-  chat-web-account:
-    url: http://chat-web-account-service:5010
+  gateway:
+    url: http://chat-web-gateway-service:5000
     timeout: 3000
-  chat-web-crm:
-    url: http://chat-web-crm-service:5020
-    timeout: 3000
-  chat-web-skyline:
-    url: http://chat-web-skyline-service:5040
-    timeout: 3000
+gateway:
+  principal:
+    secret: 0123456789abcdef0123456789abcdef
+    maxAgeSeconds: 60
 database:
   chat-web-finance:
     host: mysql
@@ -903,7 +905,7 @@ redis:
 `)
     assert.match(sanitized, /server:\n  port: 5030/)
     assert.match(sanitized, /feign:\n  service_token: finance-sync-secret/)
-    assert.match(sanitized, /chat-web-crm|chat-web-skyline/)
+    assert.match(sanitized, /gateway:\n    url: http:\/\/chat-web-gateway-service:5000/)
     assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
 })
 
@@ -913,14 +915,8 @@ test('缺少 Feign 服务间凭据时拒绝配置', () => {
             sanitizeFinanceConfig(`server:
   port: 5030
 feign:
-  chat-web-account:
-    url: http://chat-web-account-service:5010
-    timeout: 3000
-  chat-web-crm:
-    url: http://chat-web-crm-service:5020
-    timeout: 3000
-  chat-web-skyline:
-    url: http://chat-web-skyline-service:5040
+  gateway:
+    url: http://chat-web-gateway-service:5000
     timeout: 3000
 database:
   chat-web-finance:
@@ -945,15 +941,13 @@ test('Nacos 返回 CRLF 时只规范换行且不改写配置', () => {
   port: 5030
 feign:
   service_token: token
-  chat-web-account:
-    url: http://chat-web-account-service:5010
+  gateway:
+    url: http://chat-web-gateway-service:5000
     timeout: 3000
-  chat-web-crm:
-    url: http://chat-web-crm-service:5020
-    timeout: 3000
-  chat-web-skyline:
-    url: http://chat-web-skyline-service:5040
-    timeout: 3000
+gateway:
+  principal:
+    secret: 0123456789abcdef0123456789abcdef
+    maxAgeSeconds: 60
 database:
   chat-web-finance:
     host: mysql

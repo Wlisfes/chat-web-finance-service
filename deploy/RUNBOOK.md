@@ -1,5 +1,30 @@
 # 财务服务运行手册
 
+## Nacos 配置清单
+
+认证迁到网关后，`chat-web-finance-service.yaml` 的相关配置有增有删：
+
+```yaml
+# 新增：服务间调用统一经网关按 /feign/<服务名> 前缀转发。
+feign:
+    service_token: '<服务间共享凭据>'
+    gateway:
+        url: http://chat-web-gateway-service:5000
+        timeout: 3000
+
+# 新增：校验网关签发的身份上下文，密钥必须与网关完全一致。
+gateway:
+    principal:
+        secret: '<与网关一致的至少32位随机串>'
+        maxAgeSeconds: 60
+```
+
+**必须删除**：`feign.chat-web-account`、`feign.chat-web-crm`、`feign.chat-web-skyline`（已被 `feign.gateway` 取代）。
+
+本服务同时新增 `/feign/finance/**` 服务端路由（短信基础价格、汇率查询与同步），由网关按 `/feign/finance` 前缀转发且不剥离前缀。
+
+部署脚本 `deploy/bootstrap-nacos-config.cjs` 会在切换容器前校验上述字段，缺失时直接中止部署。
+
 ## 日志排障
 
 容器日志为单行 JSON，日志中的 `requestId` 可串联网关和业务服务。容器启动后可直接检查标准输出和日志轮转配置：
