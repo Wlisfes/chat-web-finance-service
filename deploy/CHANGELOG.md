@@ -1,5 +1,17 @@
 # 部署变更记录
 
+## 2026-09-05：适配鉴权服务拆分并修复跨服务操作人查询
+
+- 影响机器：`chat-home-server`。
+- 关联版本：共享包升级到 `@wlisfes/chat-web-base-schema@1.5.2`。
+- 变更内容：
+    - 令牌校验改由新增的 `chat-web-auth-service` 承担；`FinanceAuthGuard` 逻辑不变，底层 `JwtAuthGuard` 改走鉴权服务内部内省协议。
+    - 删除本地 `AccountUserFeignClient`，品牌列表的操作人还原改用共享包 `/feign/user/batch/resolver`：单次列表查询由最多 100 次跨服务请求收敛为 1 次。
+    - 该调用改用 `feign.service_token` 服务凭据，不再转发终端用户令牌，修复了无 `account:user:list` 权限的操作员打开品牌列表时被账号服务拒绝的问题。
+- 机器侧操作：在 Nacos `chat-web-finance-service.yaml` 新增 `feign.chat-web-auth.url`（`http://chat-web-auth-service:5050`）与 `feign.chat-web-auth.timeout`（`3000`）；确认 `feign.service_token` 与账号、鉴权服务一致。必须先部署鉴权服务和账号服务。
+- 验证命令：`yarn format:check && yarn test && yarn build`；部署后用非超级管理员账号验证品牌分页返回操作人姓名。
+- 回滚方法：恢复上一版完整 Git SHA 并回退共享包依赖；Nacos 新增字段可保留。
+
 ## 2026-09-04：兼容历史 Nacos 凭据字段并保留示例配置
 
 - 影响范围：Finance 本地启动与 `chat-home-server` 部署镜像。

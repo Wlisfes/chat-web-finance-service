@@ -40,8 +40,10 @@
 
 - 本服务独占 MySQL 数据库 `chat_web_finance` 和独立账号。运行与 Schema 升级账号只能访问 `chat_web_finance.*`，不得拥有全局权限、Account 库权限或跨库角色；数据库由外部基础设施预创建，升级器不得执行 `CREATE DATABASE`。
 - 本服务独占 Redis index `3`。Redis 库号以 Nacos `redis.database` 为准，部署不得通过 `.env` 覆盖为其他业务服务的库号。
-- 禁止导入 Account Entity、连接 `chat_web_account`、读取 Account Redis 会话或持有 Account JWT 密钥。鉴权通过 `AuthClient` 把 Bearer Token 转发到 Account `/auth/token/introspect`，其他跨服务数据访问也使用强类型 HTTP 客户端 Provider。
-- 跨服务地址和超时统一读取 Nacos `feign.chat-web-*.url/timeout`，服务间凭据读取 `feign.service_token`；不得在部署 `.env` 固定业务 URL 或超时。
+- 认证归 `chat-web-auth-service`。禁止导入 Account Entity、连接 `chat_web_account`、读取登录会话存储或持有 `security.jwt.*`；只导入共享包 `AuthModule`，由它通过 `/internal/auth/token/introspect` 内部协议校验令牌，共享包 `auth-session` 子路径只允许鉴权服务导入。
+- 跨服务业务数据访问必须使用共享包的强类型 Feign 客户端。账号服务的 `/feign/*` 接口使用 `resolveFeignServiceAuthorization` 组装的服务间凭据，不得转发终端用户令牌；把用户令牌用于这些接口会因权限码和数据范围校验被拒绝。禁止在本仓库重复定义账号服务的 Feign 客户端。
+- 需要把操作人 UID 渲染为姓名工号时，统一使用共享客户端的 `batchResolveUsers` 批量接口，禁止在列表查询中按行发起单条查询。
+- 跨服务地址和超时统一读取 Nacos `feign.chat-web-*.url/timeout`，服务间凭据读取 `feign.service_token`；不得在部署 `.env` 固定业务 URL 或超时。本服务必须配置 `feign.chat-web-auth.url` 和 `feign.chat-web-auth.timeout`。
 
 ## HTTP 模块分层与接口实现
 
