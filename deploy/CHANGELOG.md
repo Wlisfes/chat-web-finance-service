@@ -1,5 +1,23 @@
 # 部署变更记录
 
+## 2026-09-05：统一 Feign 经 Gateway 转发并隔离用户鉴权
+
+- 影响机器：`chat-home-server`。
+- 关联版本：待发布 `@wlisfes/chat-web-base-schema@1.6.2`。
+- 变更内容：Finance 的跨服务客户端统一读取 `feign.gateway.url/timeout`；Gateway `/feign/**` 只按服务路由转发，不调用 Auth 的用户令牌内省；Finance 调用 Account、CRM 或 Skyline 时统一携带 `feign.service_token`。
+- 机器侧操作：在 Finance Nacos 保留 `feign.service_token`，新增或确认 `feign.gateway.url` 与 `feign.gateway.timeout`；删除逐服务 `feign.chat-web-*` 地址前先确认新镜像已切换，保留原注释和其他配置。
+- 验证命令：`yarn format:check && yarn typecheck && yarn build && yarn test:unit`；部署后验证 `/api/finance/brand/column` 以及 Gateway `/feign/finance/**` 服务间调用。
+- 回滚方法：恢复上一完整 Git SHA 与共享包版本，并恢复调用方所需的逐服务地址；数据库、服务凭据和 Gateway 路由不回滚。
+
+## 2026-09-05：修复 Finance Feign 配置导致的业务接口 502
+
+- 影响机器：`chat-home-server`。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.6.1`。
+- 变更内容：Finance 升级共享包并将账号客户端地址改为读取 Nacos `feign.chat-web-account.url/timeout`；部署校验脚本同步校验当前实际的 Account、CRM、Skyline Feign 节点，避免旧客户端读取不存在的 `feign.gateway.url` 后把 `/auth/token/introspect` 错误返回为 502。
+- 机器侧操作：不修改 Nacos 现有值或注释；发布新镜像后确认容器加载共享包 `1.6.1`，再验证品牌分页和 Finance 健康接口。
+- 验证命令：`yarn format:check`、`yarn build`、`yarn test:unit`；部署后使用带 Bearer Token 的 `/api/finance/brand/column` 验证响应不再为 `Cannot GET /auth/token/introspect`。
+- 回滚方法：恢复上一完整 Git SHA 与共享包 `1.6.0`，同时恢复旧客户端配置前先确认 Nacos 已提供对应字段；业务数据和 Nacos 内容不回滚。
+
 ## 2026-09-05：Nacos 配置项收敛到网关
 
 - 影响机器：`chat-home-server`。

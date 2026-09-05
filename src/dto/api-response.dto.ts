@@ -31,7 +31,7 @@ export class ServiceDependencyResponseDto {
 }
 
 export class ServiceAuthModeResponseDto {
-    @ApiProperty({ description: '鉴权模式', example: 'account-service-introspection' })
+    @ApiProperty({ description: '鉴权模式', example: 'gateway-principal' })
     mode: string
 }
 

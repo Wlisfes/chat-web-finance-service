@@ -874,7 +874,7 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     assert.match(financeConfig, /username: "finance-service"/)
     assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 3/)
     assert.match(financeConfig, /feign:\n  service_token: "redacted-token"/)
-    // 服务间调用统一经网关转发，配置里只保留网关地址和身份上下文密钥。
+    // 所有业务客户端共用 Gateway 地址，目标服务由 Gateway 路由选择。
     assert.match(financeConfig, /gateway:\n    url: "http:\/\/chat-web-gateway-service:5000"/)
     assert.match(financeConfig, /gateway:\n  principal:\n    secret: "0123456789abcdef0123456789abcdef"/)
     assert.doesNotMatch(financeConfig, /chat-web-account:|chat-web-crm:|chat-web-skyline:/)
@@ -982,7 +982,7 @@ test('就绪检查覆盖数据库表、独立 Redis 与远程鉴权模式', asyn
     const result = await service.getReadiness()
     assert.equal(result.status, 'DOWN')
     assert.deepEqual(result.database.missingTables, ['tb_finance_currency'])
-    assert.equal(result.auth.mode, 'account-service-introspection')
+    assert.equal(result.auth.mode, 'gateway-principal')
 })
 
 test('业务异常使用 HTTP 200 和响应体自定义 code', () => {

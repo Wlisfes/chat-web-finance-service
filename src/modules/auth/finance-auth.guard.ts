@@ -9,7 +9,7 @@ import { Reflector } from '@nestjs/core'
 /**
  * Finance 鉴权守卫。
  * 普通请求校验网关签发的身份上下文；标记为服务间接口时，允许匹配 Nacos
- * `feign.service_token` 的专用凭据，并兼容历史 `security.serviceToken` 字段。
+ * `feign.service_token` 的专用凭据。用户令牌与服务凭据始终分离。
  */
 @Injectable()
 export class FinanceAuthGuard implements CanActivate {
@@ -39,11 +39,8 @@ export class FinanceAuthGuard implements CanActivate {
     }
 
     private resolveServiceToken(): string | undefined {
-        const configured = [
-            this.configService.get<string>('feign.service_token'),
-            this.configService.get<string>('security.serviceToken')
-        ].find(value => typeof value === 'string' && value.trim())
-        if (!configured) return undefined
+        const configured = this.configService.get<string>('feign.service_token')
+        if (typeof configured !== 'string' || !configured.trim()) return undefined
         return configured.trim().replace(/^Bearer\s+/i, '')
     }
 

@@ -161,10 +161,9 @@ function validateFinanceConfig(content) {
     if (!lines.some(line => line.trim() === 'database:') || !lines.some(line => line.trim() === 'chat-web-finance:'))
         throw new Error('Finance Nacos 配置必须包含 database.chat-web-finance')
     if (!lines.some(line => line.trim() === 'feign:')) throw new Error('Finance Nacos 配置必须包含 feign 节点')
-    const token = findRootChildValue(lines, 'feign', ['service_token', 'serviceToken'])
-    const legacyToken = findRootChildValue(lines, 'security', ['serviceToken'])
-    if (!(token && token.trim()) && !(legacyToken && legacyToken.trim())) throw new Error('Finance Nacos 配置缺少 feign.service_token')
-    // 服务间调用统一经网关转发，只保留单个网关地址，不再逐个配置目标服务。
+    const token = findRootChildValue(lines, 'feign', ['service_token'])
+    if (!(token && token.trim())) throw new Error('Finance Nacos 配置缺少 feign.service_token')
+    // 所有业务 Feign 客户端只连接 Gateway，目标服务由 /feign/<服务名> 路由决定。
     validateFeignService(lines, 'gateway')
     validateGatewayPrincipal(lines)
     return normalized

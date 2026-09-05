@@ -46,7 +46,8 @@ export class HealthService {
             status: databaseReady && redisReady ? 'UP' : 'DOWN',
             database,
             redis: { connected: redisReady },
-            auth: { mode: 'account-service-introspection' },
+            // 用户 Token 已由 Gateway 校验，Finance 只验证网关签发的身份上下文。
+            auth: { mode: 'gateway-principal' },
             timestamp: new Date().toISOString()
         }
     }
