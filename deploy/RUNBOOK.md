@@ -17,13 +17,19 @@ gateway:
     principal:
         secret: '<与网关一致的至少32位随机串>'
         maxAgeSeconds: 60
+
+# 汇率拉取与持久化由 Finance 服务负责；地址为必需项，超时为可选项。
+integration:
+    frankfurter:
+        url: https://api.frankfurter.dev/v2/rates
+        timeout: 10000
 ```
 
 所有业务 Feign 客户端只读取 `feign.gateway.url/timeout`；缺少任一字段时部署校验会中止。目标服务地址只在 Gateway Nacos 的 `gateway.routes` 中维护，不要在 Finance Nacos 重复配置。
 
 本服务同时新增 `/feign/finance/**` 服务端路由（短信基础价格、汇率查询与同步），由网关按 `/feign/finance` 前缀转发且不剥离前缀。
 
-部署脚本 `deploy/bootstrap-nacos-config.cjs` 会在切换容器前校验上述字段，缺失时直接中止部署。
+部署脚本 `deploy/bootstrap-nacos-config.cjs` 会在切换容器前校验上述字段。其中 `integration.frankfurter.url` 缺失时直接中止部署，`integration.frankfurter.timeout` 可省略，存在时必须为 `1000-60000` 毫秒。
 
 ## 日志排障
 

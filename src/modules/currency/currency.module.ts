@@ -4,11 +4,12 @@ import { TbFinanceCurrency, TbFinanceCurrencyExchange } from '@wlisfes/chat-web-
 import { CurrencyController } from '@/modules/currency/currency.controller'
 import { CurrencyService } from '@/modules/currency/currency.service'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
+import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
 
 @Module({
     imports: [TypeOrmModule.forFeature([TbFinanceCurrency, TbFinanceCurrencyExchange])],
     controllers: [CurrencyController],
-    providers: [CurrencyService, CurrencyUtilsService],
-    exports: [CurrencyService]
+    providers: [CurrencyService, CurrencyUtilsService, CurrencyExchangeSyncService],
+    exports: [CurrencyService, CurrencyExchangeSyncService]
 })
 export class CurrencyModule {}

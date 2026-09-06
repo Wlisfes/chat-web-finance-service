@@ -8,7 +8,7 @@ yarn test
 yarn schema:apply
 ```
 
-根目录 `.env` 只提供 `NODE_ENV`、`PORT` 和 Nacos 连接参数。数据库、Redis index `3`、Feign Gateway 地址/超时和服务间凭据统一维护在 Nacos 远端 `chat-web-finance-service.yaml`；目标业务服务地址由 Gateway 的 `/feign/<服务名>` 路由维护，实际凭据不得提交到仓库。
+根目录 `.env` 只提供 `NODE_ENV`、`PORT` 和 Nacos 连接参数。数据库、Redis index `3`、Feign Gateway 地址/超时、服务间凭据和 Frankfurter 汇率源统一维护在 Nacos 远端 `chat-web-finance-service.yaml`；目标业务服务地址由 Gateway 的 `/feign/<服务名>` 路由维护，实际凭据不得提交到仓库。
 
 旧财务库中的财务基础数据迁移默认 dry-run：
 
@@ -38,7 +38,7 @@ yarn currency:sync --apply
 
 ## 汇率同步接口
 
-Skyline 定时任务通过 Gateway 的服务间路由调用 `POST /feign/finance/currency/exchange/sync` 写入指定日期的汇率。请求体为 `{ date, rates }`，其中 `rates` 是包含 `currency` 和 `rate` 的数组；接口按“币种 + 日期”幂等更新，并返回 `{ date, count, list }` 同步结果。该接口不开放匿名访问，只接受 Nacos `feign.service_token` 配置的服务凭据。所有业务 Feign 地址和超时统一从 Nacos `feign.gateway.url/timeout` 读取。
+Skyline 定时任务只通过 Gateway 的服务间路由调用 `POST /feign/finance/currency/exchange/sync`，该接口不接收业务请求体。Finance 收到触发后读取 Nacos `integration.frankfurter.*`，自行拉取、解析和过滤汇率，并按“币种 + 日期”幂等写入，最终返回 `{ date, count, list }`。接口只接受 Nacos `feign.service_token` 配置的服务凭据；所有业务 Feign 地址和超时统一从 `feign.gateway.url/timeout` 读取。
 
 ## 可观测性
 

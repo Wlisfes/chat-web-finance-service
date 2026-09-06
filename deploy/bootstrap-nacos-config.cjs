@@ -100,6 +100,13 @@ gateway:
   principal:
     secret: ${scalar(required('GATEWAY_PRINCIPAL_SECRET', environment, false))}
     maxAgeSeconds: ${Number(environment.GATEWAY_PRINCIPAL_MAX_AGE_SECONDS || 60)}
+integration:
+  # 外部汇率数据源配置；汇率拉取与持久化均由 Finance 服务负责。
+  frankfurter:
+    # Frankfurter v2 汇率接口。
+    url: ${scalar('https://api.frankfurter.dev/v2/rates')}
+    # 外部汇率请求超时时间，单位毫秒。
+    timeout: 10000
 database:
   chat-web-finance:
     host: ${scalar(required('FINANCE_MYSQL_HOST', environment))}
@@ -166,7 +173,41 @@ function validateFinanceConfig(content) {
     // 所有业务 Feign 客户端只连接 Gateway，目标服务由 /feign/<服务名> 路由决定。
     validateFeignService(lines, 'gateway')
     validateGatewayPrincipal(lines)
+    validateFrankfurterConfig(lines)
     return normalized
+}
+
+/** 校验 Finance 自主拉取汇率所需的 Frankfurter 配置。 */
+function validateFrankfurterConfig(lines) {
+    const start = lines.findIndex(line => line.trim() === 'integration:' && !line.startsWith(' '))
+    if (start < 0) throw new Error('Finance Nacos 配置缺少 integration.frankfurter.url')
+    const end = lines.findIndex((line, index) => index > start && line.trim() && !line.startsWith(' '))
+    const integration = lines.slice(start + 1, end < 0 ? lines.length : end)
+    const frankfurterIndex = integration.findIndex(line => /^  frankfurter:\s*$/.test(line))
+    if (frankfurterIndex < 0) throw new Error('Finance Nacos 配置缺少 integration.frankfurter.url')
+    const frankfurterEnd = integration.findIndex((line, index) => index > frankfurterIndex && /^  \S/.test(line))
+    const frankfurter = integration.slice(frankfurterIndex + 1, frankfurterEnd < 0 ? integration.length : frankfurterEnd)
+    const urlLine = frankfurter.find(line => /^    url:\s*/.test(line))
+    if (!urlLine || !urlLine.replace(/^    url:\s*/, '').trim()) {
+        throw new Error('Finance Nacos 配置缺少 integration.frankfurter.url')
+    }
+    const value = urlLine
+        .replace(/^    url:\s*/, '')
+        .trim()
+        .replace(/^(['"])(.*)\1$/, '$2')
+    try {
+        const parsed = new URL(value)
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error()
+    } catch {
+        throw new Error('Finance Nacos 配置 integration.frankfurter.url 必须使用 http:// 或 https://')
+    }
+    const timeoutLine = frankfurter.find(line => /^    timeout:\s*/.test(line))
+    if (timeoutLine) {
+        const timeout = timeoutLine.replace(/^    timeout:\s*/, '').trim()
+        if (!/^\d+$/.test(timeout) || Number(timeout) < 1000 || Number(timeout) > 60_000) {
+            throw new Error('Finance Nacos 配置 integration.frankfurter.timeout 必须是 1000-60000 之间的整数')
+        }
+    }
 }
 
 /** 校验网关身份上下文签名配置；密钥缺失会让所有受保护接口在启动后立即失败。 */
@@ -205,4 +246,4 @@ if (require.main === module) {
     })
 }
 
-module.exports = { createFinanceConfig, createRedisConfig, sanitizeFinanceConfig, validateFinanceConfig }
+module.exports = { createFinanceConfig, createRedisConfig, sanitizeFinanceConfig, validateFinanceConfig, validateFrankfurterConfig }

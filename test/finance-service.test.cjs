@@ -10,7 +10,8 @@ const { HealthService } = require('../dist/modules/health/health.service')
 const { BrandService } = require('../dist/modules/brand/brand.service')
 const { CountryService } = require('../dist/modules/country/country.service')
 const { CurrencyService } = require('../dist/modules/currency/currency.service')
-const { ResolveCurrencyExchangeDto, SyncCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
+const { CurrencyExchangeSyncService } = require('../dist/modules/currency/currency-exchange-sync.service')
+const { ResolveCurrencyExchangeDto } = require('../dist/modules/currency/dto/currency.dto')
 const { FinanceAuthGuard } = require('../dist/modules/auth/finance-auth.guard')
 const { FINANCE_SERVICE_TOKEN_ALLOWED } = require('../dist/modules/auth/finance-auth.decorator')
 const { BatchSmsRateDto } = require('../dist/modules/sms-rate/dto/sms-rate.dto')
@@ -116,6 +117,43 @@ function fakeExchangeSyncRepository() {
         }
     }
     return { repository, state }
+}
+
+function mockJsonResponse(payload, ok = true, status = 200) {
+    return {
+        ok,
+        status,
+        async json() {
+            return payload
+        }
+    }
+}
+
+function createCurrencyExchangeSyncService(values = {}, enabledCurrencies = ['USD', 'CNY', 'EUR']) {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const currencyUtilsService = {
+        async findEnabledCurrencies() {
+            return new Set(enabledCurrencies)
+        }
+    }
+    return {
+        service: new CurrencyExchangeSyncService(repository, currencyUtilsService, config(values)),
+        state
+    }
+}
+
+function createCurrencyExchangeSyncService(values = {}, enabledCurrencies = ['USD', 'CNY', 'EUR']) {
+    const { repository, state } = fakeExchangeSyncRepository()
+    const service = new CurrencyExchangeSyncService(
+        repository,
+        {
+            async findEnabledCurrencies() {
+                return new Set(enabledCurrencies)
+            }
+        },
+        config(values)
+    )
+    return { service, state }
 }
 
 function fakePageQueryBuilder(items, total) {
@@ -290,113 +328,76 @@ test('CRM 聚合接口使用国家数组和单一币种查询 DTO', async () => 
     assert.deepEqual(await validate(plainToInstance(ResolveCurrencyExchangeDto, { currency: 'CNY' })), [])
 })
 
-test('汇率同步 DTO 校验数组并规范化币种编码', async () => {
-    const dto = plainToInstance(SyncCurrencyExchangeDto, {
-        date: '2026-09-02',
-        rates: [
-            { currency: ' cny ', rate: '7.2534' },
-            { currency: 'EUR', rate: 0.92 }
-        ]
-    })
-    assert.deepEqual(await validate(dto), [])
-    assert.equal(dto.rates[0].currency, 'CNY')
-    assert.equal(dto.rates[0].rate, 7.2534)
-    assert.ok((await validate(plainToInstance(SyncCurrencyExchangeDto, { date: '2026-09-02', rates: {} }))).length > 0)
+test('Finance 自主拉取汇率、过滤未启用币种并事务幂等写入', async () => {
+    const originalFetch = global.fetch
+    const { service, state } = createCurrencyExchangeSyncService(
+        {
+            'integration.frankfurter.url': 'https://api.frankfurter.dev/v2/rates',
+            'integration.frankfurter.timeout': 5000
+        },
+        ['USD', 'CNY']
+    )
+    global.fetch = async () =>
+        mockJsonResponse([
+            { date: '2026-09-05', quote: 'CNY', rate: 7.1234567 },
+            { date: '2026-09-05', quote: 'EUR', rate: 0.92 },
+            { date: '2026-09-05', quote: 'US D', rate: 1 }
+        ])
+
+    try {
+        const result = await service.httpBaseFinanceSyncCurrencyExchange()
+
+        assert.equal(state.transactions, 1)
+        assert.deepEqual(state.upserts[0].values, [
+            { currency: 'USD', rate: 1, rateDate: '2026-09-05' },
+            { currency: 'CNY', rate: 7.123457, rateDate: '2026-09-05' }
+        ])
+        assert.deepEqual(state.upserts[0].overwrite, ['rate'])
+        assert.deepEqual(state.upserts[0].conflictPaths, ['currency', 'rateDate'])
+        assert.equal(state.upserts[0].updateEntity, false)
+        assert.deepEqual(result, {
+            date: '2026-09-05',
+            count: 2,
+            list: [
+                { currency: 'USD', rate: 1, date: '2026-09-05' },
+                { currency: 'CNY', rate: 7.123457, date: '2026-09-05' }
+            ]
+        })
+    } finally {
+        global.fetch = originalFetch
+    }
 })
 
-test('汇率同步按币种和日期事务幂等写入并返回统一结果', async () => {
-    const { repository, state } = fakeExchangeSyncRepository()
-    const service = new CurrencyService(
-        {},
-        repository,
-        {},
-        {
-            async findEnabledCurrencies(currencies) {
-                return new Set(currencies)
-            }
-        }
-    )
-    const result = await service.httpBaseFinanceSyncCurrencyExchange({
-        date: '2026-09-02T00:00:00.000Z',
-        rates: [
-            { currency: ' cny ', rate: 7.2534 },
-            { currency: 'eur', rate: 0.92 }
-        ]
-    })
+test('Finance 当天无汇率时回退 latest 并兼容对象响应', async () => {
+    const originalFetch = global.fetch
+    const { service } = createCurrencyExchangeSyncService({ 'integration.frankfurter.url': 'https://api.frankfurter.dev' })
+    const urls = []
+    global.fetch = async url => {
+        urls.push(String(url))
+        return urls.length === 1
+            ? mockJsonResponse([])
+            : mockJsonResponse({ date: '2026-09-04', base: 'USD', rates: { CNY: 7.1, EUR: 0.91 } })
+    }
 
-    assert.equal(state.transactions, 1)
-    assert.deepEqual(state.upserts[0].values, [
-        { currency: 'CNY', rate: 7.2534, rateDate: '2026-09-02' },
-        { currency: 'EUR', rate: 0.92, rateDate: '2026-09-02' }
-    ])
-    assert.deepEqual(state.upserts[0].overwrite, ['rate'])
-    assert.deepEqual(state.upserts[0].conflictPaths, ['currency', 'rateDate'])
-    assert.equal(state.upserts[0].updateEntity, false)
-    assert.deepEqual(result, {
-        date: '2026-09-02',
-        count: 2,
-        list: [
-            { currency: 'CNY', rate: 7.2534, date: '2026-09-02' },
-            { currency: 'EUR', rate: 0.92, date: '2026-09-02' }
-        ]
-    })
+    try {
+        const result = await service.httpBaseFinanceSyncCurrencyExchange()
+
+        assert.equal(urls.length, 2)
+        assert.match(urls[0], /^https:\/\/api\.frankfurter\.dev\/v2\/rates\?.*date=/)
+        assert.match(urls[0], /base=USD/)
+        assert.doesNotMatch(urls[1], /date=/)
+        assert.equal(result.date, '2026-09-04')
+        assert.equal(result.count, 3)
+    } finally {
+        global.fetch = originalFetch
+    }
 })
 
-test('汇率同步拒绝重复币种，避免覆盖请求内数据', async () => {
-    const { repository, state } = fakeExchangeSyncRepository()
-    const service = new CurrencyService(
-        {},
-        repository,
-        {},
-        {
-            async findEnabledCurrencies(currencies) {
-                return new Set(currencies)
-            }
-        }
-    )
-    await assert.rejects(
-        () =>
-            service.httpBaseFinanceSyncCurrencyExchange({
-                date: '2026-09-02',
-                rates: [
-                    { currency: 'CNY', rate: 7 },
-                    { currency: 'cny', rate: 8 }
-                ]
-            }),
-        /汇率币种重复：CNY/
-    )
+test('Finance 汇率源必需配置缺失时直接拒绝同步', async () => {
+    const { service, state } = createCurrencyExchangeSyncService()
+
+    await assert.rejects(() => service.httpBaseFinanceSyncCurrencyExchange(), /integration\.frankfurter\.url/)
     assert.equal(state.transactions, 0)
-})
-
-test('汇率同步只写入已启用币种并保留明确传入的 USD', async () => {
-    const { repository, state } = fakeExchangeSyncRepository()
-    const service = new CurrencyService(
-        {},
-        repository,
-        {},
-        {
-            async findEnabledCurrencies() {
-                return new Set(['CNY'])
-            }
-        }
-    )
-    const result = await service.httpBaseFinanceSyncCurrencyExchange({
-        date: '2026-09-02',
-        rates: [
-            { currency: 'USD', rate: 1 },
-            { currency: 'CNY', rate: 7.25 },
-            { currency: 'EUR', rate: 0.92 }
-        ]
-    })
-
-    assert.deepEqual(state.upserts[0].values, [
-        { currency: 'USD', rate: 1, rateDate: '2026-09-02' },
-        { currency: 'CNY', rate: 7.25, rateDate: '2026-09-02' }
-    ])
-    assert.deepEqual(result.list, [
-        { currency: 'USD', rate: 1, date: '2026-09-02' },
-        { currency: 'CNY', rate: 7.25, date: '2026-09-02' }
-    ])
 })
 
 test('Finance 汇率同步支持专用服务凭据且不绕过普通 Bearer 鉴权', async () => {
@@ -911,6 +912,7 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     // 所有业务客户端共用 Gateway 地址，目标服务由 Gateway 路由选择。
     assert.match(financeConfig, /gateway:\n    url: "http:\/\/chat-web-gateway-service:5000"/)
     assert.match(financeConfig, /gateway:\n  principal:\n    secret: "0123456789abcdef0123456789abcdef"/)
+    assert.match(financeConfig, /integration:\n  # 外部汇率数据源配置；汇率拉取与持久化均由 Finance 服务负责。\n  frankfurter:/)
     assert.doesNotMatch(financeConfig, /chat-web-account:|chat-web-crm:|chat-web-skyline:/)
 })
 
@@ -926,6 +928,10 @@ gateway:
   principal:
     secret: 0123456789abcdef0123456789abcdef
     maxAgeSeconds: 60
+integration:
+  frankfurter:
+    url: https://api.frankfurter.dev/v2/rates
+    timeout: 10000
 database:
   chat-web-finance:
     host: mysql
@@ -982,6 +988,10 @@ gateway:
   principal:
     secret: 0123456789abcdef0123456789abcdef
     maxAgeSeconds: 60
+integration:
+  frankfurter:
+    url: https://api.frankfurter.dev/v2/rates
+    timeout: 10000
 database:
   chat-web-finance:
     host: mysql

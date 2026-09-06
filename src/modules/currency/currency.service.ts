@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { TbFinanceCurrency, TbFinanceCurrencyExchange, TbFinanceCurrencyStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
@@ -87,53 +87,5 @@ export class CurrencyService {
         }
         const exchange = await this.currencyUtilsService.findExchangeRequired(normalizedCurrency)
         return { ...exchange, date: exchange.rateDate }
-    }
-
-    /**批量同步指定日期的币种汇率。*/
-    public async httpBaseFinanceSyncCurrencyExchange(
-        body: CurrencyDto.SyncCurrencyExchangeDto
-    ): Promise<ResponseDto.CurrencyExchangeSyncResponseDto> {
-        const normalizedRates = body.rates.map(item => ({ currency: item.currency.trim().toUpperCase(), rate: item.rate }))
-        const currencies = new Set<string>()
-        const duplicated: string[] = []
-        for (const item of normalizedRates) {
-            if (currencies.has(item.currency)) {
-                duplicated.push(item.currency)
-            }
-            currencies.add(item.currency)
-        }
-        if (duplicated.length) {
-            throw new BadRequestException(`汇率币种重复：${[...new Set(duplicated)].join('、')}`)
-        }
-
-        const date = body.date.slice(0, 10)
-        let writableRates: Array<{ currency: string; rate: number }> = []
-        await this.exchangeRepository.manager.transaction(async manager => {
-            const enabledCurrencies = await this.currencyUtilsService.findEnabledCurrencies(
-                normalizedRates.map(item => item.currency),
-                manager
-            )
-            writableRates = normalizedRates.filter(item => item.currency === 'USD' || enabledCurrencies.has(item.currency))
-            if (!writableRates.length) {
-                throw new BadRequestException('没有可同步的启用币种')
-            }
-            // MySQL 的 ON DUPLICATE KEY UPDATE 已完成幂等写入，不需要 TypeORM 再回填自增主键。
-            // manager.upsert 默认会尝试回填实体；批量数据没有 keyId 时会触发
-            // "Cannot update entity because entity id is not set in the entity"，导致实际写入成功却返回 500。
-            await manager
-                .createQueryBuilder()
-                .insert()
-                .into(TbFinanceCurrencyExchange)
-                .values(writableRates.map(item => ({ ...item, rateDate: date })))
-                .orUpdate(['rate'], ['currency', 'rateDate'])
-                .updateEntity(false)
-                .execute()
-        })
-
-        return {
-            date,
-            count: writableRates.length,
-            list: writableRates.map(item => ({ ...item, date }))
-        }
     }
 }

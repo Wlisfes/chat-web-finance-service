@@ -2,12 +2,12 @@ import { Body, Get, Post, Query } from '@nestjs/common'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { TbFinanceCurrencyDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { CurrencyService } from '@/modules/currency/currency.service'
+import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
 import { AllowFinanceServiceToken } from '@/modules/auth/finance-auth.decorator'
 import {
     ListCurrencyDto,
     ListCurrencyExchangeDto,
     ResolveCurrencyExchangeDto,
-    SyncCurrencyExchangeDto,
     UpdateCurrencyStatusDto
 } from '@/modules/currency/dto/currency.dto'
 import {
@@ -20,7 +20,10 @@ import {
 
 @ApifoxController('财务中心-币种与汇率', 'currency', { bearerAuth: true })
 export class CurrencyController {
-    constructor(private readonly currencyService: CurrencyService) {}
+    constructor(
+        private readonly currencyService: CurrencyService,
+        private readonly currencyExchangeSyncService: CurrencyExchangeSyncService
+    ) {}
 
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询币种' },
@@ -67,12 +70,11 @@ export class CurrencyController {
     }
 
     @ApiServiceDecorator(Post('exchange/sync'), {
-        operation: { summary: '批量同步币种汇率' },
-        request: { source: 'body', type: SyncCurrencyExchangeDto },
+        operation: { summary: '拉取并同步最新币种汇率' },
         response: { type: CurrencyExchangeSyncResponseDto, description: '汇率同步结果' }
     })
     @AllowFinanceServiceToken()
-    public async httpBaseFinanceSyncCurrencyExchange(@Body() input: SyncCurrencyExchangeDto): Promise<CurrencyExchangeSyncResponseDto> {
-        return this.currencyService.httpBaseFinanceSyncCurrencyExchange(input)
+    public async httpBaseFinanceSyncCurrencyExchange(): Promise<CurrencyExchangeSyncResponseDto> {
+        return this.currencyExchangeSyncService.httpBaseFinanceSyncCurrencyExchange()
     }
 }

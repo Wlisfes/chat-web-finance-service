@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-06：汇率拉取与持久化收归 Finance
+
+- 影响机器：`chat-home-server`。
+- 关联版本：`@wlisfes/chat-web-base-schema@1.6.3`。
+- 变更内容：Finance 的 `/feign/finance/currency/exchange/sync` 改为无业务请求体的触发接口；收到请求后由 Finance 从 Frankfurter 拉取当天汇率，必要时回退 latest，过滤未启用币种并按“币种 + 日期”幂等写入。
+- 机器侧操作：只在现有 Finance Nacos 配置中补充缺少的 `integration.frankfurter.url` 和可选 `integration.frankfurter.timeout`，保留全部已有字段、参数值与注释。
+- 验证命令：`yarn format:check && yarn tsc -p tsconfig.json --noEmit && yarn test:full`；部署后由 Skyline 手动触发任务，并检查 Finance 日志和汇率列表。
+- 回滚方法：恢复上一完整 Git SHA，并将 Skyline 恢复到带汇率请求体的共享包版本；Nacos 追加配置和已写入汇率无需回滚。
+
 ## 2026-09-05：统一 Feign 经 Gateway 转发并隔离用户鉴权
 
 - 影响机器：`chat-home-server`。
