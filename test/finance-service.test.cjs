@@ -70,9 +70,41 @@ function fakeTransactionalRepository() {
 function fakeExchangeSyncRepository() {
     const state = { transactions: 0, upserts: [] }
     const manager = {
-        async upsert(entity, values, conflictPaths) {
-            state.upserts.push({ entity, values, conflictPaths })
-            return { identifiers: values.map((_, index) => ({ keyId: index + 1 })) }
+        createQueryBuilder() {
+            const builder = {
+                into(entity) {
+                    builder.entity = entity
+                    return builder
+                },
+                values(values) {
+                    builder.values = values
+                    return builder
+                },
+                orUpdate(overwrite, conflictPaths) {
+                    builder.overwrite = overwrite
+                    builder.conflictPaths = conflictPaths
+                    return builder
+                },
+                updateEntity(enabled) {
+                    builder.updateEntity = enabled
+                    return builder
+                },
+                async execute() {
+                    state.upserts.push({
+                        entity: builder.entity,
+                        values: builder.values,
+                        overwrite: builder.overwrite,
+                        conflictPaths: builder.conflictPaths,
+                        updateEntity: builder.updateEntity
+                    })
+                    return { identifiers: builder.values.map((_, index) => ({ keyId: index + 1 })) }
+                }
+            }
+            return {
+                insert() {
+                    return builder
+                }
+            }
         }
     }
     const repository = {
@@ -297,7 +329,9 @@ test('汇率同步按币种和日期事务幂等写入并返回统一结果', as
         { currency: 'CNY', rate: 7.2534, rateDate: '2026-09-02' },
         { currency: 'EUR', rate: 0.92, rateDate: '2026-09-02' }
     ])
+    assert.deepEqual(state.upserts[0].overwrite, ['rate'])
     assert.deepEqual(state.upserts[0].conflictPaths, ['currency', 'rateDate'])
+    assert.equal(state.upserts[0].updateEntity, false)
     assert.deepEqual(result, {
         date: '2026-09-02',
         count: 2,

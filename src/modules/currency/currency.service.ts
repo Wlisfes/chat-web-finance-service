@@ -117,11 +117,17 @@ export class CurrencyService {
             if (!writableRates.length) {
                 throw new BadRequestException('没有可同步的启用币种')
             }
-            await manager.upsert(
-                TbFinanceCurrencyExchange,
-                writableRates.map(item => ({ ...item, rateDate: date })),
-                ['currency', 'rateDate']
-            )
+            // MySQL 的 ON DUPLICATE KEY UPDATE 已完成幂等写入，不需要 TypeORM 再回填自增主键。
+            // manager.upsert 默认会尝试回填实体；批量数据没有 keyId 时会触发
+            // "Cannot update entity because entity id is not set in the entity"，导致实际写入成功却返回 500。
+            await manager
+                .createQueryBuilder()
+                .insert()
+                .into(TbFinanceCurrencyExchange)
+                .values(writableRates.map(item => ({ ...item, rateDate: date })))
+                .orUpdate(['rate'], ['currency', 'rateDate'])
+                .updateEntity(false)
+                .execute()
         })
 
         return {
