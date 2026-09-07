@@ -393,6 +393,29 @@ test('Finance 当天无汇率时回退 latest 并兼容对象响应', async () =
     }
 })
 
+test('Finance 外部请求发生瞬时连接失败时应退避重试', async () => {
+    const originalFetch = global.fetch
+    const { service } = createCurrencyExchangeSyncService({ 'integration.frankfurter.url': 'https://api.frankfurter.dev/v2/rates' })
+    let calls = 0
+    global.fetch = async () => {
+        calls += 1
+        if (calls === 1) throw new Error('连接暂不可用')
+        return mockJsonResponse([
+            { date: '2026-09-05', quote: 'CNY', rate: 7.1 },
+            { date: '2026-09-05', quote: 'EUR', rate: 0.91 }
+        ])
+    }
+
+    try {
+        const result = await service.httpBaseFinanceSyncCurrencyExchange()
+        assert.equal(calls, 2)
+        assert.equal(result.date, '2026-09-05')
+        assert.equal(result.count, 3)
+    } finally {
+        global.fetch = originalFetch
+    }
+})
+
 test('Finance 汇率源必需配置缺失时直接拒绝同步', async () => {
     const { service, state } = createCurrencyExchangeSyncService()
 

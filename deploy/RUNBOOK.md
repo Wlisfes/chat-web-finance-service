@@ -22,10 +22,12 @@ gateway:
 integration:
     frankfurter:
         url: https://api.frankfurter.dev/v2/rates
-        timeout: 10000
+        timeout: 8000
 ```
 
 所有业务 Feign 客户端只读取 `feign.gateway.url/timeout`；缺少任一字段时部署校验会中止。目标服务地址只在 Gateway Nacos 的 `gateway.routes` 中维护，不要在 Finance Nacos 重复配置。
+
+Finance 请求 Frankfurter 时会在连接错误或 5xx 响应后自动退避重试一次；`integration.frankfurter.timeout` 是单次请求超时，建议保持在 8000 毫秒以内，以便 Skyline 的 30000 毫秒 Feign 超时覆盖完整重试窗口。
 
 本服务同时新增 `/feign/finance/**` 服务端路由（短信基础价格、汇率查询与同步），由网关按 `/feign/finance` 前缀转发且不剥离前缀。
 

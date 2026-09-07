@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-07：增强汇率外部请求容错
+
+- 影响机器：`chat-home-server`。
+- 关联版本：待发布 Finance 镜像。
+- 变更内容：Finance 对 Frankfurter 的 latest 请求增加一次退避重试，并优先使用 IPv4，避免容器 DNS/IPv6 瞬时不可达导致当天任务直接失败；保留当天数据无结果时回退 latest 的既有行为。
+- 机器侧操作：仅将 Finance Nacos `integration.frankfurter.timeout` 调整为 `8000` 毫秒，并将 Skyline Nacos `feign.gateway.timeout` 调整为 `30000` 毫秒；其他配置、参数值和注释保持不变。
+- 验证命令：`yarn format:check && yarn build && yarn test:unit`；部署后查看汇率任务执行日志，确认成功并返回写入数量。
+- 回滚方法：恢复上一完整 Git SHA，并将上述两个 Nacos 超时字段恢复为调整前的值。
+
 ## 2026-09-06：汇率拉取与持久化收归 Finance
 
 - 影响机器：`chat-home-server`。

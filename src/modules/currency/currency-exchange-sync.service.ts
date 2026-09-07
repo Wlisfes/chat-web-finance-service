@@ -19,6 +19,12 @@ interface FrankfurterRatesObject {
     rates?: Record<string, number | string>
 }
 
+/** 外部汇率接口发生瞬时网络错误时的最大尝试次数。 */
+const FRANKFURTER_RETRY_ATTEMPTS = 2
+
+/** 外部汇率接口重试间隔，避免网络恢复瞬间产生连续请求。 */
+const FRANKFURTER_RETRY_DELAY_MS = 1000
+
 /** 从外部数据源同步汇率时的统一业务实现；调度服务只负责触发此 Feign 接口。 */
 @Injectable()
 export class CurrencyExchangeSyncService {
@@ -81,18 +87,20 @@ export class CurrencyExchangeSyncService {
         let rates: Array<{ currency: string; rate: number }> = []
 
         try {
+            // 当天数据可能因周末或上游延迟为空；该请求失败后交给 latest 重试，避免重复等待两轮。
             const requestedResponse = await this.fetchFrankfurterResponse(requestedUrl)
             if (requestedResponse.ok) {
                 payload = await this.readFrankfurterPayload(requestedResponse)
                 rows = this.parseRates(payload)
                 rates = this.normalizeRates(rows)
             }
-        } catch {
+        } catch (error) {
             // 周末、节假日或临时网络故障时回退 latest；两次请求都不可用才让任务失败。
+            this.logger.warn(`当天汇率请求失败，将回退 latest：${this.errorMessage(error)}`, CurrencyExchangeSyncService.name)
         }
 
         if (!rates.length) {
-            const latestResponse = await this.fetchFrankfurterResponse(this.createFrankfurterUrl(normalizedEndpoint))
+            const latestResponse = await this.fetchFrankfurterResponseWithRetry(this.createFrankfurterUrl(normalizedEndpoint))
             if (!latestResponse.ok) throw new ServiceUnavailableException(`Frankfurter 汇率服务返回 HTTP ${latestResponse.status}`)
             payload = await this.readFrankfurterPayload(latestResponse)
             rows = this.parseRates(payload)
@@ -122,6 +130,28 @@ export class CurrencyExchangeSyncService {
         } catch (error) {
             throw new ServiceUnavailableException(`Frankfurter 汇率服务连接失败：${this.errorMessage(error)}`)
         }
+    }
+
+    /** 对外部请求做一次退避重试，覆盖容器 DNS、连接建立和上游短暂不可用。 */
+    private async fetchFrankfurterResponseWithRetry(url: URL): Promise<Response> {
+        let lastError: unknown
+        for (let attempt = 1; attempt <= FRANKFURTER_RETRY_ATTEMPTS; attempt += 1) {
+            try {
+                const response = await this.fetchFrankfurterResponse(url)
+                if (response.ok || response.status < 500 || attempt === FRANKFURTER_RETRY_ATTEMPTS) return response
+            } catch (error) {
+                lastError = error
+                if (attempt === FRANKFURTER_RETRY_ATTEMPTS) throw error
+            }
+
+            this.logger.warn(
+                `Frankfurter latest 请求失败，第 ${attempt}/${FRANKFURTER_RETRY_ATTEMPTS} 次后重试`,
+                CurrencyExchangeSyncService.name
+            )
+            await new Promise<void>(resolve => setTimeout(resolve, FRANKFURTER_RETRY_DELAY_MS))
+        }
+
+        throw lastError instanceof Error ? lastError : new ServiceUnavailableException('Frankfurter latest 请求失败')
     }
 
     private async readFrankfurterPayload(response: Response): Promise<unknown> {
@@ -181,6 +211,13 @@ export class CurrencyExchangeSyncService {
     }
 
     private errorMessage(error: unknown): string {
-        return error instanceof Error ? error.message : String(error)
+        if (!(error instanceof Error)) return String(error)
+        const cause = (error as Error & { cause?: unknown }).cause
+        if (cause instanceof Error && cause.message && cause.message !== error.message) return `${error.message}（原因：${cause.message}）`
+        if (cause && typeof cause === 'object' && 'code' in cause) {
+            const code = (cause as { code?: unknown }).code
+            if (typeof code === 'string' && code) return `${error.message}（code=${code}）`
+        }
+        return error.message
     }
 }

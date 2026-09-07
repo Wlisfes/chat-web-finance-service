@@ -1,10 +1,14 @@
 import 'dotenv/config'
+import { setDefaultResultOrder } from 'node:dns'
 import { NestFactory } from '@nestjs/core'
 import { NestExpressApplication } from '@nestjs/platform-express'
 import { setupSwagger } from '@wlisfes/chat-web-base-schema'
 import { ReadableConsoleLogger, createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import { AppModule } from '@/app.module'
+
+// Docker 容器可能优先解析到不可达的 IPv6 地址；外部汇率请求统一优先使用 IPv4，避免连接超时。
+setDefaultResultOrder('ipv4first')
 
 const logger = new ReadableConsoleLogger({
     NODE_ENV: process.env.NODE_ENV,
