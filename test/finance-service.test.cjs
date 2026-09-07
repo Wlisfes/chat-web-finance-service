@@ -432,7 +432,7 @@ test('Finance 汇率同步支持专用服务凭据且不绕过普通 Bearer 鉴�
     }
     const configService = {
         get(key) {
-            return key === 'feign.service_token' ? 'finance-sync-secret' : undefined
+            return key === 'gateway.feign.service_token' ? 'finance-sync-secret' : undefined
         }
     }
     const jwtAuthGuard = {
@@ -637,7 +637,7 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
             }))
         }
     }
-    const configService = { get: key => (key === 'feign.service_token' ? 'service-token' : undefined) }
+    const configService = { get: key => (key === 'gateway.feign.service_token' ? 'service-token' : undefined) }
     const service = new BrandService(repository, database, {}, accountFeignClient, configService)
 
     const result = await service.httpBaseFinanceColumnBrand({ page: 2, size: 10, name: ' 品牌 ', status: 'enable' })
@@ -931,10 +931,10 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     assert.match(financeConfig, /name: "chat_web_finance"/)
     assert.match(financeConfig, /username: "finance-service"/)
     assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 3/)
-    assert.match(financeConfig, /feign:\n  service_token: "redacted-token"/)
-    // Finance 只调用 Account，目标服务地址独立维护。
-    assert.match(financeConfig, /chat-web-account:\n    url: "http:\/\/chat-web-account-service:5010"/)
-    assert.match(financeConfig, /gateway:\n  principal:\n    secret: "0123456789abcdef0123456789abcdef"/)
+    assert.match(financeConfig, /gateway:\n  feign:\n    service_token: "redacted-token"/)
+    assert.match(financeConfig, /url: "http:\/\/chat-web-gateway-service:5000"/)
+    assert.match(financeConfig, /timeout: 3000/)
+    assert.match(financeConfig, /  principal:\n    secret: "0123456789abcdef0123456789abcdef"/)
     assert.match(financeConfig, /integration:\n  # 外部汇率数据源配置；汇率拉取与持久化均由 Finance 服务负责。\n  frankfurter:/)
     assert.doesNotMatch(financeConfig, /chat-web-crm:|chat-web-skyline:/)
 })
@@ -942,12 +942,11 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
 test('已有 Finance Nacos 配置只读校验并保留人工配置', () => {
     const sanitized = sanitizeFinanceConfig(`server:
   port: 5030
-feign:
-  service_token: finance-sync-secret
-  chat-web-account:
-    url: http://chat-web-account-service:5010
-    timeout: 3000
 gateway:
+  feign:
+    service_token: finance-sync-secret
+    url: http://chat-web-gateway-service:5000
+    timeout: 3000
   principal:
     secret: 0123456789abcdef0123456789abcdef
     maxAgeSeconds: 60
@@ -967,8 +966,8 @@ redis:
   database: 1
 `)
     assert.match(sanitized, /server:\n  port: 5030/)
-    assert.match(sanitized, /feign:\n  service_token: finance-sync-secret/)
-    assert.match(sanitized, /chat-web-account:\n    url: http:\/\/chat-web-account-service:5010/)
+    assert.match(sanitized, /gateway:\n  feign:\n    service_token: finance-sync-secret/)
+    assert.match(sanitized, /url: http:\/\/chat-web-gateway-service:5000/)
     assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
 })
 
@@ -977,9 +976,9 @@ test('缺少 Feign 服务间凭据时拒绝配置', () => {
         () =>
             sanitizeFinanceConfig(`server:
   port: 5030
-feign:
-  chat-web-account:
-    url: http://chat-web-account-service:5010
+gateway:
+  feign:
+    url: http://chat-web-gateway-service:5000
     timeout: 3000
 database:
   chat-web-finance:
@@ -995,19 +994,18 @@ redis:
   port: 6379
   database: 1
 `),
-        /feign\.service_token/
+        /gateway\.feign\.service_token/
     )
 })
 
 test('Nacos 返回 CRLF 时只规范换行且不改写配置', () => {
     const content = `server:
   port: 5030
-feign:
-  service_token: token
-  chat-web-account:
-    url: http://chat-web-account-service:5010
-    timeout: 3000
 gateway:
+  feign:
+    service_token: token
+    url: http://chat-web-gateway-service:5000
+    timeout: 3000
   principal:
     secret: 0123456789abcdef0123456789abcdef
     maxAgeSeconds: 60

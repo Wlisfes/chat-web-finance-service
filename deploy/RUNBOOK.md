@@ -2,18 +2,15 @@
 
 ## Nacos 配置清单
 
-`chat-web-finance-service.yaml` 的相关配置如下。Finance 只调用 Account，目标服务地址单独配置：
+`chat-web-finance-service.yaml` 的相关配置如下。Finance 的 Feign 请求统一经 Gateway 转发：
 
 ```yaml
 # 服务间凭据由各服务共享；真实值只保存在 Nacos。
-feign:
-    service_token: '<服务间共享凭据>'
-    chat-web-account:
-        url: http://chat-web-account-service:5010
-        timeout: 3000
-
-# 网关签发的身份上下文由业务服务校验；密钥必须与网关完全一致。
 gateway:
+    feign:
+        service_token: '<服务间共享凭据>'
+        url: http://chat-web-gateway-service:5000
+        timeout: 3000
     principal:
         secret: '<与网关一致的至少32位随机串>'
         maxAgeSeconds: 60
@@ -25,7 +22,7 @@ integration:
         timeout: 8000
 ```
 
-Finance 只读取 `feign.chat-web-account.url/timeout`；缺少任一字段时部署校验会中止。不要在 Finance Nacos 配置未使用的目标服务节点。
+Finance 只读取 `gateway.feign.url/timeout`；缺少任一字段时部署校验会中止。所有 Feign 请求都通过 Gateway 的服务路由转发。
 
 Finance 请求 Frankfurter 时会在连接错误或 5xx 响应后自动退避重试一次；`integration.frankfurter.timeout` 是单次请求超时，建议保持在 8000 毫秒以内，以便 Skyline 的 30000 毫秒 Feign 超时覆盖完整重试窗口。
 
@@ -70,7 +67,7 @@ curl -fsS http://127.0.0.1:5030/health
 
 日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。请求日志应包含 `logId`、方法、URL、状态码、来源和耗时，密码及 Token 等敏感字段必须脱敏。
 
-Finance 部署不读取 Account 的 `.env`、JWT 密钥或 Redis 会话。`/opt/chat-web-finance-service/.env` 只配置 NODE_ENV、PORT 和 Nacos 连接/注册参数；Redis、数据库和 Account Feign 地址/超时全部由云端 Nacos 提供。Feign 配置使用 `feign.chat-web-account.url/timeout`，服务间凭据使用 `feign.service_token`。
+Finance 部署不读取 Account 的 `.env`、JWT 密钥或 Redis 会话。`/opt/chat-web-finance-service/.env` 只配置 NODE_ENV、PORT 和 Nacos 连接/注册参数；Redis、数据库和 Gateway Feign 地址/超时全部由云端 Nacos 提供。Feign 配置使用 `gateway.feign.url/timeout`，服务间凭据使用 `gateway.feign.service_token`。
 
 共享包包含 `forRootNacosRuntimeOptions` 后，Finance 在 `AppModule` 中直接调用 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))`，由 base 统一把环境变量转换为完整 `NacosRuntimeOptions`。服务器 `.env` 必须显式提供 `NACOS_SERVER`、`NACOS_NAMESPACE`、`NACOS_SERVICE_NAME` 和 `PORT`；其余字段均由共享包提供默认值，只有确需覆盖时才配置。修改启动连接参数后必须重新创建容器，不能再依赖 Nacos 远端配置反向改变启动连接或注册参数。
 
@@ -89,7 +86,7 @@ SHOW GRANTS FOR CURRENT_USER();
 
 Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现全局权限、其他数据库权限或角色授权时，部署会在切换容器前失败。真实用户名和密码不得写入仓库、命令日志或完整 `.env` 示例。
 
-业务请求的 Bearer Token 由网关调用鉴权服务的内部 `POST /internal/auth/token/introspect` 校验，并签发身份上下文给 Finance；Finance 不在本地验签，也不访问 Account Redis index `0`。业务 Feign 调用只使用 Nacos `feign.service_token`。
+业务请求的 Bearer Token 由网关调用鉴权服务的内部 `POST /internal/auth/token/introspect` 校验，并签发身份上下文给 Finance；Finance 不在本地验签，也不访问 Account Redis index `0`。业务 Feign 调用只使用 Nacos `gateway.feign.service_token`。
 
 Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 

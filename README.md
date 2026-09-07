@@ -38,7 +38,7 @@ yarn currency:sync --apply
 
 ## 汇率同步接口
 
-Skyline 定时任务直接调用 Finance 的 `POST /feign/finance/currency/exchange/sync`，该接口不接收业务请求体。Finance 收到触发后读取 Nacos `integration.frankfurter.*`，自行拉取、解析和过滤汇率，并按“币种 + 日期”幂等写入，最终返回 `{ date, count, list }`。接口只接受 Nacos `feign.service_token` 配置的服务凭据；每个调用方从自己的 Nacos 配置读取 Finance 地址和超时。
+Skyline 定时任务直接调用 Finance 的 `POST /feign/finance/currency/exchange/sync`，该接口不接收业务请求体。Finance 收到触发后读取 Nacos `integration.frankfurter.*`，自行拉取、解析和过滤汇率，并按“币种 + 日期”幂等写入，最终返回 `{ date, count, list }`。接口只接受 Nacos `gateway.feign.service_token` 配置的服务凭据；调用方统一从自己的 Nacos 配置读取 Gateway 地址和超时。
 
 ## 可观测性
 

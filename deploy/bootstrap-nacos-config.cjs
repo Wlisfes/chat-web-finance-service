@@ -91,12 +91,11 @@ function createFinanceConfig(environment = process.env) {
     const serviceToken = required('FINANCE_SERVICE_TOKEN', environment, false)
     return `server:
   port: 5030
-feign:
-  service_token: ${scalar(serviceToken)}
-  chat-web-account:
-    url: ${scalar(environment.ACCOUNT_SERVICE_URL || 'http://chat-web-account-service:5010')}
-    timeout: ${Number(environment.ACCOUNT_SERVICE_TIMEOUT_MS || 3000)}
 gateway:
+  feign:
+    service_token: ${scalar(serviceToken)}
+    url: ${scalar(environment.GATEWAY_SERVICE_URL || 'http://chat-web-gateway-service:5000')}
+    timeout: ${Number(environment.GATEWAY_SERVICE_TIMEOUT_MS || 3000)}
   principal:
     secret: ${scalar(required('GATEWAY_PRINCIPAL_SECRET', environment, false))}
     maxAgeSeconds: ${Number(environment.GATEWAY_PRINCIPAL_MAX_AGE_SECONDS || 60)}
@@ -126,24 +125,17 @@ function findServiceBlock(lines, name) {
     return { start, end: end < 0 ? lines.length : end }
 }
 
-function findRootChildValue(lines, rootName, childNames) {
-    const root = lines.findIndex(line => line.trim() === `${rootName}:` && !line.startsWith(' '))
-    if (root < 0) return undefined
-    const end = lines.findIndex((line, index) => index > root && line.trim() && !line.startsWith(' '))
-    const pattern = new RegExp(`^  (?:${childNames.join('|')}):\\s*(.*)$`)
-    return lines
-        .slice(root + 1, end < 0 ? lines.length : end)
-        .find(line => pattern.test(line))
-        ?.match(pattern)?.[1]
-}
-
-function validateFeignService(lines, name) {
-    const block = findServiceBlock(lines, name)
-    if (!block) throw new Error(`Finance Nacos 配置缺少 feign.${name}`)
+function validateGatewayFeign(lines) {
+    const block = findServiceBlock(lines, 'feign')
+    if (!block) throw new Error('Finance Nacos 配置缺少 gateway.feign')
     const scoped = lines.slice(block.start + 1, block.end)
+    const tokenLine = scoped.find(line => /^    service_token:\s*/.test(line))
     const urlLine = scoped.find(line => /^    url:\s*/.test(line))
     const timeoutLine = scoped.find(line => /^    timeout:\s*/.test(line))
-    if (!urlLine || !urlLine.replace(/^    url:\s*/, '').trim()) throw new Error(`Finance Nacos 配置缺少 feign.${name}.url`)
+    if (!tokenLine || !tokenLine.replace(/^    service_token:\s*/, '').trim()) {
+        throw new Error('Finance Nacos 配置缺少 gateway.feign.service_token')
+    }
+    if (!urlLine || !urlLine.replace(/^    url:\s*/, '').trim()) throw new Error('Finance Nacos 配置缺少 gateway.feign.url')
     const url = urlLine
         .replace(/^    url:\s*/, '')
         .trim()
@@ -152,11 +144,11 @@ function validateFeignService(lines, name) {
         const parsed = new URL(url)
         if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error()
     } catch {
-        throw new Error(`Finance Nacos 配置 feign.${name}.url 必须使用 http:// 或 https://`)
+        throw new Error('Finance Nacos 配置 gateway.feign.url 必须使用 http:// 或 https://')
     }
     const timeout = timeoutLine?.replace(/^    timeout:\s*/, '').trim()
     if (!timeout || !/^\d+$/.test(timeout) || Number(timeout) < 100 || Number(timeout) > 30_000)
-        throw new Error(`Finance Nacos 配置 feign.${name}.timeout 必须是 100-30000 之间的整数`)
+        throw new Error('Finance Nacos 配置 gateway.feign.timeout 必须是 100-30000 之间的整数')
 }
 
 function validateFinanceConfig(content) {
@@ -167,11 +159,7 @@ function validateFinanceConfig(content) {
         throw new Error('Finance Nacos 配置必须包含 server.port: 5030')
     if (!lines.some(line => line.trim() === 'database:') || !lines.some(line => line.trim() === 'chat-web-finance:'))
         throw new Error('Finance Nacos 配置必须包含 database.chat-web-finance')
-    if (!lines.some(line => line.trim() === 'feign:')) throw new Error('Finance Nacos 配置必须包含 feign 节点')
-    const token = findRootChildValue(lines, 'feign', ['service_token'])
-    if (!(token && token.trim())) throw new Error('Finance Nacos 配置缺少 feign.service_token')
-    // Finance 只调用 Account，目标服务地址单独维护在 feign.chat-web-account。
-    validateFeignService(lines, 'chat-web-account')
+    validateGatewayFeign(lines)
     validateGatewayPrincipal(lines)
     validateFrankfurterConfig(lines)
     return normalized
