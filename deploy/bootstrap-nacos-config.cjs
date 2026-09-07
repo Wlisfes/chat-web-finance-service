@@ -93,9 +93,9 @@ function createFinanceConfig(environment = process.env) {
   port: 5030
 feign:
   service_token: ${scalar(serviceToken)}
-  gateway:
-    url: ${scalar(environment.GATEWAY_SERVICE_URL || 'http://chat-web-gateway-service:5000')}
-    timeout: ${Number(environment.GATEWAY_SERVICE_TIMEOUT_MS || 3000)}
+  chat-web-account:
+    url: ${scalar(environment.ACCOUNT_SERVICE_URL || 'http://chat-web-account-service:5010')}
+    timeout: ${Number(environment.ACCOUNT_SERVICE_TIMEOUT_MS || 3000)}
 gateway:
   principal:
     secret: ${scalar(required('GATEWAY_PRINCIPAL_SECRET', environment, false))}
@@ -170,8 +170,8 @@ function validateFinanceConfig(content) {
     if (!lines.some(line => line.trim() === 'feign:')) throw new Error('Finance Nacos 配置必须包含 feign 节点')
     const token = findRootChildValue(lines, 'feign', ['service_token'])
     if (!(token && token.trim())) throw new Error('Finance Nacos 配置缺少 feign.service_token')
-    // 所有业务 Feign 客户端只连接 Gateway，目标服务由 /feign/<服务名> 路由决定。
-    validateFeignService(lines, 'gateway')
+    // Finance 只调用 Account，目标服务地址单独维护在 feign.chat-web-account。
+    validateFeignService(lines, 'chat-web-account')
     validateGatewayPrincipal(lines)
     validateFrankfurterConfig(lines)
     return normalized

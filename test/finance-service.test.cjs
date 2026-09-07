@@ -932,11 +932,11 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     assert.match(financeConfig, /username: "finance-service"/)
     assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 3/)
     assert.match(financeConfig, /feign:\n  service_token: "redacted-token"/)
-    // 所有业务客户端共用 Gateway 地址，目标服务由 Gateway 路由选择。
-    assert.match(financeConfig, /gateway:\n    url: "http:\/\/chat-web-gateway-service:5000"/)
+    // Finance 只调用 Account，目标服务地址独立维护。
+    assert.match(financeConfig, /chat-web-account:\n    url: "http:\/\/chat-web-account-service:5010"/)
     assert.match(financeConfig, /gateway:\n  principal:\n    secret: "0123456789abcdef0123456789abcdef"/)
     assert.match(financeConfig, /integration:\n  # 外部汇率数据源配置；汇率拉取与持久化均由 Finance 服务负责。\n  frankfurter:/)
-    assert.doesNotMatch(financeConfig, /chat-web-account:|chat-web-crm:|chat-web-skyline:/)
+    assert.doesNotMatch(financeConfig, /chat-web-crm:|chat-web-skyline:/)
 })
 
 test('已有 Finance Nacos 配置只读校验并保留人工配置', () => {
@@ -944,8 +944,8 @@ test('已有 Finance Nacos 配置只读校验并保留人工配置', () => {
   port: 5030
 feign:
   service_token: finance-sync-secret
-  gateway:
-    url: http://chat-web-gateway-service:5000
+  chat-web-account:
+    url: http://chat-web-account-service:5010
     timeout: 3000
 gateway:
   principal:
@@ -968,7 +968,7 @@ redis:
 `)
     assert.match(sanitized, /server:\n  port: 5030/)
     assert.match(sanitized, /feign:\n  service_token: finance-sync-secret/)
-    assert.match(sanitized, /gateway:\n    url: http:\/\/chat-web-gateway-service:5000/)
+    assert.match(sanitized, /chat-web-account:\n    url: http:\/\/chat-web-account-service:5010/)
     assert.match(sanitized, /redis:\n  host: chat-web-redis\n  port: 6379\n  database: 1/)
 })
 
@@ -978,8 +978,8 @@ test('缺少 Feign 服务间凭据时拒绝配置', () => {
             sanitizeFinanceConfig(`server:
   port: 5030
 feign:
-  gateway:
-    url: http://chat-web-gateway-service:5000
+  chat-web-account:
+    url: http://chat-web-account-service:5010
     timeout: 3000
 database:
   chat-web-finance:
@@ -1004,8 +1004,8 @@ test('Nacos 返回 CRLF 时只规范换行且不改写配置', () => {
   port: 5030
 feign:
   service_token: token
-  gateway:
-    url: http://chat-web-gateway-service:5000
+  chat-web-account:
+    url: http://chat-web-account-service:5010
     timeout: 3000
 gateway:
   principal:

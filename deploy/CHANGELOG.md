@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-07：按目标服务拆分 Finance Feign 地址
+
+- 影响机器：Home（`chat-home-server`）。
+- 关联版本：待发布 Finance 完整 Git SHA；共享包需包含独立目标地址键。
+- 变更内容：Finance Feign 客户端直接读取 `feign.chat-web-account.url/timeout`；删除 Finance Nacos 中的 Gateway、CRM、Skyline 未使用节点。
+- 机器侧操作：更新 Nacos `chat-web-finance-service.yaml`，保留 Account 地址、超时和 `feign.service_token`，再发布 Finance 镜像。
+- 验证命令：`yarn format:check && yarn build && yarn test:unit`；部署后检查 `/health`、品牌接口和 Account Feign 调用。
+- 回滚方法：恢复上一完整 Git SHA，并按备份恢复旧 Feign 节点。
+
 ## 2026-09-07：增强汇率外部请求容错
 
 - 影响机器：`chat-home-server`。
