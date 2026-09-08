@@ -39,20 +39,20 @@ docker logs --tail 100 chat-web-finance-service
 docker inspect chat-web-finance-service --format '{{json .HostConfig.LogConfig}}'
 ```
 
-| 项目             | 基线                                          |
-| ---------------- | --------------------------------------------- |
-| 容器             | `chat-web-finance-service`                    |
-| 容器端口         | `5030`                                        |
-| Nacos Data ID    | `chat-web-finance-service.yaml`               |
-| Nacos 服务名     | `chat-web-finance-service`                    |
-| 数据库           | `chat_web_finance`                            |
-| MySQL 授权边界   | 仅 `chat_web_finance.*`                       |
-| Redis index      | `3`                                           |
-| Feign Account 地址 | `http://chat-web-account-service:5010`       |
-| 部署目录         | `/opt/chat-web-finance-service`               |
-| Docker 网络      | `chat-web-infrastructure`                     |
-| 部署主机         | `chat-home-server`                            |
-| Runner           | `chat-home-server`（标签 `chat-home-server`） |
+| 项目               | 基线                                          |
+| ------------------ | --------------------------------------------- |
+| 容器               | `chat-web-finance-service`                    |
+| 容器端口           | `5030`                                        |
+| Nacos Data ID      | `chat-web-finance-service.yaml`               |
+| Nacos 服务名       | `chat-web-finance-service`                    |
+| 数据库             | `chat_web_finance`                            |
+| MySQL 授权边界     | 仅 `chat_web_finance.*`                       |
+| Redis index        | `3`                                           |
+| Feign Account 地址 | `http://chat-web-account-service:5010`        |
+| 部署目录           | `/opt/chat-web-finance-service`               |
+| Docker 网络        | `chat-web-infrastructure`                     |
+| 部署主机           | `chat-home-server`                            |
+| Runner             | `chat-home-server`（标签 `chat-home-server`） |
 
 Runner 作为 `chat-home-server` 上的 Ubuntu WSL 主机服务运行，安装目录为 `/home/runner/actions-runner-finance`，现有 systemd 单元为 `actions.runner.Wlisfes-chat-web-finance-service.chat-server-home-finance.service`，调度标签为 `chat-home-server`。禁止重新创建 Docker Runner 容器；Runner 用户必须属于 `docker` 组并可写 `/opt/chat-web-finance-service`。
 
@@ -90,18 +90,11 @@ Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现
 
 Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 
-空库需要演示数据时，在 Actions 手动运行 `Build and deploy` 并开启 `seedDemoData`。初始化器只在 `chat-home-server` 的五张 Finance 业务表全部为空时以单个事务写入；任一表已有数据都会中止。容器内也可先 dry-run 核对数量，再显式提交：
-
-```bash
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --apply
-```
-
 已有 Finance 数据库需要补充国际常用币种时，使用幂等的币种同步命令。它只新增缺失记录，保留已有记录的启用/禁用状态：
 
 ```bash
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --sync-currencies
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --sync-currencies --apply
+docker exec chat-web-finance-service node dist/cli/finance-master-data.js --sync-currencies
+docker exec chat-web-finance-service node dist/cli/finance-master-data.js --sync-currencies --apply
 ```
 
 同步目标为 28 种币种：USD、EUR、CNY、JPY、GBP、CHF、CAD、AUD、HKD、SGD、NZD、INR、BRL、RUB、KRW、MXN、ZAR、AED、SAR、THB、IDR、MYR、VND、PHP、PLN、NOK、SEK、DKK。

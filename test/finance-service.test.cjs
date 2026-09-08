@@ -19,15 +19,12 @@ const { SmsRateService } = require('../dist/modules/sms-rate/sms-rate.service')
 const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
 const { FINANCE_COUNTRY_DATA } = require('../dist/cli/finance-country-data')
 const {
-    createFinanceDemoTables,
     FINANCE_COMMON_CURRENCIES,
-    seedFinanceDemoData,
-    shouldApplyFinanceDemoSeed,
     shouldSyncFinanceCountries,
     shouldSyncFinanceCurrencies,
     syncFinanceCountries,
     syncFinanceCurrencies
-} = require('../dist/cli/seed-demo-finance')
+} = require('../dist/cli/finance-master-data')
 const { createFinanceConfig, sanitizeFinanceConfig } = require('../deploy/bootstrap-nacos-config.cjs')
 const { RATE_DATE_RENAME_MIGRATION, ensureCurrencyExchangeDateColumn } = require('../dist/cli/apply-schema')
 
@@ -236,7 +233,7 @@ function fakeRateDateMigrationConnection(columns) {
     }
 }
 
-function fakeDemoSeedConnection(nonEmptyTable) {
+function fakeMasterDataConnection(nonEmptyTable) {
     const state = { inserts: [], committed: false, rolledBack: false, transactionStarted: false }
     return {
         state,
@@ -759,19 +756,7 @@ test('汇率日期重命名迁移兼容完整建表 SQL 已创建 date 列的数
     await assert.rejects(() => ensureCurrencyExchangeDateColumn(inconsistent), /同时存在 rate_date 和 date 字段/)
 })
 
-test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
-    const first = createFinanceDemoTables(20260822, '2026-08-22')
-    const second = createFinanceDemoTables(20260822, '2026-08-22')
-    assert.deepEqual(first, second)
-    assert.deepEqual(
-        first.map(table => table.table),
-        ['tb_finance_brand', 'tb_finance_currency', 'tb_finance_currency_exchange', 'tb_finance_country', 'tb_finance_basic_sms_rate']
-    )
-    assert.deepEqual(first.find(table => table.table === 'tb_finance_currency_exchange').columns, ['currency', 'rate', 'date'])
-    assert.equal(
-        first.some(table => table.table.includes('client')),
-        false
-    )
+test('Finance 常用币种集合保持完整', () => {
     assert.equal(FINANCE_COMMON_CURRENCIES.length, 28)
     assert.deepEqual(
         FINANCE_COMMON_CURRENCIES.map(item => item.currency),
@@ -808,37 +793,17 @@ test('Finance 演示数据使用固定种子并覆盖五张所属表', () => {
     )
 })
 
-test('Finance 演示数据默认只预览，显式 --apply 才写入并提交', async () => {
-    assert.equal(shouldApplyFinanceDemoSeed([]), false)
-    assert.equal(shouldApplyFinanceDemoSeed(['--apply']), true)
-    const dryRunConnection = fakeDemoSeedConnection()
-    const dryRunCounts = await seedFinanceDemoData(dryRunConnection, 'chat_web_finance', false)
-    assert.equal(dryRunConnection.state.transactionStarted, false)
-    assert.equal(dryRunConnection.state.inserts.length, 0)
-    assert.equal(
-        Object.values(dryRunCounts).reduce((total, count) => total + count, 0),
-        92
-    )
-
-    const applyConnection = fakeDemoSeedConnection()
-    await seedFinanceDemoData(applyConnection, 'chat_web_finance', true)
-    assert.equal(applyConnection.state.transactionStarted, true)
-    assert.equal(applyConnection.state.inserts.length, 92)
-    assert.equal(applyConnection.state.committed, true)
-    assert.equal(applyConnection.state.rolledBack, false)
-})
-
 test('Finance 常用币种同步默认只预览，显式 --apply 才写入', async () => {
     assert.equal(shouldSyncFinanceCurrencies(['--sync-currencies']), true)
     assert.equal(shouldSyncFinanceCurrencies([]), false)
 
-    const dryRunConnection = fakeDemoSeedConnection()
+    const dryRunConnection = fakeMasterDataConnection()
     const dryRunCount = await syncFinanceCurrencies(dryRunConnection, 'chat_web_finance', false)
     assert.equal(dryRunCount, 28)
     assert.equal(dryRunConnection.state.transactionStarted, false)
     assert.equal(dryRunConnection.state.inserts.length, 0)
 
-    const applyConnection = fakeDemoSeedConnection()
+    const applyConnection = fakeMasterDataConnection()
     const applyCount = await syncFinanceCurrencies(applyConnection, 'chat_web_finance', true)
     assert.equal(applyCount, 28)
     assert.equal(applyConnection.state.transactionStarted, true)
@@ -907,13 +872,6 @@ test('Finance 国家区号转换发现新旧格式冲突时回滚', async () => 
     assert.equal(connection.state.rows.size, 2)
     assert.equal(connection.state.commits, 0)
     assert.equal(connection.state.rollbacks, 1)
-})
-
-test('Finance 任一目标表已有数据时拒绝混入演示数据', async () => {
-    const connection = fakeDemoSeedConnection('tb_finance_currency')
-    await assert.rejects(() => seedFinanceDemoData(connection, 'chat_web_finance', true), /演示数据目标表非空：tb_finance_currency/)
-    assert.equal(connection.state.transactionStarted, false)
-    assert.equal(connection.state.inserts.length, 0)
 })
 
 test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', () => {
