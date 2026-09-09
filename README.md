@@ -8,7 +8,7 @@ yarn test
 yarn schema:apply
 ```
 
-根目录 `.env` 只提供 `NODE_ENV`、`PORT` 和 Nacos 连接参数。数据库、Redis index `3`、Account Feign 地址/超时、服务间凭据和 Frankfurter 汇率源统一维护在 Nacos 远端 `chat-web-finance-service.yaml`；实际凭据不得提交到仓库。
+根目录 `.env` 只提供 `NODE_ENV`、`PORT` 和 Nacos 连接参数。数据库、Redis index `3`、Account Feign 地址/超时、服务间凭据和 Open Exchange Rates App ID 统一维护在 Nacos 远端 `chat-web-finance-service.yaml`；实际凭据不得提交到仓库。
 
 旧财务库中的财务基础数据迁移默认 dry-run：
 
@@ -17,15 +17,6 @@ LEGACY_FINANCE_DATABASE=legacy_windows yarn legacy:migrate
 ```
 
 确认目标表为空且汇总数量正确后才使用 `--apply`。该命令只迁移品牌、币种、汇率、国家地区和短信基础价格；旧客户数据必须迁入账号服务的 `tb_account_consumer`，禁止再次写入 Finance 数据库。
-
-空库可使用固定 Faker 种子生成演示数据。默认命令只显示计划写入的数量，不修改数据库：
-
-```bash
-yarn seed:demo
-yarn seed:demo --apply
-```
-
-初始化器会同时检查品牌、币种、汇率、国家地区和短信基础价格五张表；任一表已有数据即拒绝写入。旧 `tb_finance_client*` 表由 Schema 增量直接删除，不会生成客户演示数据。
 
 已有数据库只补充国际常用币种时，使用币种同步命令。该命令默认只预览，显式添加 `--apply` 才会写入；已有币种的启用/禁用状态不会被重置：
 
@@ -38,7 +29,7 @@ yarn currency:sync --apply
 
 ## 汇率同步接口
 
-Skyline 定时任务直接调用 Finance 的 `POST /feign/finance/currency/exchange/sync`，该接口不接收业务请求体。Finance 收到触发后读取 Nacos `integration.frankfurter.*`，自行拉取、解析和过滤汇率，并按“币种 + 日期”幂等写入，最终返回 `{ date, count, list }`。接口只接受 Nacos `gateway.feign.service_token` 配置的服务凭据；调用方统一从自己的 Nacos 配置读取 Gateway 地址和超时。
+Skyline 定时任务直接调用 Finance 的 `POST /feign/finance/currency/exchange/sync`，该接口不接收业务请求体。Finance 收到触发后读取 Nacos `integration.openExchangeRates.appid`，从 Open Exchange Rates 拉取最新汇率，按东八区当天日期过滤并只新增未入库的币种汇率，已经入库的汇率不会更新，最终返回 `{ date, count, list }`。接口只接受 Nacos `gateway.feign.service_token` 配置的服务凭据；调用方统一从自己的 Nacos 配置读取 Gateway 地址和超时。
 
 ## 可观测性
 

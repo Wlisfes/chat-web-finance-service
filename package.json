@@ -10,9 +10,8 @@
         "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.cjs\" \"scripts/**/*.cjs\" \"deploy/**/*.cjs\" \".github/workflows/*.yml\"",
         "schema:apply": "node dist/cli/apply-schema.js",
         "legacy:migrate": "node dist/cli/migrate-legacy-finance.js",
-        "seed:demo": "node dist/cli/seed-demo-finance.js",
-        "country:sync": "node dist/cli/seed-demo-finance.js --sync-countries",
-        "currency:sync": "node dist/cli/seed-demo-finance.js --sync-currencies",
+        "country:sync": "node dist/cli/finance-master-data.js --sync-countries",
+        "currency:sync": "node dist/cli/finance-master-data.js --sync-currencies",
         "test": "yarn test:unit",
         "test:unit": "node --test test/*.test.cjs",
         "test:full": "yarn build && yarn test:unit",
@@ -22,7 +21,6 @@
         "start:prod": "node dist/main.js"
     },
     "dependencies": {
-        "@faker-js/faker": "8.4.1",
         "@nestjs/common": "^11.0.1",
         "@nestjs/config": "^4.0.0",
         "@nestjs/core": "^11.0.1",

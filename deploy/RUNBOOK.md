@@ -15,20 +15,20 @@ gateway:
         secret: '<与网关一致的至少32位随机串>'
         maxAgeSeconds: 60
 
-# 汇率拉取与持久化由 Finance 服务负责；地址为必需项，超时为可选项。
+# 汇率拉取与持久化由 Finance 服务负责；App ID 为必需项，超时为可选项。
 integration:
-    frankfurter:
-        url: https://api.frankfurter.dev/v2/rates
-        timeout: 8000
+    openExchangeRates:
+        appid: '<Open Exchange Rates App ID>'
+        timeout: 10000
 ```
 
 Finance 只读取 `gateway.feign.url/timeout`；缺少任一字段时部署校验会中止。所有 Feign 请求都通过 Gateway 的服务路由转发。
 
-Finance 请求 Frankfurter 时会在连接错误或 5xx 响应后自动退避重试一次；`integration.frankfurter.timeout` 是单次请求超时，建议保持在 8000 毫秒以内，以便 Skyline 的 30000 毫秒 Feign 超时覆盖完整重试窗口。
+Finance 请求 Open Exchange Rates 时会在连接错误或 5xx 响应后自动退避重试一次；`integration.openExchangeRates.timeout` 是单次请求超时，建议保持在 10000 毫秒以内，以便 Skyline 的 Feign 超时覆盖完整重试窗口。汇率按东八区当天日期只新增一次，已有记录不会更新。
 
 本服务同时新增 `/feign/finance/**` 服务端路由（短信基础价格、汇率查询与同步），由网关按 `/feign/finance` 前缀转发且不剥离前缀。
 
-部署脚本 `deploy/bootstrap-nacos-config.cjs` 会在切换容器前校验上述字段。其中 `integration.frankfurter.url` 缺失时直接中止部署，`integration.frankfurter.timeout` 可省略，存在时必须为 `1000-60000` 毫秒。
+部署脚本 `deploy/bootstrap-nacos-config.cjs` 会在切换容器前校验上述字段。其中 `integration.openExchangeRates.appid` 缺失时直接中止部署，`integration.openExchangeRates.timeout` 可省略，存在时必须为 `1000-60000` 毫秒。
 
 ## 日志排障
 
@@ -39,20 +39,20 @@ docker logs --tail 100 chat-web-finance-service
 docker inspect chat-web-finance-service --format '{{json .HostConfig.LogConfig}}'
 ```
 
-| 项目             | 基线                                          |
-| ---------------- | --------------------------------------------- |
-| 容器             | `chat-web-finance-service`                    |
-| 容器端口         | `5030`                                        |
-| Nacos Data ID    | `chat-web-finance-service.yaml`               |
-| Nacos 服务名     | `chat-web-finance-service`                    |
-| 数据库           | `chat_web_finance`                            |
-| MySQL 授权边界   | 仅 `chat_web_finance.*`                       |
-| Redis index      | `3`                                           |
-| Feign Account 地址 | `http://chat-web-account-service:5010`       |
-| 部署目录         | `/opt/chat-web-finance-service`               |
-| Docker 网络      | `chat-web-infrastructure`                     |
-| 部署主机         | `chat-home-server`                            |
-| Runner           | `chat-home-server`（标签 `chat-home-server`） |
+| 项目               | 基线                                          |
+| ------------------ | --------------------------------------------- |
+| 容器               | `chat-web-finance-service`                    |
+| 容器端口           | `5030`                                        |
+| Nacos Data ID      | `chat-web-finance-service.yaml`               |
+| Nacos 服务名       | `chat-web-finance-service`                    |
+| 数据库             | `chat_web_finance`                            |
+| MySQL 授权边界     | 仅 `chat_web_finance.*`                       |
+| Redis index        | `3`                                           |
+| Feign Account 地址 | `http://chat-web-account-service:5010`        |
+| 部署目录           | `/opt/chat-web-finance-service`               |
+| Docker 网络        | `chat-web-infrastructure`                     |
+| 部署主机           | `chat-home-server`                            |
+| Runner             | `chat-home-server`（标签 `chat-home-server`） |
 
 Runner 作为 `chat-home-server` 上的 Ubuntu WSL 主机服务运行，安装目录为 `/home/runner/actions-runner-finance`，现有 systemd 单元为 `actions.runner.Wlisfes-chat-web-finance-service.chat-server-home-finance.service`，调度标签为 `chat-home-server`。禁止重新创建 Docker Runner 容器；Runner 用户必须属于 `docker` 组并可写 `/opt/chat-web-finance-service`。
 
@@ -90,18 +90,11 @@ Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现
 
 Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 
-空库需要演示数据时，在 Actions 手动运行 `Build and deploy` 并开启 `seedDemoData`。初始化器只在 `chat-home-server` 的五张 Finance 业务表全部为空时以单个事务写入；任一表已有数据都会中止。容器内也可先 dry-run 核对数量，再显式提交：
-
-```bash
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --apply
-```
-
 已有 Finance 数据库需要补充国际常用币种时，使用幂等的币种同步命令。它只新增缺失记录，保留已有记录的启用/禁用状态：
 
 ```bash
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --sync-currencies
-docker exec chat-web-finance-service node dist/cli/seed-demo-finance.js --sync-currencies --apply
+docker exec chat-web-finance-service node dist/cli/finance-master-data.js --sync-currencies
+docker exec chat-web-finance-service node dist/cli/finance-master-data.js --sync-currencies --apply
 ```
 
 同步目标为 28 种币种：USD、EUR、CNY、JPY、GBP、CHF、CAD、AUD、HKD、SGD、NZD、INR、BRL、RUB、KRW、MXN、ZAR、AED、SAR、THB、IDR、MYR、VND、PHP、PLN、NOK、SEK、DKK。

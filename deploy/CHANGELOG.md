@@ -1,5 +1,23 @@
 # 部署变更记录
 
+## 2026-09-09：切换 Open Exchange Rates 汇率源并启用只新增写入
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Finance 本次 `developer` 分支改动。
+- 变更内容：Finance 汇率同步改为读取 Nacos `integration.openExchangeRates.appid` 并请求 Open Exchange Rates；按东八区当天日期生成快照，已有币种和日期记录只读，不再更新汇率。
+- 机器侧操作：确认 Finance Nacos 已配置 `integration.openExchangeRates.appid`；删除已废弃的 `integration.frankfurter` 节点；不要在仓库或日志中记录 App ID。
+- 验证命令：执行 `yarn format:check && yarn typecheck && yarn build && yarn test:unit`；部署后手动触发汇率任务，确认新增日期和重复触发均不修改已有记录。
+- 回滚方法：恢复上一完整 Git SHA，并按备份恢复旧的 Nacos 汇率源配置；已写入的汇率数据不回滚。
+
+## 2026-09-08：移除 Finance 演示数据初始化能力
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Finance 本次 `developer` 分支改动。
+- 变更内容：删除 Finance 演示数据初始化脚本、手动部署输入、部署后写入步骤、package 命令、测试和 Faker 依赖；币种与国家地区主数据同步迁移到独立 `finance-master-data` CLI。
+- 机器侧操作：无需修改 `.env`、Nacos、数据库、端口、Runner 或部署目录；如需同步主数据，继续手工执行 `country:sync` 或 `currency:sync`。
+- 验证命令：执行 `yarn install --ignore-scripts`、`yarn build`、`yarn format:check` 和 `yarn test:unit`。
+- 回滚方法：恢复上一完整 Git SHA；已存在业务数据不回滚。
+
 ## 2026-09-07：按目标服务拆分 Finance Feign 地址
 
 - 影响机器：Home（`chat-home-server`）。
@@ -406,6 +424,7 @@ curl -fsS http://127.0.0.1:3010/health
 - 将 compose 的镜像恢复为上一条健康 SHA 后重新启动服务。
 - 首次部署尚无旧镜像时停止并删除财务服务容器，同时从网关移除财务路由；保留财务数据库，确认无新数据后再备份删除。
 - 数据迁移默认回滚；执行 `--apply` 前必须备份旧库和目标库。
+
 # 2026-09-06：补齐网关身份上下文运行配置
 
 - 变更内容：保留既有 Finance Nacos 配置，仅追加 `feign.gateway` 和 `gateway.principal` 缺失节点，使最新共享鉴权链路可以启动。
