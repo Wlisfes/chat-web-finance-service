@@ -2,28 +2,26 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectRepository } from '@nestjs/typeorm'
 import { TbFinanceCurrencyExchange } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { EntityManager, Repository } from 'typeorm'
+import { EntityManager, In, Repository } from 'typeorm'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
 import type { CurrencyExchangeSyncResponseDto } from '@/dto/api-response.dto'
 
-interface FrankfurterRateRow {
-    date?: string
-    base?: string
-    quote?: string
-    rate?: number | string
-}
-
-interface FrankfurterRatesObject {
-    date?: string
+interface OpenExchangeRatesPayload {
     base?: string
     rates?: Record<string, number | string>
 }
 
+/** Open Exchange Rates 最新汇率接口；App ID 只从 Nacos 读取，不写入仓库。 */
+const OPEN_EXCHANGE_RATES_LATEST_URL = 'https://openexchangerates.org/api/latest.json'
+
 /** 外部汇率接口发生瞬时网络错误时的最大尝试次数。 */
-const FRANKFURTER_RETRY_ATTEMPTS = 2
+const EXCHANGE_RATE_RETRY_ATTEMPTS = 2
 
 /** 外部汇率接口重试间隔，避免网络恢复瞬间产生连续请求。 */
-const FRANKFURTER_RETRY_DELAY_MS = 1000
+const EXCHANGE_RATE_RETRY_DELAY_MS = 1000
+
+/** 东八区汇率快照使用的固定时区。 */
+const EXCHANGE_RATE_TIME_ZONE = 'Asia/Shanghai'
 
 /** 从外部数据源同步汇率时的统一业务实现；调度服务只负责触发此 Feign 接口。 */
 @Injectable()
@@ -36,32 +34,45 @@ export class CurrencyExchangeSyncService {
         private readonly configService: ConfigService
     ) {}
 
-    /** 拉取当天汇率并在财务数据库中按币种与日期幂等写入。 */
+    /** 拉取最新汇率并按东八区当天日期新增；已经入库的汇率永不更新。 */
     public async httpBaseFinanceSyncCurrencyExchange(): Promise<CurrencyExchangeSyncResponseDto> {
-        const fetched = await this.fetchFrankfurterRates()
-        let writableRates: Array<{ currency: string; rate: number }> = []
+        const fetched = await this.fetchOpenExchangeRates()
+        let insertedRates: Array<{ currency: string; rate: number }> = []
 
         await this.exchangeRepository.manager.transaction(async manager => {
-            writableRates = await this.filterEnabledCurrencies(fetched.rates, manager)
+            const writableRates = await this.filterEnabledCurrencies(fetched.rates, manager)
             if (!writableRates.length) {
                 throw new ServiceUnavailableException('没有可同步的启用币种')
             }
+
+            const existing = await manager.find(TbFinanceCurrencyExchange, {
+                select: ['currency'],
+                where: {
+                    rateDate: fetched.date,
+                    currency: In(writableRates.map(item => item.currency))
+                }
+            })
+            const existingCurrencies = new Set(existing.map(item => item.currency.trim().toUpperCase()))
+            insertedRates = writableRates.filter(item => !existingCurrencies.has(item.currency))
+            if (!insertedRates.length) return
+
             await manager
                 .createQueryBuilder()
                 .insert()
                 .into(TbFinanceCurrencyExchange)
-                .values(writableRates.map(item => ({ ...item, rateDate: fetched.date })))
-                .orUpdate(['rate'], ['currency', 'rateDate'])
+                .values(insertedRates.map(item => ({ ...item, rateDate: fetched.date })))
                 .updateEntity(false)
                 .execute()
         })
 
         const result = {
             date: fetched.date,
-            count: writableRates.length,
-            list: writableRates.map(item => ({ ...item, date: fetched.date }))
+            count: insertedRates.length,
+            list: insertedRates.map(item => ({ ...item, date: fetched.date }))
         }
-        this.logger.log(`汇率同步完成：日期=${result.date}，写入=${result.count} 条`)
+        this.logger.log(
+            result.count ? `汇率同步完成：日期=${result.date}，新增=${result.count} 条` : `汇率已存在，跳过写入：日期=${result.date}`
+        )
         return result
     }
 
@@ -74,121 +85,71 @@ export class CurrencyExchangeSyncService {
         return rates.filter(item => enabled.has(item.currency))
     }
 
-    private async fetchFrankfurterRates(): Promise<{ date: string; rates: Array<{ currency: string; rate: number }> }> {
-        const requestedDate = new Date().toISOString().slice(0, 10)
-        const endpoint = this.configService.get<string>('integration.frankfurter.url')
-        if (typeof endpoint !== 'string' || !endpoint.trim()) {
-            throw new ServiceUnavailableException('缺少汇率数据源地址，请配置 integration.frankfurter.url')
-        }
-        const normalizedEndpoint = endpoint.trim()
-        const requestedUrl = this.createFrankfurterUrl(normalizedEndpoint, requestedDate)
-        let payload: unknown
-        let rows: FrankfurterRateRow[] = []
-        let rates: Array<{ currency: string; rate: number }> = []
-
-        try {
-            // 当天数据可能因周末或上游延迟为空；该请求失败后交给 latest 重试，避免重复等待两轮。
-            const requestedResponse = await this.fetchFrankfurterResponse(requestedUrl)
-            if (requestedResponse.ok) {
-                payload = await this.readFrankfurterPayload(requestedResponse)
-                rows = this.parseRates(payload)
-                rates = this.normalizeRates(rows)
-            }
-        } catch (error) {
-            // 周末、节假日或临时网络故障时回退 latest；两次请求都不可用才让任务失败。
-            this.logger.warn(`当天汇率请求失败，将回退 latest：${this.errorMessage(error)}`, CurrencyExchangeSyncService.name)
+    private async fetchOpenExchangeRates(): Promise<{ date: string; rates: Array<{ currency: string; rate: number }> }> {
+        const appId = this.configService.get<string>('integration.openExchangeRates.appid')
+        if (typeof appId !== 'string' || !appId.trim()) {
+            throw new ServiceUnavailableException('缺少汇率数据源凭据，请配置 integration.openExchangeRates.appid')
         }
 
-        if (!rates.length) {
-            const latestResponse = await this.fetchFrankfurterResponseWithRetry(this.createFrankfurterUrl(normalizedEndpoint))
-            if (!latestResponse.ok) throw new ServiceUnavailableException(`Frankfurter 汇率服务返回 HTTP ${latestResponse.status}`)
-            payload = await this.readFrankfurterPayload(latestResponse)
-            rows = this.parseRates(payload)
-            rates = this.normalizeRates(rows)
-        }
-
-        if (!rates.length) {
-            throw new ServiceUnavailableException(`Frankfurter 汇率响应${rows.length ? '没有合法币种' : '没有可用数据'}`)
-        }
-        const date = this.resolveDate(payload, rows, requestedDate)
+        const response = await this.fetchOpenExchangeRatesResponseWithRetry(this.createOpenExchangeRatesUrl(appId.trim()))
+        if (!response.ok) throw new ServiceUnavailableException(`Open Exchange Rates 汇率服务返回 HTTP ${response.status}`)
+        const payload = await this.readOpenExchangeRatesPayload(response)
+        if (payload.base !== 'USD') throw new ServiceUnavailableException('Open Exchange Rates 汇率基准币种不是 USD')
+        const rates = this.normalizeRates(payload.rates)
+        if (!rates.length) throw new ServiceUnavailableException('Open Exchange Rates 汇率响应没有可用数据')
         if (!rates.some(item => item.currency === 'USD')) rates.unshift({ currency: 'USD', rate: 1 })
-        return { date, rates: this.uniqueRates(rates) }
+        return { date: this.currentRateDate(), rates: this.uniqueRates(rates) }
     }
 
-    private createFrankfurterUrl(endpoint: string, date?: string): URL {
-        const url = new URL(endpoint)
-        if (url.pathname === '' || url.pathname === '/') url.pathname = '/v2/rates'
-        url.searchParams.set('base', 'USD')
-        if (date) url.searchParams.set('date', date)
-        else url.searchParams.delete('date')
+    private createOpenExchangeRatesUrl(appId: string): URL {
+        const url = new URL(OPEN_EXCHANGE_RATES_LATEST_URL)
+        url.searchParams.set('app_id', appId)
         return url
     }
 
-    private async fetchFrankfurterResponse(url: URL): Promise<Response> {
+    private async fetchOpenExchangeRatesResponse(url: URL): Promise<Response> {
         try {
             return await fetch(url, { signal: AbortSignal.timeout(this.getTimeout()) })
         } catch (error) {
-            throw new ServiceUnavailableException(`Frankfurter 汇率服务连接失败：${this.errorMessage(error)}`)
+            throw new ServiceUnavailableException(`Open Exchange Rates 汇率服务连接失败：${this.errorMessage(error)}`)
         }
     }
 
     /** 对外部请求做一次退避重试，覆盖容器 DNS、连接建立和上游短暂不可用。 */
-    private async fetchFrankfurterResponseWithRetry(url: URL): Promise<Response> {
+    private async fetchOpenExchangeRatesResponseWithRetry(url: URL): Promise<Response> {
         let lastError: unknown
-        for (let attempt = 1; attempt <= FRANKFURTER_RETRY_ATTEMPTS; attempt += 1) {
+        for (let attempt = 1; attempt <= EXCHANGE_RATE_RETRY_ATTEMPTS; attempt += 1) {
             try {
-                const response = await this.fetchFrankfurterResponse(url)
-                if (response.ok || response.status < 500 || attempt === FRANKFURTER_RETRY_ATTEMPTS) return response
+                const response = await this.fetchOpenExchangeRatesResponse(url)
+                if (response.ok || response.status < 500 || attempt === EXCHANGE_RATE_RETRY_ATTEMPTS) return response
             } catch (error) {
                 lastError = error
-                if (attempt === FRANKFURTER_RETRY_ATTEMPTS) throw error
+                if (attempt === EXCHANGE_RATE_RETRY_ATTEMPTS) throw error
             }
 
-            this.logger.warn(
-                `Frankfurter latest 请求失败，第 ${attempt}/${FRANKFURTER_RETRY_ATTEMPTS} 次后重试`,
-                CurrencyExchangeSyncService.name
-            )
-            await new Promise<void>(resolve => setTimeout(resolve, FRANKFURTER_RETRY_DELAY_MS))
+            this.logger.warn(`Open Exchange Rates 请求失败，第 ${attempt}/${EXCHANGE_RATE_RETRY_ATTEMPTS} 次后重试`)
+            await new Promise<void>(resolve => setTimeout(resolve, EXCHANGE_RATE_RETRY_DELAY_MS))
         }
 
-        throw lastError instanceof Error ? lastError : new ServiceUnavailableException('Frankfurter latest 请求失败')
+        throw lastError instanceof Error ? lastError : new ServiceUnavailableException('Open Exchange Rates 请求失败')
     }
 
-    private async readFrankfurterPayload(response: Response): Promise<unknown> {
+    private async readOpenExchangeRatesPayload(response: Response): Promise<OpenExchangeRatesPayload> {
         try {
-            return await response.json()
+            const payload: unknown = await response.json()
+            return payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as OpenExchangeRatesPayload) : {}
         } catch (error) {
-            throw new ServiceUnavailableException(`Frankfurter 汇率响应不是有效 JSON：${this.errorMessage(error)}`)
+            throw new ServiceUnavailableException(`Open Exchange Rates 汇率响应不是有效 JSON：${this.errorMessage(error)}`)
         }
     }
 
-    private parseRates(payload: unknown): FrankfurterRateRow[] {
-        if (Array.isArray(payload)) return payload.filter(this.isRateRow)
-        if (!payload || typeof payload !== 'object') return []
-        const value = payload as FrankfurterRatesObject
-        if (value.rates && typeof value.rates === 'object' && !Array.isArray(value.rates)) {
-            return Object.entries(value.rates).map(([quote, rate]) => ({ quote, rate, base: value.base, date: value.date }))
-        }
-        return []
-    }
-
-    private resolveDate(payload: unknown, rows: FrankfurterRateRow[], fallback: string): string {
-        const value = payload && typeof payload === 'object' ? (payload as FrankfurterRatesObject).date : undefined
-        const date = value ?? rows.find(row => row.date)?.date
-        return typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : fallback
-    }
-
-    private isRateRow(value: unknown): value is FrankfurterRateRow {
-        return Boolean(value && typeof value === 'object' && 'quote' in value && 'rate' in value)
-    }
-
-    private normalizeRates(rows: FrankfurterRateRow[]): Array<{ currency: string; rate: number }> {
-        return rows.flatMap(row => {
-            if (typeof row.quote !== 'string' || !row.quote.trim()) return []
-            if (typeof row.rate !== 'number' && typeof row.rate !== 'string') return []
-            if (typeof row.rate === 'string' && !row.rate.trim()) return []
-            const currency = row.quote.trim().toUpperCase()
-            const rate = Number(row.rate)
+    private normalizeRates(rates: OpenExchangeRatesPayload['rates']): Array<{ currency: string; rate: number }> {
+        if (!rates || typeof rates !== 'object' || Array.isArray(rates)) return []
+        return Object.entries(rates).flatMap(([quote, value]) => {
+            if (typeof value !== 'number' && typeof value !== 'string') return []
+            if (typeof value === 'string' && !value.trim()) return []
+            const currency = quote.trim().toUpperCase()
+            const rate = Number(value)
             if (!/^[A-Z]{3}$/.test(currency) || !Number.isFinite(rate) || rate < 0) return []
             return [{ currency, rate: Number(rate.toFixed(6)) }]
         })
@@ -203,8 +164,19 @@ export class CurrencyExchangeSyncService {
         })
     }
 
+    private currentRateDate(now = new Date()): string {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: EXCHANGE_RATE_TIME_ZONE,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).formatToParts(now)
+        const value = Object.fromEntries(parts.map(part => [part.type, part.value]))
+        return `${value.year}-${value.month}-${value.day}`
+    }
+
     private getTimeout(): number {
-        const configured = this.configService.get<number | string>('integration.frankfurter.timeout')
+        const configured = this.configService.get<number | string>('integration.openExchangeRates.timeout')
         if (configured === undefined || configured === '') return 10_000
         const timeout = Number(configured)
         return Number.isInteger(timeout) && timeout >= 1000 && timeout <= 60_000 ? timeout : 10_000

@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-09-09：切换 Open Exchange Rates 汇率源并启用只新增写入
+
+- 影响机器：`chat-home-server`。
+- 关联版本：Finance 本次 `developer` 分支改动。
+- 变更内容：Finance 汇率同步改为读取 Nacos `integration.openExchangeRates.appid` 并请求 Open Exchange Rates；按东八区当天日期生成快照，已有币种和日期记录只读，不再更新汇率。
+- 机器侧操作：确认 Finance Nacos 已配置 `integration.openExchangeRates.appid`；删除已废弃的 `integration.frankfurter` 节点；不要在仓库或日志中记录 App ID。
+- 验证命令：执行 `yarn format:check && yarn typecheck && yarn build && yarn test:unit`；部署后手动触发汇率任务，确认新增日期和重复触发均不修改已有记录。
+- 回滚方法：恢复上一完整 Git SHA，并按备份恢复旧的 Nacos 汇率源配置；已写入的汇率数据不回滚。
+
 ## 2026-09-08：移除 Finance 演示数据初始化能力
 
 - 影响机器：`chat-home-server`。

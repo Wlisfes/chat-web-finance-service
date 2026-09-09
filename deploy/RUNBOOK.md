@@ -15,20 +15,20 @@ gateway:
         secret: '<与网关一致的至少32位随机串>'
         maxAgeSeconds: 60
 
-# 汇率拉取与持久化由 Finance 服务负责；地址为必需项，超时为可选项。
+# 汇率拉取与持久化由 Finance 服务负责；App ID 为必需项，超时为可选项。
 integration:
-    frankfurter:
-        url: https://api.frankfurter.dev/v2/rates
-        timeout: 8000
+    openExchangeRates:
+        appid: '<Open Exchange Rates App ID>'
+        timeout: 10000
 ```
 
 Finance 只读取 `gateway.feign.url/timeout`；缺少任一字段时部署校验会中止。所有 Feign 请求都通过 Gateway 的服务路由转发。
 
-Finance 请求 Frankfurter 时会在连接错误或 5xx 响应后自动退避重试一次；`integration.frankfurter.timeout` 是单次请求超时，建议保持在 8000 毫秒以内，以便 Skyline 的 30000 毫秒 Feign 超时覆盖完整重试窗口。
+Finance 请求 Open Exchange Rates 时会在连接错误或 5xx 响应后自动退避重试一次；`integration.openExchangeRates.timeout` 是单次请求超时，建议保持在 10000 毫秒以内，以便 Skyline 的 Feign 超时覆盖完整重试窗口。汇率按东八区当天日期只新增一次，已有记录不会更新。
 
 本服务同时新增 `/feign/finance/**` 服务端路由（短信基础价格、汇率查询与同步），由网关按 `/feign/finance` 前缀转发且不剥离前缀。
 
-部署脚本 `deploy/bootstrap-nacos-config.cjs` 会在切换容器前校验上述字段。其中 `integration.frankfurter.url` 缺失时直接中止部署，`integration.frankfurter.timeout` 可省略，存在时必须为 `1000-60000` 毫秒。
+部署脚本 `deploy/bootstrap-nacos-config.cjs` 会在切换容器前校验上述字段。其中 `integration.openExchangeRates.appid` 缺失时直接中止部署，`integration.openExchangeRates.timeout` 可省略，存在时必须为 `1000-60000` 毫秒。
 
 ## 日志排障
 

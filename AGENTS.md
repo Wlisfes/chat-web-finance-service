@@ -148,7 +148,7 @@
 - 跨服务业务数据访问必须使用共享包的强类型 Feign 客户端。所有 `/feign/*` 调用都使用 `resolveFeignServiceAuthorization` 组装的服务间凭据，不得转发终端用户令牌；Gateway 对 `/feign/**` 只负责路由，不调用 Auth 用户鉴权。禁止在本仓库重复定义其他服务的 Feign 客户端。
 - 需要把操作人 UID 渲染为姓名工号时，统一使用共享客户端的 `batchResolveUsers` 批量接口，禁止在列表查询中按行发起单条查询。
 - 跨服务客户端统一通过 Gateway，地址和超时读取 Nacos `gateway.feign.url/timeout`，服务间凭据读取 `gateway.feign.service_token`。Finance 不得在本服务 Nacos 或部署 `.env` 中维护未使用的目标服务 URL、用户 Token 或历史凭据别名。
-- 汇率同步的外部数据拉取、响应解析、启用币种过滤和财务数据库持久化全部由 Finance 负责；Skyline 只通过无业务请求体的 `/feign/finance/currency/exchange/sync` 触发任务。外部汇率地址读取 Nacos 必需项 `integration.frankfurter.url`，请求超时读取可选项 `integration.frankfurter.timeout`。
+- 汇率同步的外部数据拉取、响应解析、启用币种过滤和财务数据库持久化全部由 Finance 负责；Skyline 只通过无业务请求体的 `/feign/finance/currency/exchange/sync` 触发任务。Open Exchange Rates App ID 读取 Nacos 必需项 `integration.openExchangeRates.appid`，请求超时读取可选项 `integration.openExchangeRates.timeout`；汇率表只允许新增，不得更新已入库记录。
 
 ### HTTP 模块分层与接口实现
 
