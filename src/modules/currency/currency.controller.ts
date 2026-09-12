@@ -60,7 +60,7 @@ export class CurrencyController {
         return this.currencyService.httpBaseFinanceColumnCurrencyExchange(input)
     }
 
-    @ApiServiceDecorator(Get('exchange/resolver'), {
+    @ApiServiceDecorator(Get('exchange/resolve'), {
         operation: { summary: '获取币种最新汇率' },
         request: { source: 'query', type: ResolveCurrencyExchangeDto },
         response: { type: CurrencyExchangeResponseDto, description: '币种最新汇率' }
