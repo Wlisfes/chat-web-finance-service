@@ -100,3 +100,12 @@ docker exec chat-web-finance-service node dist/cli/finance-master-data.js --sync
 同步目标为 28 种币种：USD、EUR、CNY、JPY、GBP、CHF、CAD、AUD、HKD、SGD、NZD、INR、BRL、RUB、KRW、MXN、ZAR、AED、SAR、THB、IDR、MYR、VND、PHP、PLN、NOK、SEK、DKK。
 
 部署失败时先检查 Actions 的 `Ensure Finance Nacos config`、MySQL 授权检查、Schema 应用和容器健康检查步骤。镜像回滚由 `deploy.sh` 自动执行；预创建的数据库与数据不会自动删除。
+
+## 同机 Nacos 注册地址
+
+`chat-home-server` 上的 Finance 与 Gateway 在同一台机器、同一 Docker 网络。生产 **禁止** 设置 `NACOS_REGISTER_IP=10.66.0.2`。
+
+2026-09-17 P0：强制注册 WireGuard 地址后，本机 `0.0.0.0:5030` 返回 200，但 `10.66.0.2:5030` 超时，同机 Gateway `/api/finance/health` 业务 503。Docker Desktop 不会把已发布端口映射到 WG 网卡。正确做法是不设 `NACOS_REGISTER_IP`，注册容器网卡 IP。公网走 Nginx `80/443` → Gateway。跨服务事故主记录见 Gateway `deploy/RUNBOOK.md`。
+
+不要用 `10.66.0.2:5030` 是否通来判断 Finance 是否健康，也不要把该地址写回生产 `.env`。
+

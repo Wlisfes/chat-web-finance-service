@@ -1,5 +1,15 @@
 # 部署变更记录
 
+## 2026-09-17：P0 事故记录，同机禁止注册 WireGuard 地址
+
+- 影响机器：`chat-home-server`。
+- 事故级别：P0。强制 `NACOS_REGISTER_IP=10.66.0.2` 后，本机 `0.0.0.0:5030` 200，但 `10.66.0.2:5030` 超时，Gateway `/api/finance/health` 业务 503。
+- 根因：Docker Desktop 不把已发布端口映射到 WG 网卡，同机 Gateway 不能把 WireGuard 地址当上游。
+- 正确处置：生产不设置 `NACOS_REGISTER_IP`，注册容器网卡 IP；公网走 Nginx `80/443` → Gateway。
+- 禁止项：不要把 `10.66.0.2` 写回 Finance；不要用 `10.66.0.2:5030` 通不通判断健康；不要改 CRM。
+- 验证命令：Gateway 与公网 `GET /api/finance/health` 返回业务 `status=UP`；容器 `NACOS_REGISTER_IP` 为空。
+- 跨服务主记录：Gateway `deploy/RUNBOOK.md`。
+
 ## 2026-09-17：停止强制注册不可达的跨主机地址
 
 - 影响机器：`chat-home-server`。
