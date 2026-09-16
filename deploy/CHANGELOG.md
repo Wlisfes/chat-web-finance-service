@@ -1,5 +1,13 @@
 # 部署变更记录
 
+## 2026-09-16：统一跨主机 Nacos 注册地址和服务端口
+
+- 影响机器：`chat-home-server`、本地 WireGuard Gateway。
+- 变更内容：部署时强制维护 `NACOS_REGISTER_IP`，默认使用 `10.66.0.2`；Finance 容器发布 `5030` 到宿主机，使云端和本地 Gateway 都能访问 Nacos 注册实例。
+- 机器侧操作：部署后确认 Nacos 中 Finance 实例为 `10.66.0.2:5030`，并以管理员运行 Gateway 仓库的 WireGuard 防火墙脚本。
+- 验证命令：检查 `docker ps` 端口、`Test-NetConnection 10.66.0.2 -Port 5030` 和 Gateway `/api/finance/health`。
+- 回滚方法：回退本次镜像和部署文件，恢复原有 Nacos 注册地址及 Compose 端口映射。
+
 ## 2026-09-09：生产 Nacos 切换为云端域名
 
 - 影响机器：`chat-home-server`。
