@@ -30,7 +30,7 @@ export class CurrencyController {
         request: { source: 'body', type: ListCurrencyDto },
         response: { type: CurrencyPageResponseDto, description: '币种分页数据' }
     })
-    public async httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto): Promise<CurrencyPageResponseDto> {
+    public async httpBaseFinanceColumnCurrency(@Body() input: ListCurrencyDto) {
         return this.currencyService.httpBaseFinanceColumnCurrency(input)
     }
 
@@ -56,7 +56,7 @@ export class CurrencyController {
         request: { source: 'body', type: ListCurrencyExchangeDto },
         response: { type: CurrencyExchangePageResponseDto, description: '币种汇率分页数据' }
     })
-    public async httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto): Promise<CurrencyExchangePageResponseDto> {
+    public async httpBaseFinanceColumnCurrencyExchange(@Body() input: ListCurrencyExchangeDto) {
         return this.currencyService.httpBaseFinanceColumnCurrencyExchange(input)
     }
 
