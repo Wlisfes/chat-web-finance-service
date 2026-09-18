@@ -1,25 +1,23 @@
 import { Injectable } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { TbFinanceCurrency, TbFinanceCurrencyExchange, TbFinanceCurrencyStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
-import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
-import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
-import { isNotEmpty } from 'class-validator'
-import { Repository } from 'typeorm'
 import * as CurrencyDto from '@/modules/currency/dto/currency.dto'
 import * as ResponseDto from '@/dto/api-response.dto'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class CurrencyService {
     constructor(
-        @InjectRepository(TbFinanceCurrency) private readonly currencyRepository: Repository<TbFinanceCurrency>,
-        @InjectRepository(TbFinanceCurrencyExchange) private readonly exchangeRepository: Repository<TbFinanceCurrencyExchange>,
+        @InjectRepository(Schema.TbFinanceCurrency) private readonly currencyRepository: Repository<Schema.TbFinanceCurrency>,
+        @InjectRepository(Schema.TbFinanceCurrencyExchange)
+        private readonly exchangeRepository: Repository<Schema.TbFinanceCurrencyExchange>,
         private readonly database: DataBaseService,
         private readonly currencyUtilsService: CurrencyUtilsService
     ) {}
 
     /**币种分页数据*/
-    public async httpBaseFinanceColumnCurrency(body: CurrencyDto.ListCurrencyDto): Promise<PageResult<TbFinanceCurrency>> {
+    public async httpBaseFinanceColumnCurrency(body: CurrencyDto.ListCurrencyDto): Promise<PageResult<Schema.TbFinanceCurrency>> {
         return this.database.builder(this.currencyRepository, async qb => {
             if (isNotEmpty(body.name?.trim())) {
                 qb.andWhere('t.name LIKE :name', { name: `%${body.name?.trim()}%` })
@@ -37,7 +35,7 @@ export class CurrencyService {
     }
 
     /**编辑币种状态*/
-    public async httpBaseFinanceUpdateCurrencyStatus(body: CurrencyDto.UpdateCurrencyStatusDto): Promise<TbFinanceCurrency> {
+    public async httpBaseFinanceUpdateCurrencyStatus(body: CurrencyDto.UpdateCurrencyStatusDto): Promise<Schema.TbFinanceCurrency> {
         return this.currencyRepository.manager.transaction(async manager => {
             const currency = await this.currencyUtilsService.findRequired(body.keyId, manager)
             currency.status = body.status
@@ -48,7 +46,7 @@ export class CurrencyService {
     /**币种下拉数据*/
     public async httpBaseFinanceSelectCurrency(): Promise<ResponseDto.CurrencySelectResponseDto> {
         return await this.database.builder(this.currencyRepository, qb => {
-            qb.where('t.status = :status', { status: TbFinanceCurrencyStatus.ENABLE })
+            qb.where('t.status = :status', { status: Schema.TbFinanceCurrencyStatus.ENABLE })
             qb.orderBy('t.createTime', 'DESC')
             qb.getMany()
             return qb.getMany().then(list => ({ list }))

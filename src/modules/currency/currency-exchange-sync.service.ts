@@ -1,11 +1,10 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectRepository } from '@nestjs/typeorm'
-import { TbFinanceCurrencyExchange } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { EntityManager, In, Repository } from 'typeorm'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
 import type { CurrencyExchangeSyncResponseDto } from '@/dto/api-response.dto'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, EntityManager, In, Repository } from '@wlisfes/chat-web-base-schema/database'
 interface OpenExchangeRatesPayload {
     base?: string
     rates?: Record<string, number | string>
@@ -29,7 +28,8 @@ export class CurrencyExchangeSyncService {
     private readonly logger = new Logger(CurrencyExchangeSyncService.name)
 
     constructor(
-        @InjectRepository(TbFinanceCurrencyExchange) private readonly exchangeRepository: Repository<TbFinanceCurrencyExchange>,
+        @InjectRepository(Schema.TbFinanceCurrencyExchange)
+        private readonly exchangeRepository: Repository<Schema.TbFinanceCurrencyExchange>,
         private readonly currencyUtilsService: CurrencyUtilsService,
         private readonly configService: ConfigService
     ) {}
@@ -45,7 +45,7 @@ export class CurrencyExchangeSyncService {
                 throw new ServiceUnavailableException('没有可同步的启用币种')
             }
 
-            const existing = await manager.find(TbFinanceCurrencyExchange, {
+            const existing = await manager.find(Schema.TbFinanceCurrencyExchange, {
                 select: ['currency'],
                 where: {
                     rateDate: fetched.date,
@@ -59,7 +59,7 @@ export class CurrencyExchangeSyncService {
             await manager
                 .createQueryBuilder()
                 .insert()
-                .into(TbFinanceCurrencyExchange)
+                .into(Schema.TbFinanceCurrencyExchange)
                 .values(insertedRates.map(item => ({ ...item, rateDate: fetched.date })))
                 .updateEntity(false)
                 .execute()

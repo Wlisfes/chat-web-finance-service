@@ -1,9 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import mysql, { RowDataPacket } from 'mysql2/promise'
-import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 import { applySchema } from '@/cli/apply-schema'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
 
+import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 const MIGRATION_USER_PREFIX = 'finance_mig_'
 const MYSQL_ACCOUNT_HOST = '%'
 

@@ -1,38 +1,41 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { TbFinanceBasicSmsRate } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
-import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
-import { isNotEmpty } from 'class-validator'
-import { Repository } from 'typeorm'
 import { BatchSmsRateResponseDto, SmsRateListItemResponseDto } from '@/dto/api-response.dto'
 import { SmsRateUtilsService } from '@/modules/sms-rate/sms-rate.utils.service'
 import * as SmsRateDto from '@/modules/sms-rate/dto/sms-rate.dto'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class SmsRateService {
     constructor(
-        @InjectRepository(TbFinanceBasicSmsRate) private readonly repository: Repository<TbFinanceBasicSmsRate>,
+        @InjectRepository(Schema.TbFinanceBasicSmsRate) private readonly repository: Repository<Schema.TbFinanceBasicSmsRate>,
         private readonly database: DataBaseService,
         private readonly smsRateUtilsService: SmsRateUtilsService
     ) {}
 
     /**新增短信基础价格*/
-    public async httpBaseFinanceCreateSmsRate(principal: AuthPrincipal, body: SmsRateDto.CreateSmsRateDto): Promise<TbFinanceBasicSmsRate> {
+    public async httpBaseFinanceCreateSmsRate(
+        principal: AuthPrincipal,
+        body: SmsRateDto.CreateSmsRateDto
+    ): Promise<Schema.TbFinanceBasicSmsRate> {
         return this.repository.manager.transaction(async manager => {
             await this.smsRateUtilsService.findAvailable(body.code, body.mcc, manager)
-            const rate = manager.create(TbFinanceBasicSmsRate, { ...body, createBy: principal.uid, modifyBy: principal.uid })
+            const rate = manager.create(Schema.TbFinanceBasicSmsRate, { ...body, createBy: principal.uid, modifyBy: principal.uid })
             return manager.save(rate)
         })
     }
 
     /**编辑短信基础价格*/
-    public async httpBaseFinanceUpdateSmsRate(principal: AuthPrincipal, body: SmsRateDto.UpdateSmsRateDto): Promise<TbFinanceBasicSmsRate> {
+    public async httpBaseFinanceUpdateSmsRate(
+        principal: AuthPrincipal,
+        body: SmsRateDto.UpdateSmsRateDto
+    ): Promise<Schema.TbFinanceBasicSmsRate> {
         return this.repository.manager.transaction(async manager => {
             const rate = await this.smsRateUtilsService.findRequired(body.keyId, manager)
             await this.smsRateUtilsService.findAvailable(body.code, body.mcc, manager, body.keyId)
-            manager.merge(TbFinanceBasicSmsRate, rate, { ...body, modifyBy: principal.uid })
+            manager.merge(Schema.TbFinanceBasicSmsRate, rate, { ...body, modifyBy: principal.uid })
             return manager.save(rate)
         })
     }

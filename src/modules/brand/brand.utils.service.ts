@@ -1,20 +1,18 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { TbFinanceBrand } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
-import { isNotEmpty } from 'class-validator'
-import { EntityManager, Repository } from 'typeorm'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, DataBaseService, EntityManager, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class BrandUtilsService {
     constructor(
-        @InjectRepository(TbFinanceBrand) private readonly brandRepository: Repository<TbFinanceBrand>,
+        @InjectRepository(Schema.TbFinanceBrand) private readonly brandRepository: Repository<Schema.TbFinanceBrand>,
         private readonly database: DataBaseService
     ) {}
 
     /**获取品牌详情*/
-    public async findRequired(keyId: number, manager?: EntityManager): Promise<TbFinanceBrand> {
-        const repository = (manager ?? this.brandRepository.manager).getRepository(TbFinanceBrand)
+    public async findRequired(keyId: number, manager?: EntityManager): Promise<Schema.TbFinanceBrand> {
+        const repository = (manager ?? this.brandRepository.manager).getRepository(Schema.TbFinanceBrand)
         const brand = await this.database.builder(repository, qb => {
             qb.where('t.keyId = :keyId', { keyId })
             if (isNotEmpty(manager)) {
@@ -30,7 +28,7 @@ export class BrandUtilsService {
 
     /**校验品牌名称*/
     public async findNameAvailable(name: string, manager?: EntityManager, excludedKeyId?: number): Promise<void> {
-        const repository = (manager ?? this.brandRepository.manager).getRepository(TbFinanceBrand)
+        const repository = (manager ?? this.brandRepository.manager).getRepository(Schema.TbFinanceBrand)
         const exists = await this.database.builder(repository, qb => {
             qb.where('t.name = :name', { name: name.trim() })
             if (isNotEmpty(excludedKeyId)) {

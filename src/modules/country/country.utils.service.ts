@@ -1,20 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { TbFinanceCountry } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
-import { isNotEmpty } from 'class-validator'
-import { EntityManager, Repository } from 'typeorm'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, DataBaseService, EntityManager, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class CountryUtilsService {
     constructor(
-        @InjectRepository(TbFinanceCountry) private readonly countryRepository: Repository<TbFinanceCountry>,
+        @InjectRepository(Schema.TbFinanceCountry) private readonly countryRepository: Repository<Schema.TbFinanceCountry>,
         private readonly database: DataBaseService
     ) {}
 
     /**获取国家地区详情*/
-    public async findRequired(keyId: number, manager?: EntityManager): Promise<TbFinanceCountry> {
-        const repository = (manager ?? this.countryRepository.manager).getRepository(TbFinanceCountry)
+    public async findRequired(keyId: number, manager?: EntityManager): Promise<Schema.TbFinanceCountry> {
+        const repository = (manager ?? this.countryRepository.manager).getRepository(Schema.TbFinanceCountry)
         const country = await this.database.builder(repository, qb => {
             qb.where('t.keyId = :keyId', { keyId })
             if (isNotEmpty(manager)) {

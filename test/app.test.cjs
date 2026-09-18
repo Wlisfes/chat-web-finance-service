@@ -2,9 +2,13 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 require('reflect-metadata')
 
-const { Module } = require('@nestjs/common')
+const { BadRequestException, Module } = require('@nestjs/common')
 const { NestFactory } = require('@nestjs/core')
 const { DocumentBuilder, SwaggerModule } = require('@nestjs/swagger')
+const { plainToInstance } = require('class-transformer')
+const { validate } = require('class-validator')
+const { HttpExceptionFilter } = require('@wlisfes/chat-web-base-schema/filters')
+const { SizePageDto } = require('@wlisfes/chat-web-base-schema/utils')
 
 const controllers = [
     require('../dist/app.controller').AppController,
@@ -120,4 +124,51 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
             }
         }
     }
+})
+
+test('分页参数提供默认值并拒绝越界数据', async () => {
+    const defaults = plainToInstance(SizePageDto, {})
+    assert.deepEqual(await validate(defaults), [])
+    assert.equal(defaults.page, 1)
+    assert.equal(defaults.size, 50)
+
+    const invalid = plainToInstance(SizePageDto, { page: 0, size: 101 })
+    assert.equal((await validate(invalid)).length, 2)
+})
+
+test('业务异常使用 HTTP 200 和响应体自定义 code', () => {
+    const response = {
+        statusCode: undefined,
+        body: undefined,
+        headers: {},
+        setHeader(name, value) {
+            this.headers[name] = value
+        },
+        status(code) {
+            this.statusCode = code
+            return this
+        },
+        json(body) {
+            this.body = body
+        }
+    }
+    const host = {
+        switchToHttp() {
+            return {
+                getRequest() {
+                    return { method: 'POST', originalUrl: '/brand/create', headers: {} }
+                },
+                getResponse() {
+                    return response
+                }
+            }
+        }
+    }
+
+    new HttpExceptionFilter().catch(new BadRequestException('品牌参数错误'), host)
+    assert.equal(response.statusCode, 200)
+    assert.equal(response.body.code, 400)
+    assert.equal(response.body.message, '品牌参数错误')
+    assert.equal(response.headers['x-request-id'], response.body.logId)
+    assert.deepEqual(Object.keys(response.body), ['data', 'code', 'message', 'logId', 'timestamp'])
 })

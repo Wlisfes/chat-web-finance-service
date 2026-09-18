@@ -1,21 +1,19 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { TbFinanceBasicSmsRate, TbFinanceCountry } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
-import { isNotEmpty } from 'class-validator'
-import { EntityManager, Repository } from 'typeorm'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, DataBaseService, EntityManager, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class SmsRateUtilsService {
     constructor(
-        @InjectRepository(TbFinanceBasicSmsRate) private readonly rateRepository: Repository<TbFinanceBasicSmsRate>,
-        @InjectRepository(TbFinanceCountry) private readonly countryRepository: Repository<TbFinanceCountry>,
+        @InjectRepository(Schema.TbFinanceBasicSmsRate) private readonly rateRepository: Repository<Schema.TbFinanceBasicSmsRate>,
+        @InjectRepository(Schema.TbFinanceCountry) private readonly countryRepository: Repository<Schema.TbFinanceCountry>,
         private readonly database: DataBaseService
     ) {}
 
     /**获取短信基础价格详情*/
-    public async findRequired(keyId: number, manager?: EntityManager): Promise<TbFinanceBasicSmsRate> {
-        const repository = (manager ?? this.rateRepository.manager).getRepository(TbFinanceBasicSmsRate)
+    public async findRequired(keyId: number, manager?: EntityManager): Promise<Schema.TbFinanceBasicSmsRate> {
+        const repository = (manager ?? this.rateRepository.manager).getRepository(Schema.TbFinanceBasicSmsRate)
         const rate = await this.database.builder(repository, qb => {
             qb.where('t.keyId = :keyId', { keyId })
             if (isNotEmpty(manager)) {
@@ -31,7 +29,7 @@ export class SmsRateUtilsService {
 
     /**校验国家地区移动代码价格*/
     public async findAvailable(code: string, mcc: string, manager?: EntityManager, excludedKeyId?: number): Promise<void> {
-        const repository = (manager ?? this.rateRepository.manager).getRepository(TbFinanceBasicSmsRate)
+        const repository = (manager ?? this.rateRepository.manager).getRepository(Schema.TbFinanceBasicSmsRate)
         const exists = await this.database.builder(repository, qb => {
             qb.where('t.code = :code AND t.mcc = :mcc', { code, mcc })
             if (isNotEmpty(excludedKeyId)) {
@@ -48,7 +46,7 @@ export class SmsRateUtilsService {
     }
 
     /**按区号获取国家地区*/
-    public async findCountriesByCodes(codes: string[]): Promise<TbFinanceCountry[]> {
+    public async findCountriesByCodes(codes: string[]): Promise<Schema.TbFinanceCountry[]> {
         const uniqueCodes = [...new Set(codes)]
         if (uniqueCodes.length === 0) {
             return []
@@ -57,7 +55,7 @@ export class SmsRateUtilsService {
     }
 
     /**获取指定国家地区*/
-    public async findCountriesRequired(countryKeyIds: number[]): Promise<TbFinanceCountry[]> {
+    public async findCountriesRequired(countryKeyIds: number[]): Promise<Schema.TbFinanceCountry[]> {
         const countries = await this.database.builder(this.countryRepository, qb => {
             return qb.where('t.keyId IN (:...countryKeyIds)', { countryKeyIds }).getMany()
         })
@@ -68,7 +66,7 @@ export class SmsRateUtilsService {
     }
 
     /**获取指定国家地区的短信基础价格*/
-    public async findRatesRequired(countries: TbFinanceCountry[]): Promise<TbFinanceBasicSmsRate[]> {
+    public async findRatesRequired(countries: Schema.TbFinanceCountry[]): Promise<Schema.TbFinanceBasicSmsRate[]> {
         const rates = await this.database.builder(this.rateRepository, qb => {
             return qb.where(countries.map(country => ({ code: country.code, mcc: country.mcc }))).getMany()
         })
