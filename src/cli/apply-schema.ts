@@ -2,10 +2,10 @@ import { createHash } from 'node:crypto'
 import { readdir, readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import path from 'node:path'
-import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 import mysql, { RowDataPacket } from 'mysql2/promise'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
 
+import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 type MigrationRow = RowDataPacket & { checksum: string }
 type ColumnRow = RowDataPacket & { columnName: string }
 const MIGRATION_TABLE = 'tb_finance_schema_migration'

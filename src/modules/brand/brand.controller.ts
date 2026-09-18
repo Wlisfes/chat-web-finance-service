@@ -2,10 +2,10 @@ import { Body, Post } from '@nestjs/common'
 import { CurrentPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
-import { TbFinanceBrandDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { BrandService } from '@/modules/brand/brand.service'
-import { CreateBrandDto, ListBrandDto, UpdateBrandDto, UpdateBrandStatusDto } from '@/modules/brand/dto/brand.dto'
 import { BrandPageResponseDto, BrandSelectResponseDto } from '@/dto/api-response.dto'
+import * as Schema from '@wlisfes/chat-web-base-schema'
+import * as BrandDto from '@/modules/brand/dto/brand.dto'
 
 @ApifoxController('财务中心-品牌', 'brand', { bearerAuth: true })
 export class BrandController {
@@ -13,37 +13,40 @@ export class BrandController {
 
     @ApiServiceDecorator(Post('create'), {
         operation: { summary: '新增品牌' },
-        request: { source: 'body', type: CreateBrandDto },
-        response: { type: TbFinanceBrandDto, description: '新增后的品牌信息' }
+        request: { source: 'body', type: BrandDto.CreateBrandDto },
+        response: { type: Schema.TbFinanceBrandDto, description: '新增后的品牌信息' }
     })
-    public async httpBaseFinanceCreateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: CreateBrandDto) {
+    public async httpBaseFinanceCreateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: BrandDto.CreateBrandDto) {
         return this.brandService.httpBaseFinanceCreateBrand(principal, input)
     }
 
     @ApiServiceDecorator(Post('update'), {
         operation: { summary: '更新品牌' },
-        request: { source: 'body', type: UpdateBrandDto },
-        response: { type: TbFinanceBrandDto, description: '更新后的品牌信息' }
+        request: { source: 'body', type: BrandDto.UpdateBrandDto },
+        response: { type: Schema.TbFinanceBrandDto, description: '更新后的品牌信息' }
     })
-    public async httpBaseFinanceUpdateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandDto) {
+    public async httpBaseFinanceUpdateBrand(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: BrandDto.UpdateBrandDto) {
         return this.brandService.httpBaseFinanceUpdateBrand(principal, input)
     }
 
     @ApiServiceDecorator(Post('update/status'), {
         operation: { summary: '更新品牌状态' },
-        request: { source: 'body', type: UpdateBrandStatusDto },
-        response: { type: TbFinanceBrandDto, description: '更新后的品牌信息' }
+        request: { source: 'body', type: BrandDto.UpdateBrandStatusDto },
+        response: { type: Schema.TbFinanceBrandDto, description: '更新后的品牌信息' }
     })
-    public async httpBaseFinanceUpdateBrandStatus(@CurrentPrincipal() principal: AuthPrincipal, @Body() input: UpdateBrandStatusDto) {
+    public async httpBaseFinanceUpdateBrandStatus(
+        @CurrentPrincipal() principal: AuthPrincipal,
+        @Body() input: BrandDto.UpdateBrandStatusDto
+    ) {
         return this.brandService.httpBaseFinanceUpdateBrandStatus(principal, input)
     }
 
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询品牌' },
-        request: { source: 'body', type: ListBrandDto },
+        request: { source: 'body', type: BrandDto.ListBrandDto },
         response: { type: BrandPageResponseDto, description: '品牌分页数据' }
     })
-    public async httpBaseFinanceColumnBrand(@Body() input: ListBrandDto) {
+    public async httpBaseFinanceColumnBrand(@Body() input: BrandDto.ListBrandDto) {
         return this.brandService.httpBaseFinanceColumnBrand(input)
     }
 

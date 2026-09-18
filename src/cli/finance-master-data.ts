@@ -1,8 +1,8 @@
-import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 import mysql, { Connection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
 import { FINANCE_COUNTRY_DATA } from '@/cli/finance-country-data'
 
+import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 export const FINANCE_COMMON_CURRENCIES = [
     { currency: 'USD', name: '美元', symbol: '$', rate: 1 },
     { currency: 'EUR', name: '欧元', symbol: '€', rate: 0.92 },

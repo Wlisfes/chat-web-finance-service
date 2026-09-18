@@ -1,21 +1,18 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { InjectRepository } from '@nestjs/typeorm'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { TbFinanceBrand, TbFinanceBrandStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
 import { FeignClientAccountManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
-import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
-import { isNotEmpty } from 'class-validator'
-import { Repository } from 'typeorm'
 import { BrandListItemResponseDto, BrandSelectResponseDto, OperatorOptionResponseDto } from '@/dto/api-response.dto'
 import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 import * as BrandDto from '@/modules/brand/dto/brand.dto'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class BrandService {
     constructor(
-        @InjectRepository(TbFinanceBrand) private readonly brandRepository: Repository<TbFinanceBrand>,
+        @InjectRepository(Schema.TbFinanceBrand) private readonly brandRepository: Repository<Schema.TbFinanceBrand>,
         private readonly database: DataBaseService,
         private readonly brandUtilsService: BrandUtilsService,
         private readonly accountFeignClient: FeignClientAccountManager,
@@ -23,26 +20,29 @@ export class BrandService {
     ) {}
 
     /**新增品牌*/
-    public async httpBaseFinanceCreateBrand(principal: AuthPrincipal, body: BrandDto.CreateBrandDto): Promise<TbFinanceBrand> {
+    public async httpBaseFinanceCreateBrand(principal: AuthPrincipal, body: BrandDto.CreateBrandDto): Promise<Schema.TbFinanceBrand> {
         return this.brandRepository.manager.transaction(async manager => {
             await this.brandUtilsService.findNameAvailable(body.name, manager)
-            const brand = manager.create(TbFinanceBrand, { ...body, createBy: principal.uid, modifyBy: principal.uid })
+            const brand = manager.create(Schema.TbFinanceBrand, { ...body, createBy: principal.uid, modifyBy: principal.uid })
             return manager.save(brand)
         })
     }
 
     /**编辑品牌*/
-    public async httpBaseFinanceUpdateBrand(principal: AuthPrincipal, body: BrandDto.UpdateBrandDto): Promise<TbFinanceBrand> {
+    public async httpBaseFinanceUpdateBrand(principal: AuthPrincipal, body: BrandDto.UpdateBrandDto): Promise<Schema.TbFinanceBrand> {
         return this.brandRepository.manager.transaction(async manager => {
             const brand = await this.brandUtilsService.findRequired(body.keyId, manager)
             await this.brandUtilsService.findNameAvailable(body.name, manager, body.keyId)
-            manager.merge(TbFinanceBrand, brand, { ...body, modifyBy: principal.uid })
+            manager.merge(Schema.TbFinanceBrand, brand, { ...body, modifyBy: principal.uid })
             return manager.save(brand)
         })
     }
 
     /**编辑品牌状态*/
-    public async httpBaseFinanceUpdateBrandStatus(principal: AuthPrincipal, body: BrandDto.UpdateBrandStatusDto): Promise<TbFinanceBrand> {
+    public async httpBaseFinanceUpdateBrandStatus(
+        principal: AuthPrincipal,
+        body: BrandDto.UpdateBrandStatusDto
+    ): Promise<Schema.TbFinanceBrand> {
         return this.brandRepository.manager.transaction(async manager => {
             const brand = await this.brandUtilsService.findRequired(body.keyId, manager)
             brand.status = body.status
@@ -104,7 +104,7 @@ export class BrandService {
     /**品牌下拉数据*/
     public async httpBaseFinanceSelectBrand(): Promise<BrandSelectResponseDto> {
         const list = await this.database.builder(this.brandRepository, qb => {
-            return qb.where('t.status = :status', { status: TbFinanceBrandStatus.ENABLE }).orderBy('t.createTime', 'DESC').getMany()
+            return qb.where('t.status = :status', { status: Schema.TbFinanceBrandStatus.ENABLE }).orderBy('t.createTime', 'DESC').getMany()
         })
         return { list }
     }

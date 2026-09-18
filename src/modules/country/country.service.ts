@@ -1,24 +1,21 @@
 import { Injectable } from '@nestjs/common'
-import { InjectRepository } from '@nestjs/typeorm'
-import { TbFinanceCountry, TbFinanceCountryStatus } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { DataBaseService } from '@wlisfes/chat-web-base-schema/database'
-import { PageResult } from '@wlisfes/chat-web-base-schema/utils'
-import { isNotEmpty } from 'class-validator'
-import { Repository } from 'typeorm'
 import { CountrySelectResponseDto } from '@/dto/api-response.dto'
 import { CountryUtilsService } from '@/modules/country/country.utils.service'
 import * as CountryDto from '@/modules/country/dto/country.dto'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
+import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class CountryService {
     constructor(
-        @InjectRepository(TbFinanceCountry) private readonly countryRepository: Repository<TbFinanceCountry>,
+        @InjectRepository(Schema.TbFinanceCountry) private readonly countryRepository: Repository<Schema.TbFinanceCountry>,
         private readonly database: DataBaseService,
         private readonly countryUtilsService: CountryUtilsService
     ) {}
 
     /**国家地区分页数据*/
-    public async httpBaseFinanceColumnCountry(body: CountryDto.ListCountryDto): Promise<PageResult<TbFinanceCountry>> {
+    public async httpBaseFinanceColumnCountry(body: CountryDto.ListCountryDto): Promise<PageResult<Schema.TbFinanceCountry>> {
         return this.database.builder(this.countryRepository, async qb => {
             if (isNotEmpty(body.cnName?.trim())) {
                 qb.andWhere('(t.cnName LIKE :searchTerm OR t.enName LIKE :searchTerm OR t.code LIKE :searchTerm)', {
@@ -40,7 +37,7 @@ export class CountryService {
     }
 
     /**编辑国家地区状态*/
-    public async httpBaseFinanceUpdateCountryStatus(body: CountryDto.UpdateCountryStatusDto): Promise<TbFinanceCountry> {
+    public async httpBaseFinanceUpdateCountryStatus(body: CountryDto.UpdateCountryStatusDto): Promise<Schema.TbFinanceCountry> {
         return this.countryRepository.manager.transaction(async manager => {
             const country = await this.countryUtilsService.findRequired(body.keyId, manager)
             country.status = body.status
@@ -51,7 +48,10 @@ export class CountryService {
     /**国家地区下拉数据*/
     public async httpBaseFinanceSelectCountry(): Promise<CountrySelectResponseDto> {
         const items = await this.database.builder(this.countryRepository, qb => {
-            return qb.where('t.status = :status', { status: TbFinanceCountryStatus.ENABLE }).orderBy('t.createTime', 'DESC').getMany()
+            return qb
+                .where('t.status = :status', { status: Schema.TbFinanceCountryStatus.ENABLE })
+                .orderBy('t.createTime', 'DESC')
+                .getMany()
         })
         return { list: items.map(item => ({ ...item, showName: `${item.cnName} -${item.enName}` })) }
     }

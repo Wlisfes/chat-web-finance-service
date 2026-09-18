@@ -1,12 +1,6 @@
 import { ApiProperty, PickType } from '@nestjs/swagger'
 import { PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
-import {
-    TbFinanceBasicSmsRateDto,
-    TbFinanceBrandDto,
-    TbFinanceCountryDto,
-    TbFinanceCurrencyDto,
-    TbFinanceCurrencyExchangeDto
-} from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
 export class ServiceLivenessResponseDto {
     @ApiProperty({ description: '服务状态', enum: ['UP'], example: 'UP' })
@@ -66,7 +60,7 @@ export class OperatorOptionResponseDto {
     avatar?: string
 }
 
-export class BrandListItemResponseDto extends TbFinanceBrandDto {
+export class BrandListItemResponseDto extends Schema.TbFinanceBrandDto {
     @ApiProperty({ description: '创建人选项', type: OperatorOptionResponseDto, required: false })
     createByOptions?: OperatorOptionResponseDto
 
@@ -80,16 +74,16 @@ export class BrandPageResponseDto extends PageResponseDataDto {
 }
 
 export class BrandSelectResponseDto {
-    @ApiProperty({ description: '可用品牌列表', type: [TbFinanceBrandDto] })
-    list: TbFinanceBrandDto[]
+    @ApiProperty({ description: '可用品牌列表', type: [Schema.TbFinanceBrandDto] })
+    list: Schema.TbFinanceBrandDto[]
 }
 
 export class CountryPageResponseDto extends PageResponseDataDto {
-    @ApiProperty({ description: '国家地区列表', type: [TbFinanceCountryDto] })
-    list: TbFinanceCountryDto[]
+    @ApiProperty({ description: '国家地区列表', type: [Schema.TbFinanceCountryDto] })
+    list: Schema.TbFinanceCountryDto[]
 }
 
-export class CountrySelectItemResponseDto extends TbFinanceCountryDto {
+export class CountrySelectItemResponseDto extends Schema.TbFinanceCountryDto {
     @ApiProperty({ description: '中英文组合展示名称', example: '中国 -China' })
     showName: string
 }
@@ -100,21 +94,21 @@ export class CountrySelectResponseDto {
 }
 
 export class CurrencyPageResponseDto extends PageResponseDataDto {
-    @ApiProperty({ description: '币种列表', type: [TbFinanceCurrencyDto] })
-    list: TbFinanceCurrencyDto[]
+    @ApiProperty({ description: '币种列表', type: [Schema.TbFinanceCurrencyDto] })
+    list: Schema.TbFinanceCurrencyDto[]
 }
 
 export class CurrencySelectResponseDto {
-    @ApiProperty({ description: '可用币种列表', type: [TbFinanceCurrencyDto] })
-    list: TbFinanceCurrencyDto[]
+    @ApiProperty({ description: '可用币种列表', type: [Schema.TbFinanceCurrencyDto] })
+    list: Schema.TbFinanceCurrencyDto[]
 }
 
-export class CurrencyExchangeListItemResponseDto extends TbFinanceCurrencyExchangeDto {
+export class CurrencyExchangeListItemResponseDto extends Schema.TbFinanceCurrencyExchangeDto {
     @ApiProperty({ description: '兼容前端使用的汇率日期', example: '2026-08-23' })
     date: string
 }
 
-export class CurrencyExchangeResponseDto extends PickType(TbFinanceCurrencyExchangeDto, ['currency', 'rate', 'rateDate'] as const) {
+export class CurrencyExchangeResponseDto extends PickType(Schema.TbFinanceCurrencyExchangeDto, ['currency', 'rate', 'rateDate'] as const) {
     @ApiProperty({ description: '兼容前端使用的汇率日期', example: '2026-08-23' })
     date: string
 }
@@ -146,9 +140,9 @@ export class CurrencyExchangeSyncResponseDto {
     list: CurrencyExchangeSyncListItemResponseDto[]
 }
 
-export class SmsRateListItemResponseDto extends TbFinanceBasicSmsRateDto {
-    @ApiProperty({ description: '国家地区信息', type: TbFinanceCountryDto, required: false })
-    countryOptions?: TbFinanceCountryDto
+export class SmsRateListItemResponseDto extends Schema.TbFinanceBasicSmsRateDto {
+    @ApiProperty({ description: '国家地区信息', type: Schema.TbFinanceCountryDto, required: false })
+    countryOptions?: Schema.TbFinanceCountryDto
 
     @ApiProperty({ description: '创建人选项', type: OperatorOptionResponseDto, required: false })
     createByOptions?: OperatorOptionResponseDto
@@ -162,7 +156,7 @@ export class SmsRatePageResponseDto extends PageResponseDataDto {
     list: SmsRateListItemResponseDto[]
 }
 
-export class BatchSmsRateResponseDto extends TbFinanceBasicSmsRateDto {
+export class BatchSmsRateResponseDto extends Schema.TbFinanceBasicSmsRateDto {
     @ApiProperty({ description: '国家地区主键', example: 1 })
     countryKeyId: number
 

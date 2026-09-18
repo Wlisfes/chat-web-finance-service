@@ -1,11 +1,14 @@
 import { ApiProperty, ApiPropertyOptional, IntersectionType, PartialType, PickType } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator'
-import { TbFinanceCurrencyDto } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
-import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
+import * as Schema from '@wlisfes/chat-web-base-schema'
 
-export class ListCurrencyDto extends IntersectionType(PageDto, PartialType(PickType(TbFinanceCurrencyDto, ['name', 'status'] as const))) {}
-export class UpdateCurrencyStatusDto extends PickType(TbFinanceCurrencyDto, ['status'] as const) {
+import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
+export class ListCurrencyDto extends IntersectionType(
+    PageDto,
+    PartialType(PickType(Schema.TbFinanceCurrencyDto, ['name', 'status'] as const))
+) {}
+export class UpdateCurrencyStatusDto extends PickType(Schema.TbFinanceCurrencyDto, ['status'] as const) {
     @ApiProperty({ description: '币种主键', example: 1 })
     @Type(() => Number)
     @IsInt({ message: '币种主键必须是整数' })
