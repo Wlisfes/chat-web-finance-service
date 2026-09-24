@@ -3,7 +3,7 @@ import { setDefaultResultOrder } from 'node:dns'
 import { NestFactory } from '@nestjs/core'
 import { NestExpressApplication } from '@nestjs/platform-express'
 import { setupSwagger } from '@wlisfes/chat-web-base-schema'
-import { ReadableConsoleLogger, createRequestLoggingMiddleware } from '@wlisfes/chat-web-base-schema/logging'
+import { ReadableConsoleLogger } from '@wlisfes/chat-web-base-schema/logging'
 import { requestContextMiddleware } from '@wlisfes/chat-web-base-schema/request-context'
 import { AppModule } from '@/app.module'
 
@@ -18,7 +18,6 @@ async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger })
     app.enableShutdownHooks()
     app.use(requestContextMiddleware)
-    app.use(createRequestLoggingMiddleware(process.env.NACOS_SERVICE_NAME))
     await setupSwagger(app, {
         title: 'Chat Web 财务服务 API',
         description: '品牌、币种、汇率、国家地区与基础价格管理接口',
