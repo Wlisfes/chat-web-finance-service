@@ -5,7 +5,7 @@
 ```bash
 yarn install
 yarn test
-yarn schema:apply
+node dist/cli/apply-schema.js
 ```
 
 根目录 `.env` 只提供 `NODE_ENV`、`PORT` 和 Nacos 连接参数。数据库、Redis index `3`、Account Feign 地址/超时、服务间凭据和 Open Exchange Rates App ID 统一维护在 Nacos 远端 `chat-web-finance-service.yaml`；实际凭据不得提交到仓库。
@@ -13,7 +13,7 @@ yarn schema:apply
 旧财务库中的财务基础数据迁移默认 dry-run：
 
 ```bash
-LEGACY_FINANCE_DATABASE=legacy_windows yarn legacy:migrate
+LEGACY_FINANCE_DATABASE=legacy_windows node dist/cli/migrate-legacy-finance.js
 ```
 
 确认目标表为空且汇总数量正确后才使用 `--apply`。该命令只迁移品牌、币种、汇率、国家地区和短信基础价格；旧客户数据必须迁入账号服务的 `tb_account_consumer`，禁止再次写入 Finance 数据库。
@@ -21,8 +21,8 @@ LEGACY_FINANCE_DATABASE=legacy_windows yarn legacy:migrate
 已有数据库只补充国际常用币种时，使用币种同步命令。该命令默认只预览，显式添加 `--apply` 才会写入；已有币种的启用/禁用状态不会被重置：
 
 ```bash
-yarn currency:sync
-yarn currency:sync --apply
+node dist/cli/finance-master-data.js --sync-currencies
+node dist/cli/finance-master-data.js --sync-currencies --apply
 ```
 
 同步集合包含 USD、EUR、CNY、JPY、GBP、CHF、CAD、AUD、HKD、SGD、NZD、INR、BRL、RUB、KRW、MXN、ZAR、AED、SAR、THB、IDR、MYR、VND、PHP、PLN、NOK、SEK 和 DKK，共 28 种。
