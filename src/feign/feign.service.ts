@@ -1,20 +1,12 @@
 import { Injectable } from '@nestjs/common'
-import {
-    FeignClientFinanceManager,
-    FinanceCurrencyExchange,
-    FinanceCurrencyExchangeResolveRequest,
-    FinanceCurrencyExchangeSyncResponse,
-    FinanceFeignImplementation,
-    FinanceSmsRate,
-    FinanceSmsRateBatchRequest
-} from '@wlisfes/chat-web-base-schema/feign'
+import * as FeignSchema from '@wlisfes/chat-web-base-schema/feign'
 import { CurrencyService } from '@/modules/currency/currency.service'
 import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
 import { SmsRateService } from '@/modules/sms-rate/sms-rate.service'
 
 /** 统一编排财务服务对外暴露的业务 Feign 调用，实现与业务模块保持单向依赖。 */
 @Injectable()
-export class FeignService extends FeignClientFinanceManager implements FinanceFeignImplementation {
+export class FeignService extends FeignSchema.FeignClientFinanceManager implements FeignSchema.FinanceFeignImplementation {
     constructor(
         private readonly smsRateService: SmsRateService,
         private readonly currencyService: CurrencyService,
@@ -23,18 +15,26 @@ export class FeignService extends FeignClientFinanceManager implements FinanceFe
         super()
     }
 
-    public override async batchSmsRates(_authorization: string, input: FinanceSmsRateBatchRequest): Promise<FinanceSmsRate[]> {
+    /** 按国家/地区主键批量获取短信基础价格。 */
+    public override async httpBaseFinanceBatchSmsRate(
+        _authorization: string,
+        input: FeignSchema.FinanceSmsRateBatchRequest
+    ): Promise<FeignSchema.FinanceSmsRate[]> {
         return this.smsRateService.httpBaseFinanceBatchSmsRate(input)
     }
 
-    public override async resolveCurrencyExchange(
+    /** 按币种获取最新汇率。 */
+    public override async httpBaseFinanceCurrencyExchangeResolver(
         _authorization: string,
-        input: FinanceCurrencyExchangeResolveRequest
-    ): Promise<FinanceCurrencyExchange> {
+        input: FeignSchema.FinanceCurrencyExchangeResolveRequest
+    ): Promise<FeignSchema.FinanceCurrencyExchange> {
         return this.currencyService.httpBaseFinanceResolverCurrencyExchange(input)
     }
 
-    public override async syncCurrencyExchange(_authorization: string): Promise<FinanceCurrencyExchangeSyncResponse> {
+    /** 触发拉取并同步最新币种汇率。 */
+    public override async httpBaseFinanceSyncCurrencyExchange(
+        _authorization: string
+    ): Promise<FeignSchema.FinanceCurrencyExchangeSyncResponse> {
         return this.currencyExchangeSyncService.httpBaseFinanceSyncCurrencyExchange()
     }
 }

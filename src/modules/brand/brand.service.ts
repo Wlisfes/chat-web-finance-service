@@ -68,9 +68,12 @@ export class BrandService {
                 // 操作人姓名属于展示元数据，使用服务间凭据批量还原，不转发终端用户令牌。
                 const users =
                     operatorUids.length > 0
-                        ? await this.accountFeignClient.batchResolveUsers(resolveFeignServiceAuthorization(this.configService), {
-                              uids: operatorUids
-                          })
+                        ? await this.accountFeignClient.httpBaseAccountBatchUserResolver(
+                              resolveFeignServiceAuthorization(this.configService),
+                              {
+                                  uids: operatorUids
+                              }
+                          )
                         : []
                 const userOptionsByUid = new Map<string, OperatorOptionResponseDto>(
                     users.map(user => {
