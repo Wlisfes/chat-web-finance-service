@@ -20,7 +20,8 @@
         "schema:apply:bootstrap": "node dist/cli/apply-schema-bootstrap.js",
         "start": "node scripts/start-with-cluster-port.cjs start",
         "dev": "node scripts/start-with-cluster-port.cjs start --watch",
-        "start:prod": "node dist/main.js"
+        "start:prod": "node dist/main.js",
+        "deploy": "node scripts/deploy-branch.cjs"
     },
     "dependencies": {
         "@nestjs/common": "^11.0.1",
