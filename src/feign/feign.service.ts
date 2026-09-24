@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import {
     FeignClientFinanceManager,
     FinanceCurrencyExchange,
+    FinanceCurrencyExchangeResolveRequest,
     FinanceCurrencyExchangeSyncResponse,
     FinanceFeignImplementation,
     FinanceSmsRate,
@@ -26,8 +27,11 @@ export class FeignService extends FeignClientFinanceManager implements FinanceFe
         return this.smsRateService.httpBaseFinanceBatchSmsRate(input)
     }
 
-    public override async resolveCurrencyExchange(_authorization: string, currency: string): Promise<FinanceCurrencyExchange> {
-        return this.currencyService.httpBaseFinanceResolverCurrencyExchange({ currency })
+    public override async resolveCurrencyExchange(
+        _authorization: string,
+        input: FinanceCurrencyExchangeResolveRequest
+    ): Promise<FinanceCurrencyExchange> {
+        return this.currencyService.httpBaseFinanceResolverCurrencyExchange(input)
     }
 
     public override async syncCurrencyExchange(_authorization: string): Promise<FinanceCurrencyExchangeSyncResponse> {
