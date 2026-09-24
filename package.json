@@ -1,6 +1,6 @@
 {
     "name": "chat-web-finance-service",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "",
     "author": "Wlisfes",
     "private": true,
@@ -20,7 +20,8 @@
         "schema:apply:bootstrap": "node dist/cli/apply-schema-bootstrap.js",
         "start": "node scripts/start-with-cluster-port.cjs start",
         "dev": "node scripts/start-with-cluster-port.cjs start --watch",
-        "start:prod": "node dist/main.js"
+        "start:prod": "node dist/main.js",
+        "deploy": "node scripts/deploy-branch.cjs"
     },
     "dependencies": {
         "@nestjs/common": "^11.0.1",
@@ -29,7 +30,7 @@
         "@nestjs/platform-express": "^11.0.1",
         "@nestjs/swagger": "11.4.6",
         "@nestjs/typeorm": "11.0.3",
-        "@wlisfes/chat-web-base-schema": "1.6.36",
+        "@wlisfes/chat-web-base-schema": "1.6.38",
         "class-transformer": "0.5.1",
         "class-validator": "0.15.1",
         "dotenv": "^16.6.1",
