@@ -133,7 +133,7 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
     }
     const accountFeignClient = {
         calls: [],
-        async batchResolveUsers(authorization, input) {
+        async httpBaseAccountBatchUserResolver(authorization, input) {
             this.calls.push({ authorization, input })
             return input.uids.map(uid => ({
                 uid,
@@ -185,7 +185,7 @@ test('品牌分页没有操作人时不调用账号服务', async () => {
     const database = { builder: async (_repository, callback) => callback(queryBuilder) }
     const accountFeignClient = {
         calls: 0,
-        async batchResolveUsers() {
+        async httpBaseAccountBatchUserResolver() {
             this.calls += 1
             return []
         }
@@ -202,7 +202,7 @@ test('品牌分页组合账号信息失败时透传账号服务异常', async ()
     const queryBuilder = fakePageQueryBuilder([{ keyId: 1, name: '品牌一', createBy: '10001', modifyBy: undefined }], 1)
     const database = { builder: async (_repository, callback) => callback(queryBuilder) }
     const accountFeignClient = {
-        batchResolveUsers: async () => {
+        httpBaseAccountBatchUserResolver: async () => {
             throw new Error('账号服务异常')
         }
     }
@@ -215,7 +215,7 @@ test('品牌分页组合账号信息失败时透传账号服务异常', async ()
 test('缺少服务间凭据时品牌分页拒绝调用账号服务', async () => {
     const queryBuilder = fakePageQueryBuilder([{ keyId: 1, name: '品牌一', createBy: '10001', modifyBy: undefined }], 1)
     const database = { builder: async (_repository, callback) => callback(queryBuilder) }
-    const service = new BrandService({}, database, {}, { async batchResolveUsers() {} }, { get: () => undefined })
+    const service = new BrandService({}, database, {}, { async httpBaseAccountBatchUserResolver() {} }, { get: () => undefined })
 
     await assert.rejects(() => service.httpBaseFinanceColumnBrand({ page: 1, size: 10 }), /feign\.service_token/)
 })
