@@ -23,13 +23,13 @@
 - 通用入口固定为 `src/main.ts` 和 `src/app.module.ts`。
 - 业务模块放在 `src/modules/<module-name>/`。`health`、`feign`、`database` 三个基础设施模块必须提取到 `src/` 一级目录（`src/health/`、`src/feign/`、`src/database/`），不要放进 `src/modules/`。后续改造其他 NestJS 服务时必须与 Account 保持同一目录级别。若某服务当前没有其中某个模块，不要为对齐而空建目录。
 - 文件名使用小写 kebab-case，并使用职责后缀：
-  - `*.module.ts`
-  - `*.controller.ts`
-  - `*.service.ts`
-  - `*.middleware.ts`
-  - `*.interface.ts`
-  - `*.constants.ts`
-  - `*.options.ts`
+    - `*.module.ts`
+    - `*.controller.ts`
+    - `*.service.ts`
+    - `*.middleware.ts`
+    - `*.interface.ts`
+    - `*.constants.ts`
+    - `*.options.ts`
 - 一个模块的接口、常量和配置构造分别放入对应后缀文件，不与实现类混放。
 - 自动化测试放在仓库根目录 `test/`，文件名与模块目录一致并使用 `<module>.test.cjs`。禁止引入 Jest 或 `*.spec.ts`。禁止提交生成目录、依赖目录和真实 `.env`。
 
@@ -49,6 +49,7 @@
 - 业务服务独立管理数据库连接；TypeORM 必须保持 `synchronize: false` 和 `migrationsRun: false`，数据库和表结构由外部 Schema SQL 管理。
 - TypeORM Entity、完整字段 DTO 和表 SQL 统一由 `chat-web-base-schema` 管理，业务服务只安装并使用该包。
 - 数据库和表由外部 SQL 创建或变更，服务启动过程不得自动建表或改表。
+- 本地运行和 Docker 部署的环境都是测试环境，Schema 增量 SQL（`sql/changes/*.sql`）可以直接在对应测试库执行，不需要等待人工确认；执行前确认连接的是本服务测试库，执行后核对表结构并在汇报中说明已执行的 SQL 文件。
 - Nacos 相关代码统一位于 `src/modules/nacos/`，配置项命名在所有服务中保持一致。
 - 所有公开微服务路由和跨域白名单统一维护在 Nacos `chat-web-gateway-service.yaml`；新增服务必须追加 `gateway.routes`，不在网关源码中硬编码新代理。
 - Nacos 配置中的 `gateway.cors.allowedOrigins` 使用完整 HTTP(S) Origin，禁止填写带路径的 URL；生产环境不得使用 `*`。
@@ -78,7 +79,6 @@
 - 普通业务入参中可选字段的空值判断统一使用 `class-validator` 的 `isEmpty`、`isNotEmpty`；禁止编写 `input.xxx !== undefined && ...` 或用隐式 truthy/falsy 代替该类入参判空。只有必须区分“字段未传”和“显式传入 null”的三态更新字段可以直接判断 `undefined`，且必须保留该语义说明；实体查询结果、基础设施配置解析、布尔值判断、枚举比较和两个已确认非空值之间的相等性比较不受此限制。
 - DTO 必须放在模块 `dto/` 目录，优先通过 `PickType`、`PartialType`、`IntersectionType` 复用 `chat-web-base-schema` DTO；分页 DTO 继承公共 `PageDto`。字段必须具备 Swagger 示例/说明、必要的类型转换和中文校验消息。
 - Module 按 `imports`、`controllers`、`providers`、`exports` 组织；新增 Utils Service 必须注册到 `providers`。不得改变既有公开路由、权限、响应结构和业务语义来迎合代码格式。
-
 
 ## 源码导入、目录与测试落地规则
 
@@ -228,7 +228,7 @@
 - 所有公开 HTTP 模块必须以 `chat-web-account-service/src/modules/sheet/` 的 Controller、Service、Utils Service、Module 和 DTO 分层为唯一实现基准；新模块不得自行设计另一套调用结构。
 - Controller 必须保持为薄传输层，只保留路由、鉴权、接口文档等装饰器，使用 `@Query()` 或 `@Body()` 接收入参，并调用同名 Service 方法；禁止在 Controller 中查询数据库、转换参数、拼装响应或执行业务校验。
 - Cookie 读写、Header 解析、流或文件响应、重定向等依赖 Express 的纯 HTTP 协议适配允许保留在 Controller；禁止把 `Request`、`Response`、Cookie、Header 或响应发送逻辑传入业务 Service，协议例外必须写中文职责注释。
-- Controller 与对应 Service 的公开接口方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseFinance<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseFinance<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountSheetTree`、`httpBaseAccountSheetResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 不得再调用 `create`、`list`、`update`、`select` 等短方法名。
+- Controller 与对应 Service 的公开接口方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseFinance<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseFinance<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountSheetTreeStructure`、`httpBaseAccountSheetResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 不得再调用 `create`、`list`、`update`、`select` 等短方法名。
 - 每个公开 Service 方法必须添加简洁中文职责注释并声明明确的 `Promise<...>` 返回类型；分页结果使用共享 `PageResult<T>`，对外扩展字段使用独立响应 DTO，禁止依赖隐式推断掩盖响应结构变化。
 - 请求 DTO 必须位于模块自己的 `dto/*.dto.ts`，Controller 和 Service 共同使用同一协议类型；禁止在 Controller、Service 或装饰器配置中声明临时匿名 DTO。
 - 业务 Service 引用本模块请求 DTO 时统一使用 `import * as <Module>Dto` 命名空间归组，并通过 `<Module>Dto.<Type>` 标注参数；响应 DTO 继续按需使用命名导入，禁止把请求与响应协议混在同一组散乱导入中。
