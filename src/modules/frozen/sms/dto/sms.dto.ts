@@ -7,10 +7,10 @@ import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, Min } from 'class-validato
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
-export class CreateSmsRateDto extends PickType(Schema.TbFinanceBasicSmsRateDto, ['code', 'mcc', 'upUsd', 'downUsd', 'remark'] as const) {}
-export class UpdateSmsRateDto extends IntersectionType(
-    PickType(Schema.TbFinanceBasicSmsRateDto, ['code', 'mcc', 'upUsd', 'downUsd'] as const),
-    PartialType(PickType(Schema.TbFinanceBasicSmsRateDto, ['remark'] as const))
+export class CreateFrozenSmsDto extends PickType(Schema.TbFinanceFrozenSmsDto, ['code', 'mcc', 'upUsd', 'downUsd', 'remark'] as const) {}
+export class UpdateFrozenSmsDto extends IntersectionType(
+    PickType(Schema.TbFinanceFrozenSmsDto, ['code', 'mcc', 'upUsd', 'downUsd'] as const),
+    PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['remark'] as const))
 ) {
     @ApiProperty({ description: '短信基础价格主键', example: 1 })
     @Type(() => Number)
@@ -18,12 +18,12 @@ export class UpdateSmsRateDto extends IntersectionType(
     @Min(1, { message: '短信基础价格主键必须大于0' })
     keyId: number
 }
-export class ListSmsRateDto extends IntersectionType(
+export class ListFrozenSmsDto extends IntersectionType(
     PageDto,
-    PartialType(PickType(Schema.TbFinanceBasicSmsRateDto, ['code', 'mcc'] as const))
+    PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['code', 'mcc'] as const))
 ) {}
 
-export class BatchSmsRateDto {
+export class BatchFrozenSmsDto {
     @ApiProperty({ description: '国家/地区主键集合', type: [Number], example: [1, 2, 3] })
     @IsArray({ message: '国家/地区主键集合必须是数组' })
     @ArrayNotEmpty({ message: '国家/地区主键集合不能为空' })
@@ -34,7 +34,7 @@ export class BatchSmsRateDto {
     countryKeyIds: number[]
 }
 
-export class SmsRateListItemResponseDto extends Schema.TbFinanceBasicSmsRateDto {
+export class FrozenSmsListItemResponseDto extends Schema.TbFinanceFrozenSmsDto {
     @ApiProperty({ description: '国家地区信息', type: Schema.TbFinanceCountryDto, required: false })
     countryOptions?: Schema.TbFinanceCountryDto
 
@@ -45,12 +45,12 @@ export class SmsRateListItemResponseDto extends Schema.TbFinanceBasicSmsRateDto 
     modifyByOptions?: feign.AccountUserOptionResponseDto
 }
 
-export class SmsRatePageResponseDto extends PageResponseDataDto {
-    @ApiProperty({ description: '短信基础价格列表', type: [SmsRateListItemResponseDto] })
-    list: SmsRateListItemResponseDto[]
+export class FrozenSmsPageResponseDto extends PageResponseDataDto {
+    @ApiProperty({ description: '短信基础价格列表', type: [FrozenSmsListItemResponseDto] })
+    list: FrozenSmsListItemResponseDto[]
 }
 
-export class BatchSmsRateResponseDto extends Schema.TbFinanceBasicSmsRateDto {
+export class BatchFrozenSmsResponseDto extends Schema.TbFinanceFrozenSmsDto {
     @ApiProperty({ description: '国家地区主键', example: 1 })
     countryKeyId: number
 

@@ -28,7 +28,7 @@ export const TABLE_MIGRATIONS = [
     },
     {
         source: 'tb_windows_basic_sms_rate',
-        target: 'tb_finance_basic_sms_rate',
+        target: 'tb_finance_frozen_sms',
         columns: 'key_id,code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time',
         select: 'key_id,code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time'
     }

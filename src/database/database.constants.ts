@@ -1,5 +1,5 @@
 import {
-    TbFinanceBasicSmsRate,
+    TbFinanceFrozenSms,
     TbFinanceBrand,
     TbFinanceCountry,
     TbFinanceCurrency,
@@ -8,10 +8,4 @@ import {
 
 export const FINANCE_MYSQL_CONFIG_KEY = 'database.chat-web-finance'
 
-export const FINANCE_MYSQL_ENTITIES = [
-    TbFinanceBrand,
-    TbFinanceCurrency,
-    TbFinanceCurrencyExchange,
-    TbFinanceCountry,
-    TbFinanceBasicSmsRate
-]
+export const FINANCE_MYSQL_ENTITIES = [TbFinanceBrand, TbFinanceCurrency, TbFinanceCurrencyExchange, TbFinanceCountry, TbFinanceFrozenSms]

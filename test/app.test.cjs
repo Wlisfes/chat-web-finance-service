@@ -17,7 +17,7 @@ const controllers = [
     require('../dist/modules/brand/brand.controller').BrandController,
     require('../dist/modules/country/country.controller').CountryController,
     require('../dist/modules/currency/currency.controller').CurrencyController,
-    require('../dist/modules/sms-rate/sms-rate.controller').SmsRateController
+    require('../dist/modules/frozen/sms/sms.controller').FrozenSmsController
 ]
 
 function assertTypedSchema(schema, label) {
@@ -55,7 +55,7 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
         'CountryPageResponseDto',
         'CurrencyPageResponseDto',
         'CurrencyExchangePageResponseDto',
-        'SmsRatePageResponseDto'
+        'FrozenSmsPageResponseDto'
     ]) {
         const properties = document.components.schemas?.[schemaName]?.properties ?? {}
         assert.deepEqual(Object.keys(properties).sort(), ['list', 'page', 'size', 'total'])

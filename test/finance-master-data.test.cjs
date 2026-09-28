@@ -64,7 +64,7 @@ function fakeCountrySyncConnection(initialRows = []) {
                 }
                 return [{ affectedRows: 0 }]
             }
-            if (sql.startsWith('UPDATE `tb_finance_basic_sms_rate`')) return [{ affectedRows: 0 }]
+            if (sql.startsWith('UPDATE `tb_finance_frozen_sms`')) return [{ affectedRows: 0 }]
             if (!sql.startsWith('INSERT INTO')) throw new Error(`Unexpected execute: ${sql}`)
 
             const [code, mcc, cnName, enName] = parameters

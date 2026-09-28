@@ -1,19 +1,19 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
-import * as Schema from '@wlisfes/chat-web-base-schema'
-
 import { InjectRepository, DataBaseService, EntityManager, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
+import * as Schema from '@wlisfes/chat-web-base-schema'
+
 @Injectable()
-export class SmsRateUtilsService {
+export class FrozenSmsUtilsService {
     constructor(
-        @InjectRepository(Schema.TbFinanceBasicSmsRate) private readonly rateRepository: Repository<Schema.TbFinanceBasicSmsRate>,
+        @InjectRepository(Schema.TbFinanceFrozenSms) private readonly rateRepository: Repository<Schema.TbFinanceFrozenSms>,
         @InjectRepository(Schema.TbFinanceCountry) private readonly countryRepository: Repository<Schema.TbFinanceCountry>,
         private readonly database: DataBaseService
     ) {}
 
     /**获取短信基础价格详情*/
-    public async findRequired(keyId: number, manager?: EntityManager): Promise<Schema.TbFinanceBasicSmsRate> {
-        const repository = (manager ?? this.rateRepository.manager).getRepository(Schema.TbFinanceBasicSmsRate)
+    public async findRequired(keyId: number, manager?: EntityManager): Promise<Schema.TbFinanceFrozenSms> {
+        const repository = (manager ?? this.rateRepository.manager).getRepository(Schema.TbFinanceFrozenSms)
         const rate = await this.database.builder(repository, qb => {
             qb.where('t.keyId = :keyId', { keyId })
             if (isNotEmpty(manager)) {
@@ -29,7 +29,7 @@ export class SmsRateUtilsService {
 
     /**校验国家地区移动代码价格*/
     public async findAvailable(code: string, mcc: string, manager?: EntityManager, excludedKeyId?: number): Promise<void> {
-        const repository = (manager ?? this.rateRepository.manager).getRepository(Schema.TbFinanceBasicSmsRate)
+        const repository = (manager ?? this.rateRepository.manager).getRepository(Schema.TbFinanceFrozenSms)
         const exists = await this.database.builder(repository, qb => {
             qb.where('t.code = :code AND t.mcc = :mcc', { code, mcc })
             if (isNotEmpty(excludedKeyId)) {
@@ -66,7 +66,7 @@ export class SmsRateUtilsService {
     }
 
     /**获取指定国家地区的短信基础价格*/
-    public async findRatesRequired(countries: Schema.TbFinanceCountry[]): Promise<Schema.TbFinanceBasicSmsRate[]> {
+    public async findRatesRequired(countries: Schema.TbFinanceCountry[]): Promise<Schema.TbFinanceFrozenSms[]> {
         const rates = await this.database.builder(this.rateRepository, qb => {
             return qb.where(countries.map(country => ({ code: country.code, mcc: country.mcc }))).getMany()
         })
