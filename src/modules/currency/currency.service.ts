@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import * as feign from '@wlisfes/chat-web-base-schema/feign'
+import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult, isNotEmpty, fetchUntiePagination, fetchResolver } from '@wlisfes/chat-web-base-schema/utils'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
 import * as CurrencyDto from '@/modules/currency/dto/currency.dto'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
-import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class CurrencyService {
     constructor(
@@ -31,6 +31,7 @@ export class CurrencyService {
     public async httpBaseFinanceColumnCurrency(
         body: CurrencyDto.ListCurrencyDto
     ): Promise<PageResult<CurrencyDto.CurrencyListItemResponseDto>> {
+        const { page, size } = fetchUntiePagination(body)
         return this.database.builder(this.currencyRepository, async qb => {
             if (isNotEmpty(body.name?.trim())) {
                 qb.andWhere('t.name LIKE :name', { name: `%${body.name?.trim()}%` })
@@ -39,15 +40,15 @@ export class CurrencyService {
                 qb.andWhere('t.status = :status', { status: body.status })
             }
             qb.orderBy('t.createTime', 'DESC')
-            qb.skip((body.page - 1) * body.size)
-            qb.take(body.size)
+            qb.skip((page - 1) * size)
+            qb.take(size)
             return await qb.getManyAndCount().then(async ([items, total]) => {
-                // 操作人姓名属于展示元数据，使用服务间凭据按列表批量还原。
-                const list = await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, [
-                    'createBy',
-                    'modifyBy'
-                ])
-                return { page: body.page, size: body.size, total, list }
+                return fetchResolver({
+                    page,
+                    size,
+                    total,
+                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                })
             })
         })
     }
@@ -66,12 +67,11 @@ export class CurrencyService {
     }
 
     /**币种下拉数据*/
-    public async httpBaseFinanceSelectCurrency(): Promise<CurrencyDto.CurrencySelectResponseDto> {
+    public async httpBaseFinanceSelectCurrency(): Promise<CurrencyDto.CurrencySelectResponseDto[]> {
         return await this.database.builder(this.currencyRepository, qb => {
             qb.where('t.status = :status', { status: Schema.TbFinanceCurrencyStatus.ENABLE })
             qb.orderBy('t.createTime', 'DESC')
-            qb.getMany()
-            return qb.getMany().then(list => ({ list }))
+            return qb.getMany()
         })
     }
 
@@ -79,19 +79,25 @@ export class CurrencyService {
     public async httpBaseFinanceColumnCurrencyExchange(
         body: CurrencyDto.ListCurrencyExchangeDto
     ): Promise<PageResult<CurrencyDto.CurrencyExchangeListItemResponseDto>> {
+        const { page, size } = fetchUntiePagination(body)
         return this.database.builder(this.exchangeRepository, async qb => {
             if (isNotEmpty(body.currency?.trim())) {
                 qb.andWhere('t.currency = :currency', { currency: body.currency?.trim() })
             }
             if (isNotEmpty(body.date)) {
-                qb.andWhere('t.rateDate = :date', { date: body.date })
+                qb.andWhere('t.date = :date', { date: body.date })
             }
-            qb.orderBy('t.rateDate', 'DESC')
+            qb.orderBy('t.date', 'DESC')
             qb.addOrderBy('t.currency', 'ASC')
-            qb.skip((body.page - 1) * body.size)
-            qb.take(body.size)
-            return await qb.getManyAndCount().then(([items, total]) => {
-                return { page: body.page, size: body.size, total, list: items.map(item => ({ ...item, date: item.rateDate })) }
+            qb.skip((page - 1) * size)
+            qb.take(size)
+            return await qb.getManyAndCount().then(async ([items, total]) => {
+                return fetchResolver({
+                    page,
+                    size,
+                    total,
+                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                })
             })
         })
     }
@@ -103,9 +109,8 @@ export class CurrencyService {
         const normalizedCurrency = query.currency.trim().toUpperCase()
         const currentDate = new Date().toISOString().slice(0, 10)
         if (normalizedCurrency === 'USD') {
-            return { currency: 'USD', rate: 1, rateDate: currentDate, date: currentDate }
+            return { currency: 'USD', rate: 1, date: currentDate }
         }
-        const exchange = await this.currencyUtilsService.findExchangeRequired(normalizedCurrency)
-        return { ...exchange, date: exchange.rateDate }
+        return await this.currencyUtilsService.findExchangeRequired(normalizedCurrency)
     }
 }

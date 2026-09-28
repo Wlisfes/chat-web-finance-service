@@ -44,9 +44,9 @@ export class CurrencyController {
 
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用币种下拉选项' },
-        response: { type: CurrencyDto.CurrencySelectResponseDto, description: '可用币种列表' }
+        response: { type: CurrencyDto.CurrencySelectResponseDto, isArray: true, description: '可用币种列表' }
     })
-    public async httpBaseFinanceSelectCurrency(): Promise<CurrencyDto.CurrencySelectResponseDto> {
+    public async httpBaseFinanceSelectCurrency(): Promise<CurrencyDto.CurrencySelectResponseDto[]> {
         return this.currencyService.httpBaseFinanceSelectCurrency()
     }
 

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import { SuccessResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as BrandDto from '@/modules/brand/dto/brand.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
@@ -130,10 +130,11 @@ export class BrandService {
     }
 
     /**品牌下拉数据*/
-    public async httpBaseFinanceSelectBrand(): Promise<BrandDto.BrandSelectResponseDto> {
-        const list = await this.database.builder(this.brandRepository, qb => {
-            return qb.where('t.status = :status', { status: Schema.TbFinanceBrandStatus.ENABLE }).orderBy('t.createTime', 'DESC').getMany()
+    public async httpBaseFinanceSelectBrand(): Promise<BrandDto.BrandSelectResponseDto[]> {
+        return await this.database.builder(this.brandRepository, qb => {
+            qb.where('t.status = :status', { status: Schema.TbFinanceBrandStatus.ENABLE })
+            qb.orderBy('t.createTime', 'DESC')
+            return qb.getMany()
         })
-        return { list }
     }
 }

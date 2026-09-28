@@ -50,7 +50,4 @@ export class BrandPageResponseDto extends PageResponseDataDto {
     list: BrandListItemResponseDto[]
 }
 
-export class BrandSelectResponseDto {
-    @ApiProperty({ description: '可用品牌列表', type: [Schema.TbFinanceBrandDto] })
-    list: Schema.TbFinanceBrandDto[]
-}
+export class BrandSelectResponseDto extends Schema.TbFinanceBrandDto {}

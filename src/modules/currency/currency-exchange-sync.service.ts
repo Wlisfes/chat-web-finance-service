@@ -49,7 +49,7 @@ export class CurrencyExchangeSyncService {
             const existing = await manager.find(Schema.TbFinanceCurrencyExchange, {
                 select: ['currency'],
                 where: {
-                    rateDate: fetched.date,
+                    date: fetched.date,
                     currency: In(writableRates.map(item => item.currency))
                 }
             })
@@ -65,7 +65,7 @@ export class CurrencyExchangeSyncService {
                     // 汇率由定时任务写入，没有人工操作人，创建人、更新人统一记为系统账号。
                     insertedRates.map(item => ({
                         ...item,
-                        rateDate: fetched.date,
+                        date: fetched.date,
                         createBy: feign.ACCOUNT_SYSTEM_UID,
                         modifyBy: feign.ACCOUNT_SYSTEM_UID
                     }))

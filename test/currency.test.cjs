@@ -136,8 +136,8 @@ test('Finance 使用 Open Exchange Rates、过滤未启用币种并只新增汇�
         assert.equal(state.inserts[0].updateEntity, false)
         assert.equal(state.inserts[0].values.length, 2)
         assert.deepEqual(state.inserts[0].values, [
-            { currency: 'USD', rate: 1, rateDate: result.date, createBy: '0', modifyBy: '0' },
-            { currency: 'CNY', rate: 7.123457, rateDate: result.date, createBy: '0', modifyBy: '0' }
+            { currency: 'USD', rate: 1, date: result.date, createBy: '0', modifyBy: '0' },
+            { currency: 'CNY', rate: 7.123457, date: result.date, createBy: '0', modifyBy: '0' }
         ])
         assert.deepEqual(result, {
             date: result.date,

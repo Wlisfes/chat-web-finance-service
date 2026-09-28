@@ -84,7 +84,7 @@ export class BrandController {
     @RequirePermissions('*')
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用品牌下拉选项' },
-        response: { type: BrandDto.BrandSelectResponseDto, description: '可用品牌列表' }
+        response: { type: BrandDto.BrandSelectResponseDto, isArray: true, description: '可用品牌列表' }
     })
     public async httpBaseFinanceSelectBrand() {
         return this.brandService.httpBaseFinanceSelectBrand()

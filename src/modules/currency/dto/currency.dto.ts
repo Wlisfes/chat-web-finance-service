@@ -56,20 +56,17 @@ export class CurrencyPageResponseDto extends PageResponseDataDto {
     list: CurrencyListItemResponseDto[]
 }
 
-export class CurrencySelectResponseDto {
-    @ApiProperty({ description: '可用币种列表', type: [Schema.TbFinanceCurrencyDto] })
-    list: Schema.TbFinanceCurrencyDto[]
-}
+export class CurrencySelectResponseDto extends Schema.TbFinanceCurrencyDto {}
 
 export class CurrencyExchangeListItemResponseDto extends Schema.TbFinanceCurrencyExchangeDto {
-    @ApiProperty({ description: '兼容前端使用的汇率日期', example: '2026-08-23' })
-    date: string
+    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    createByOptions?: feign.AccountUserOptionResponseDto
+
+    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.AccountUserOptionResponseDto
 }
 
-export class CurrencyExchangeResponseDto extends PickType(Schema.TbFinanceCurrencyExchangeDto, ['currency', 'rate', 'rateDate'] as const) {
-    @ApiProperty({ description: '兼容前端使用的汇率日期', example: '2026-08-23' })
-    date: string
-}
+export class CurrencyExchangeResponseDto extends PickType(Schema.TbFinanceCurrencyExchangeDto, ['currency', 'rate', 'date'] as const) {}
 
 export class CurrencyExchangePageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '汇率列表', type: [CurrencyExchangeListItemResponseDto] })

@@ -40,7 +40,7 @@ export class CountryController {
 
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用国家地区下拉选项' },
-        response: { type: CountryDto.CountrySelectResponseDto, description: '可用国家地区列表' }
+        response: { type: CountryDto.CountrySelectResponseDto, isArray: true, description: '可用国家地区列表' }
     })
     public async httpBaseFinanceSelectCountry() {
         return this.countryService.httpBaseFinanceSelectCountry()
