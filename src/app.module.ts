@@ -12,6 +12,7 @@ import { CountryModule } from '@/modules/country/country.module'
 import { CurrencyModule } from '@/modules/currency/currency.module'
 import { DatabaseModule } from '@/database/database.module'
 import { HealthModule } from '@/health/health.module'
+import { FrozenModule } from '@/modules/frozen/frozen.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
 import { FeignModule } from '@/feign/feign.module'
 
@@ -28,6 +29,7 @@ import { FeignModule } from '@/feign/feign.module'
         BrandModule,
         CurrencyModule,
         CountryModule,
+        FrozenModule,
         SmsRateModule,
         FeignModule
     ],
