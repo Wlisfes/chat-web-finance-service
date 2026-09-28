@@ -28,9 +28,9 @@ export const TABLE_MIGRATIONS = [
     },
     {
         source: 'tb_windows_basic_sms_rate',
-        target: 'tb_finance_basic_sms_rate',
-        columns: 'key_id,code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time',
-        select: 'key_id,code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time'
+        target: 'tb_finance_frozen_sms',
+        columns: 'key_id,country_key_id,code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time',
+        select: 'key_id,(SELECT `country`.`key_id` FROM `{targetDatabase}`.`tb_finance_country` AS `country` WHERE `country`.`code` = `legacy`.`code` AND `country`.`mcc` = `legacy`.`mcc`),code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time'
     }
 ] as const
 
@@ -58,12 +58,13 @@ export function buildInsertSelectSql(migration: TableMigration, sourceDatabase: 
         .split(',')
         .map(column => `\`${column}\``)
         .join(',')
-    // 旧表缺失的审计字段以单引号字面量回填（如系统账号 '0'），字面量不加反引号。
+    // 旧表缺失的字段以单引号字面量或括号子查询回填，表达式不加反引号；子查询中的 {targetDatabase} 替换为目标库名。
     const sourceColumns = migration.select
         .split(',')
-        .map(column => (column.startsWith("'") ? column : `\`${column}\``))
+        .map(column => (column.startsWith("'") || column.startsWith('(') ? column : `\`legacy\`.\`${column}\``))
+        .map(column => column.replaceAll('{targetDatabase}', targetDatabase))
         .join(',')
-    return `INSERT INTO \`${targetDatabase}\`.\`${migration.target}\` (${targetColumns}) SELECT ${sourceColumns} FROM \`${sourceDatabase}\`.\`${migration.source}\``
+    return `INSERT INTO \`${targetDatabase}\`.\`${migration.target}\` (${targetColumns}) SELECT ${sourceColumns} FROM \`${sourceDatabase}\`.\`${migration.source}\` AS \`legacy\``
 }
 
 export async function migrateLegacyTables(

@@ -110,7 +110,7 @@ database:
   chat-web-finance:
     host: ${scalar(required('FINANCE_MYSQL_HOST', environment))}
     port: ${port}
-    name: ${scalar(database)}
+    database: ${scalar(database)}
     username: ${scalar(required('FINANCE_MYSQL_USERNAME', environment))}
     password: ${scalar(required('FINANCE_MYSQL_PASSWORD', environment, false))}
     charset: ${scalar(environment.FINANCE_MYSQL_CHARSET?.trim() || 'utf8mb4')}

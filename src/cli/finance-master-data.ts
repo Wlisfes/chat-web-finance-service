@@ -54,10 +54,7 @@ export function shouldSyncFinanceCountries(argumentsList: readonly string[]): bo
     return argumentsList.includes('--sync-countries')
 }
 
-async function prefixedCodeConflictCount(
-    connection: Connection,
-    table: 'tb_finance_country' | 'tb_finance_basic_sms_rate'
-): Promise<number> {
+async function prefixedCodeConflictCount(connection: Connection, table: 'tb_finance_country' | 'tb_finance_frozen_sms'): Promise<number> {
     const [rows] = await connection.execute<(RowDataPacket & { count: number })[]>(
         `SELECT COUNT(*) count
         FROM \`${table}\` legacy
@@ -115,8 +112,8 @@ export async function syncFinanceCountries(
     if (!(await tableExists(connection, database, 'tb_finance_country'))) {
         throw new Error('国家/地区写入目标表不存在：tb_finance_country')
     }
-    if (!(await tableExists(connection, database, 'tb_finance_basic_sms_rate'))) {
-        throw new Error('国家/地区关联表不存在：tb_finance_basic_sms_rate')
+    if (!(await tableExists(connection, database, 'tb_finance_frozen_sms'))) {
+        throw new Error('国家/地区关联表不存在：tb_finance_frozen_sms')
     }
     if (!apply) return countries.length
 
@@ -128,14 +125,14 @@ export async function syncFinanceCountries(
     await connection.beginTransaction()
     try {
         const countryConflicts = await prefixedCodeConflictCount(connection, 'tb_finance_country')
-        const smsRateConflicts = await prefixedCodeConflictCount(connection, 'tb_finance_basic_sms_rate')
+        const smsRateConflicts = await prefixedCodeConflictCount(connection, 'tb_finance_frozen_sms')
         if (countryConflicts > 0 || smsRateConflicts > 0) {
             throw new Error(`国家区号格式转换存在重复记录：country=${countryConflicts}, smsRate=${smsRateConflicts}`)
         }
         await connection.execute(`UPDATE \`tb_finance_country\`
             SET \`code\` = TRIM(LEADING '+' FROM \`code\`)
             WHERE \`code\` LIKE '+%'`)
-        await connection.execute(`UPDATE \`tb_finance_basic_sms_rate\`
+        await connection.execute(`UPDATE \`tb_finance_frozen_sms\`
             SET \`code\` = TRIM(LEADING '+' FROM \`code\`)
             WHERE \`code\` LIKE '+%'`)
         for (const item of countries) await connection.execute<ResultSetHeader>(sql, [item.code, item.mcc, item.cnName, item.enName])

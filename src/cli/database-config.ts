@@ -7,7 +7,6 @@ export type DatabaseConfig = {
     username: string
     password: string
     database?: string
-    name?: string
     charset?: string
     timezone?: string
 }
@@ -87,7 +86,7 @@ export async function loadFinanceDatabaseConfig(): Promise<DatabaseConfig> {
 }
 
 export function getDatabaseName(config: DatabaseConfig): string {
-    const name = process.env.FINANCE_MYSQL_DATABASE?.trim() || config.database?.trim() || config.name?.trim()
+    const name = process.env.FINANCE_MYSQL_DATABASE?.trim() || config.database?.trim()
     if (!name) throw new Error('财务数据库名称不能为空')
     return identifier(name, '财务数据库名称')
 }

@@ -71,5 +71,13 @@ test('迁移币种时以系统账号回填操作人字段', () => {
     const currency = TABLE_MIGRATIONS.find(item => item.source === 'tb_windows_currency')
     const sql = buildInsertSelectSql(currency, 'legacy_windows', 'chat_web_finance')
     assert.match(sql, /\(`key_id`,`currency`,`name`,`symbol`,`status`,`create_by`,`modify_by`,/)
-    assert.match(sql, /SELECT `key_id`,`currency`,`name`,`symbol`,`status`,'0','0',`create_time`/)
+    assert.match(sql, /SELECT `legacy`.`key_id`,`legacy`.`currency`,`legacy`.`name`,`legacy`.`symbol`,`legacy`.`status`,'0','0',/)
+})
+
+test('迁移短信基础价格时按区号和 MCC 回填国家/地区主键', () => {
+    const sms = TABLE_MIGRATIONS.find(item => item.source === 'tb_windows_basic_sms_rate')
+    const sql = buildInsertSelectSql(sms, 'legacy_windows', 'chat_web_finance')
+    assert.match(sql, /\(`key_id`,`country_key_id`,`code`,`mcc`,/)
+    assert.match(sql, /FROM `chat_web_finance`.`tb_finance_country` AS `country` WHERE `country`.`code` = `legacy`.`code`/)
+    assert.match(sql, /FROM `legacy_windows`.`tb_windows_basic_sms_rate` AS `legacy`$/)
 })

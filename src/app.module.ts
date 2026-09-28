@@ -12,7 +12,7 @@ import { CountryModule } from '@/modules/country/country.module'
 import { CurrencyModule } from '@/modules/currency/currency.module'
 import { DatabaseModule } from '@/database/database.module'
 import { HealthModule } from '@/health/health.module'
-import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
+import { FrozenModule } from '@/modules/frozen/frozen.module'
 import { FeignModule } from '@/feign/feign.module'
 
 @Module({
@@ -28,7 +28,7 @@ import { FeignModule } from '@/feign/feign.module'
         BrandModule,
         CurrencyModule,
         CountryModule,
-        SmsRateModule,
+        FrozenModule,
         FeignModule
     ],
     controllers: [AppController],

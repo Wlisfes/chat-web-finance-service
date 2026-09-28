@@ -1,0 +1,78 @@
+import { PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
+import { IntersectionType, PartialType, PickType } from '@nestjs/swagger'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Type } from 'class-transformer'
+import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, IsOptional, Min } from 'class-validator'
+import * as Schema from '@wlisfes/chat-web-base-schema'
+
+import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
+export class CreateFrozenSmsDto extends PickType(Schema.TbFinanceFrozenSmsDto, ['countryKeyId', 'upUsd', 'downUsd', 'remark'] as const) {}
+export class UpdateFrozenSmsDto extends IntersectionType(
+    PickType(Schema.TbFinanceFrozenSmsDto, ['countryKeyId', 'upUsd', 'downUsd'] as const),
+    PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['remark'] as const))
+) {
+    @ApiProperty({ description: '短信基础价格主键', example: 1 })
+    @Type(() => Number)
+    @IsInt({ message: '短信基础价格主键必须是整数' })
+    @Min(1, { message: '短信基础价格主键必须大于0' })
+    keyId: number
+}
+export class FrozenSmsKeyDto {
+    @ApiProperty({ description: '短信基础价格主键', example: 1000 })
+    @Type(() => Number)
+    @IsInt({ message: '短信基础价格主键必须是整数' })
+    @Min(1, { message: '短信基础价格主键必须大于0' })
+    keyId: number
+}
+export class ListFrozenSmsDto extends IntersectionType(PageDto, PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['mcc'] as const))) {
+    @ApiPropertyOptional({ description: '国家/地区主键', example: 1000 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt({ message: '国家/地区主键必须是整数' })
+    @Min(1, { message: '国家/地区主键必须大于0' })
+    countryKeyId?: number
+}
+
+export class BatchFrozenSmsDto {
+    @ApiProperty({ description: '国家/地区主键集合', type: [Number], example: [1, 2, 3] })
+    @IsArray({ message: '国家/地区主键集合必须是数组' })
+    @ArrayNotEmpty({ message: '国家/地区主键集合不能为空' })
+    @ArrayMaxSize(200, { message: '单次最多查询200个国家/地区' })
+    @Type(() => Number)
+    @IsInt({ each: true, message: '国家/地区主键必须是整数' })
+    @Min(1, { each: true, message: '国家/地区主键必须大于0' })
+    countryKeyIds: number[]
+}
+
+export class FrozenSmsCountryOptionsResponseDto extends PickType(Schema.TbFinanceCountryDto, [
+    'keyId',
+    'code',
+    'mcc',
+    'cnName',
+    'enName'
+] as const) {}
+
+export class FrozenSmsListItemResponseDto extends Schema.TbFinanceFrozenSmsDto {
+    @ApiProperty({ description: '国家地区信息', type: FrozenSmsCountryOptionsResponseDto, required: false })
+    countryOptions?: FrozenSmsCountryOptionsResponseDto
+
+    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    createByOptions?: feign.AccountUserOptionResponseDto
+
+    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.AccountUserOptionResponseDto
+}
+
+export class FrozenSmsPageResponseDto extends PageResponseDataDto {
+    @ApiProperty({ description: '短信基础价格列表', type: [FrozenSmsListItemResponseDto] })
+    list: FrozenSmsListItemResponseDto[]
+}
+
+export class BatchFrozenSmsResponseDto extends Schema.TbFinanceFrozenSmsDto {
+    @ApiProperty({ description: '国家地区中文名称', example: '中国' })
+    cnName: string
+
+    @ApiProperty({ description: '国家地区英文名称', example: 'China' })
+    enName: string
+}

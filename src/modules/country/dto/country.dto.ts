@@ -35,7 +35,7 @@ export class CountryPageResponseDto extends PageResponseDataDto {
     list: CountryListItemResponseDto[]
 }
 
-export class CountrySelectResponseDto extends Schema.TbFinanceCountryDto {
-    @ApiProperty({ description: '中英文组合展示名称', example: '中国 -China' })
+export class CountrySelectResponseDto extends PickType(Schema.TbFinanceCountryDto, ['keyId', 'code', 'mcc', 'cnName', 'enName'] as const) {
+    @ApiProperty({ description: '编码及中英文组合展示名称', example: '86 中国 - China' })
     showName: string
 }

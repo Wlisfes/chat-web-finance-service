@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
-
 import { InjectDataSource, DataSource } from '@wlisfes/chat-web-base-schema/database'
+import { Omix } from '@wlisfes/chat-web-base-schema'
 import * as HealthDto from '@/health/dto/health.dto'
-type TableRow = { tableName: string }
 
 @Injectable()
 export class HealthService {
@@ -27,7 +26,7 @@ export class HealthService {
                 `SELECT table_name AS tableName FROM information_schema.tables
                  WHERE table_schema = DATABASE() AND table_name IN (${requiredTables.map(() => '?').join(', ')})`,
                 requiredTables
-            )) as TableRow[]
+            )) as Array<Omix<{ tableName: string }>>
             const existing = new Set(rows.map(row => row.tableName))
             const missingTables = requiredTables.filter(table => !existing.has(table))
             databaseReady = this.dataSource.isInitialized && missingTables.length === 0
