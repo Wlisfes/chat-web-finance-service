@@ -1,9 +1,10 @@
 import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import { IsInt, Min } from 'class-validator'
-import { EnumsResponseDto } from '@wlisfes/chat-web-base-schema/decorator'
+import { EnumsResponseDto, PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 import * as Schema from '@wlisfes/chat-web-base-schema'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 
 export class CreateBrandDto extends PickType(Schema.TbFinanceBrandDto, ['name', 'document', 'status'] as const) {}
 export class UpdateBrandDto extends IntersectionType(
@@ -35,3 +36,21 @@ export class ListBrandDto extends IntersectionType(PageDto, PartialType(PickType
 export class BrandEnumsResponseDto extends EnumsResponseDto({
     statusOptions: { description: '品牌状态选项', example: Schema.TbFinanceBrandStatusDefinition.options }
 }) {}
+
+export class BrandListItemResponseDto extends Schema.TbFinanceBrandDto {
+    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    createByOptions?: feign.AccountUserOptionResponseDto
+
+    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.AccountUserOptionResponseDto
+}
+
+export class BrandPageResponseDto extends PageResponseDataDto {
+    @ApiProperty({ description: '品牌列表', type: [BrandListItemResponseDto] })
+    list: BrandListItemResponseDto[]
+}
+
+export class BrandSelectResponseDto {
+    @ApiProperty({ description: '可用品牌列表', type: [Schema.TbFinanceBrandDto] })
+    list: Schema.TbFinanceBrandDto[]
+}

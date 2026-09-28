@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { FeignClientAccountManager, FeignClientCrmManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import { SuccessResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
-import { BrandListItemResponseDto, BrandSelectResponseDto, OperatorOptionResponseDto } from '@/dto/api-response.dto'
 import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 import * as BrandDto from '@/modules/brand/dto/brand.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
@@ -16,8 +15,8 @@ export class BrandService {
         @InjectRepository(Schema.TbFinanceBrand) private readonly brandRepository: Repository<Schema.TbFinanceBrand>,
         private readonly database: DataBaseService,
         private readonly brandUtilsService: BrandUtilsService,
-        private readonly accountFeignClient: FeignClientAccountManager,
-        private readonly crmFeignClient: FeignClientCrmManager,
+        private readonly accountFeignClient: feign.FeignClientAccountManager,
+        private readonly crmFeignClient: feign.FeignClientCrmManager,
         private readonly configService: ConfigService
     ) {}
 
@@ -71,14 +70,14 @@ export class BrandService {
         await this.brandUtilsService.findUnusedRequired(
             body.keyId,
             this.crmFeignClient,
-            resolveFeignServiceAuthorization(this.configService)
+            feign.resolveFeignServiceAuthorization(this.configService)
         )
         await this.brandRepository.delete({ keyId: body.keyId })
         return { success: true }
     }
 
     /**品牌分页数据*/
-    public async httpBaseFinanceColumnBrand(body: BrandDto.ListBrandDto): Promise<PageResult<BrandListItemResponseDto>> {
+    public async httpBaseFinanceColumnBrand(body: BrandDto.ListBrandDto): Promise<PageResult<BrandDto.BrandListItemResponseDto>> {
         return this.database.builder(this.brandRepository, async qb => {
             if (isNotEmpty(body.name?.trim())) {
                 qb.andWhere('t.name LIKE :name', { name: `%${body.name?.trim()}%` })
@@ -95,15 +94,15 @@ export class BrandService {
                 const users =
                     operatorUids.length > 0
                         ? await this.accountFeignClient.httpBaseAccountColumnUserResolver(
-                              resolveFeignServiceAuthorization(this.configService),
+                              feign.resolveFeignServiceAuthorization(this.configService),
                               {
                                   uids: operatorUids
                               }
                           )
                         : []
-                const userOptionsByUid = new Map<string, OperatorOptionResponseDto>(
+                const userOptionsByUid = new Map<string, feign.AccountUserOptionResponseDto>(
                     users.map(user => {
-                        const option: OperatorOptionResponseDto = { uid: user.uid, number: user.number, name: user.name }
+                        const option: feign.AccountUserOptionResponseDto = { uid: user.uid, number: user.number, name: user.name }
                         if (isNotEmpty(user.avatar)) option.avatar = user.avatar
                         return [user.uid, option]
                     })
@@ -124,14 +123,14 @@ export class BrandService {
 
     private toOperatorOption(
         uid: string | undefined,
-        userOptionsByUid: Map<string, OperatorOptionResponseDto>
-    ): OperatorOptionResponseDto | undefined {
+        userOptionsByUid: Map<string, feign.AccountUserOptionResponseDto>
+    ): feign.AccountUserOptionResponseDto | undefined {
         if (!isNotEmpty(uid)) return undefined
         return userOptionsByUid.get(uid) ?? { uid }
     }
 
     /**品牌下拉数据*/
-    public async httpBaseFinanceSelectBrand(): Promise<BrandSelectResponseDto> {
+    public async httpBaseFinanceSelectBrand(): Promise<BrandDto.BrandSelectResponseDto> {
         const list = await this.database.builder(this.brandRepository, qb => {
             return qb.where('t.status = :status', { status: Schema.TbFinanceBrandStatus.ENABLE }).orderBy('t.createTime', 'DESC').getMany()
         })

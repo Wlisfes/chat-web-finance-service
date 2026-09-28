@@ -1,7 +1,9 @@
 import { ApiProperty, ApiPropertyOptional, IntersectionType, PartialType, PickType } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator'
+import { EnumsResponseDto, PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import * as Schema from '@wlisfes/chat-web-base-schema'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 export class ListCurrencyDto extends IntersectionType(
@@ -35,4 +37,63 @@ export class ResolveCurrencyExchangeDto {
     @IsNotEmpty({ message: '币种编码必填' })
     @MaxLength(16, { message: '币种编码长度不能超过16位' })
     currency: string
+}
+
+export class CurrencyEnumsResponseDto extends EnumsResponseDto({
+    statusOptions: { description: '币种状态选项', example: Schema.TbFinanceCurrencyStatusDefinition.options }
+}) {}
+
+export class CurrencyListItemResponseDto extends Schema.TbFinanceCurrencyDto {
+    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    createByOptions?: feign.AccountUserOptionResponseDto
+
+    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.AccountUserOptionResponseDto
+}
+
+export class CurrencyPageResponseDto extends PageResponseDataDto {
+    @ApiProperty({ description: '币种列表', type: [CurrencyListItemResponseDto] })
+    list: CurrencyListItemResponseDto[]
+}
+
+export class CurrencySelectResponseDto {
+    @ApiProperty({ description: '可用币种列表', type: [Schema.TbFinanceCurrencyDto] })
+    list: Schema.TbFinanceCurrencyDto[]
+}
+
+export class CurrencyExchangeListItemResponseDto extends Schema.TbFinanceCurrencyExchangeDto {
+    @ApiProperty({ description: '兼容前端使用的汇率日期', example: '2026-08-23' })
+    date: string
+}
+
+export class CurrencyExchangeResponseDto extends PickType(Schema.TbFinanceCurrencyExchangeDto, ['currency', 'rate', 'rateDate'] as const) {
+    @ApiProperty({ description: '兼容前端使用的汇率日期', example: '2026-08-23' })
+    date: string
+}
+
+export class CurrencyExchangePageResponseDto extends PageResponseDataDto {
+    @ApiProperty({ description: '汇率列表', type: [CurrencyExchangeListItemResponseDto] })
+    list: CurrencyExchangeListItemResponseDto[]
+}
+
+export class CurrencyExchangeSyncListItemResponseDto {
+    @ApiProperty({ description: '币种编码', example: 'CNY' })
+    currency: string
+
+    @ApiProperty({ description: '基于 USD 的汇率', example: 7.2534 })
+    rate: number
+
+    @ApiProperty({ description: '汇率日期', format: 'date', example: '2026-09-02' })
+    date: string
+}
+
+export class CurrencyExchangeSyncResponseDto {
+    @ApiProperty({ description: '汇率日期', format: 'date', example: '2026-09-02' })
+    date: string
+
+    @ApiProperty({ description: '已同步汇率数量', example: 28 })
+    count: number
+
+    @ApiProperty({ description: '已同步汇率列表', type: [CurrencyExchangeSyncListItemResponseDto] })
+    list: CurrencyExchangeSyncListItemResponseDto[]
 }

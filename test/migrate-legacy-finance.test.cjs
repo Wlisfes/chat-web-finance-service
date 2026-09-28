@@ -66,3 +66,10 @@ test('迁移 SQL 保留旧自增主键并映射汇率日期', () => {
     assert.match(sql, /^INSERT INTO `chat_web_finance`.`tb_finance_currency_exchange` \(`key_id`/)
     assert.match(sql, /`date`.*SELECT.*`date`/)
 })
+
+test('迁移币种时以系统账号回填操作人字段', () => {
+    const currency = TABLE_MIGRATIONS.find(item => item.source === 'tb_windows_currency')
+    const sql = buildInsertSelectSql(currency, 'legacy_windows', 'chat_web_finance')
+    assert.match(sql, /\(`key_id`,`currency`,`name`,`symbol`,`status`,`create_by`,`modify_by`,/)
+    assert.match(sql, /SELECT `key_id`,`currency`,`name`,`symbol`,`status`,'0','0',`create_time`/)
+})

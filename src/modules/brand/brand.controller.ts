@@ -2,7 +2,6 @@ import { Body, Get, Post, Query } from '@nestjs/common'
 import { CurrentPrincipal, RequirePermissions, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController, SuccessResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { BrandService } from '@/modules/brand/brand.service'
-import { BrandPageResponseDto, BrandSelectResponseDto } from '@/dto/api-response.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 import * as BrandDto from '@/modules/brand/dto/brand.dto'
 
@@ -23,7 +22,7 @@ export class BrandController {
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询品牌' },
         request: { source: 'body', type: BrandDto.ListBrandDto },
-        response: { type: BrandPageResponseDto, description: '品牌分页数据' }
+        response: { type: BrandDto.BrandPageResponseDto, description: '品牌分页数据' }
     })
     public async httpBaseFinanceColumnBrand(@Body() input: BrandDto.ListBrandDto) {
         return this.brandService.httpBaseFinanceColumnBrand(input)
@@ -85,7 +84,7 @@ export class BrandController {
     @RequirePermissions('*')
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用品牌下拉选项' },
-        response: { type: BrandSelectResponseDto, description: '可用品牌列表' }
+        response: { type: BrandDto.BrandSelectResponseDto, description: '可用品牌列表' }
     })
     public async httpBaseFinanceSelectBrand() {
         return this.brandService.httpBaseFinanceSelectBrand()

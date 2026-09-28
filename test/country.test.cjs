@@ -42,7 +42,8 @@ test('国家状态更新在事务内锁定实体后写入', async () => {
         }
     }
     const countryService = new CountryService(countryTransactional.repository, {}, countryUtilsService)
-    await countryService.httpBaseFinanceUpdateCountryStatus({ keyId: 1, status: 'disable' })
+    await countryService.httpBaseFinanceUpdateCountryStatus({ uid: '1001' }, { keyId: 1, status: 'disable' })
     assert.equal(countryTransactional.repository.state.transactions, 1)
     assert.equal(country.status, 'disable')
+    assert.equal(country.modifyBy, '1001')
 })

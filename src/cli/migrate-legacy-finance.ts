@@ -11,20 +11,20 @@ export const TABLE_MIGRATIONS = [
     {
         source: 'tb_windows_currency',
         target: 'tb_finance_currency',
-        columns: 'key_id,currency,name,symbol,status,create_time,modify_time',
-        select: 'key_id,currency,name,symbol,status,create_time,modify_time'
+        columns: 'key_id,currency,name,symbol,status,create_by,modify_by,create_time,modify_time',
+        select: "key_id,currency,name,symbol,status,'0','0',create_time,modify_time"
     },
     {
         source: 'tb_windows_currency_exchange',
         target: 'tb_finance_currency_exchange',
-        columns: 'key_id,currency,rate,date,create_time,modify_time',
-        select: 'key_id,currency,rate,date,create_time,modify_time'
+        columns: 'key_id,currency,rate,date,create_by,modify_by,create_time,modify_time',
+        select: "key_id,currency,rate,date,'0','0',create_time,modify_time"
     },
     {
         source: 'tb_windows_country',
         target: 'tb_finance_country',
-        columns: 'key_id,code,mcc,cn_name,en_name,status,create_time,modify_time',
-        select: 'key_id,code,mcc,cn_name,en_name,status,create_time,modify_time'
+        columns: 'key_id,code,mcc,cn_name,en_name,status,create_by,modify_by,create_time,modify_time',
+        select: "key_id,code,mcc,cn_name,en_name,status,'0','0',create_time,modify_time"
     },
     {
         source: 'tb_windows_basic_sms_rate',
@@ -58,9 +58,10 @@ export function buildInsertSelectSql(migration: TableMigration, sourceDatabase: 
         .split(',')
         .map(column => `\`${column}\``)
         .join(',')
+    // 旧表缺失的审计字段以单引号字面量回填（如系统账号 '0'），字面量不加反引号。
     const sourceColumns = migration.select
         .split(',')
-        .map(column => `\`${column}\``)
+        .map(column => (column.startsWith("'") ? column : `\`${column}\``))
         .join(',')
     return `INSERT INTO \`${targetDatabase}\`.\`${migration.target}\` (${targetColumns}) SELECT ${sourceColumns} FROM \`${sourceDatabase}\`.\`${migration.source}\``
 }

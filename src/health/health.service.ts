@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
-import { ServiceDependencyResponseDto, ServiceLivenessResponseDto, ServiceReadinessResponseDto } from '@/dto/api-response.dto'
 
 import { InjectDataSource, DataSource } from '@wlisfes/chat-web-base-schema/database'
+import * as HealthDto from '@/health/dto/health.dto'
 type TableRow = { tableName: string }
 
 @Injectable()
@@ -13,15 +13,15 @@ export class HealthService {
     ) {}
 
     /**财务服务存活状态*/
-    public async getLiveness(): Promise<ServiceLivenessResponseDto> {
+    public async getLiveness(): Promise<HealthDto.ServiceLivenessResponseDto> {
         return { status: 'UP', timestamp: new Date().toISOString() }
     }
 
     /**财务服务就绪状态*/
-    public async getReadiness(): Promise<ServiceReadinessResponseDto> {
+    public async getReadiness(): Promise<HealthDto.ServiceReadinessResponseDto> {
         const requiredTables = [...new Set(this.dataSource.entityMetadatas.map(metadata => metadata.tableName))].sort()
         let databaseReady = false
-        let database: ServiceDependencyResponseDto
+        let database: HealthDto.ServiceDependencyResponseDto
         try {
             const rows = (await this.dataSource.query(
                 `SELECT table_name AS tableName FROM information_schema.tables

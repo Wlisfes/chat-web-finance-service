@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { CountrySelectResponseDto } from '@/dto/api-response.dto'
+import { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { CountryUtilsService } from '@/modules/country/country.utils.service'
 import * as CountryDto from '@/modules/country/dto/country.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
@@ -13,6 +13,13 @@ export class CountryService {
         private readonly database: DataBaseService,
         private readonly countryUtilsService: CountryUtilsService
     ) {}
+
+    /**国家地区静态枚举*/
+    public async httpBaseFinanceCountryEnums(): Promise<CountryDto.CountryEnumsResponseDto> {
+        return {
+            statusOptions: Schema.TbFinanceCountryStatusDefinition.options
+        }
+    }
 
     /**国家地区分页数据*/
     public async httpBaseFinanceColumnCountry(body: CountryDto.ListCountryDto): Promise<PageResult<Schema.TbFinanceCountry>> {
@@ -37,16 +44,20 @@ export class CountryService {
     }
 
     /**编辑国家地区状态*/
-    public async httpBaseFinanceUpdateCountryStatus(body: CountryDto.UpdateCountryStatusDto): Promise<Schema.TbFinanceCountry> {
+    public async httpBaseFinanceUpdateCountryStatus(
+        principal: AuthPrincipal,
+        body: CountryDto.UpdateCountryStatusDto
+    ): Promise<Schema.TbFinanceCountry> {
         return this.countryRepository.manager.transaction(async manager => {
             const country = await this.countryUtilsService.findRequired(body.keyId, manager)
             country.status = body.status
+            country.modifyBy = principal.uid
             return manager.save(country)
         })
     }
 
     /**国家地区下拉数据*/
-    public async httpBaseFinanceSelectCountry(): Promise<CountrySelectResponseDto> {
+    public async httpBaseFinanceSelectCountry(): Promise<CountryDto.CountrySelectResponseDto> {
         const items = await this.database.builder(this.countryRepository, qb => {
             return qb
                 .where('t.status = :status', { status: Schema.TbFinanceCountryStatus.ENABLE })
