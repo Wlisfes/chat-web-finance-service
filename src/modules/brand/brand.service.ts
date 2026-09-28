@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { FeignClientAccountManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
 import { BrandListItemResponseDto, BrandSelectResponseDto, OperatorOptionResponseDto } from '@/dto/api-response.dto'
 import { BrandUtilsService } from '@/modules/brand/brand.utils.service'

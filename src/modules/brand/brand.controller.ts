@@ -19,6 +19,7 @@ export class BrandController {
         return this.brandService.httpBaseFinanceBrandEnums()
     }
 
+    @RequirePermissions('chat:finance:base:brand:create')
     @ApiServiceDecorator(Post('create'), {
         operation: { summary: '新增品牌' },
         request: { source: 'body', type: BrandDto.CreateBrandDto },
@@ -28,6 +29,7 @@ export class BrandController {
         return this.brandService.httpBaseFinanceCreateBrand(principal, input)
     }
 
+    @RequirePermissions('chat:finance:base:brand:update')
     @ApiServiceDecorator(Post('update'), {
         operation: { summary: '更新品牌' },
         request: { source: 'body', type: BrandDto.UpdateBrandDto },
@@ -37,6 +39,7 @@ export class BrandController {
         return this.brandService.httpBaseFinanceUpdateBrand(principal, input)
     }
 
+    @RequirePermissions('chat:finance:base:brand:update')
     @ApiServiceDecorator(Post('update/status'), {
         operation: { summary: '更新品牌状态' },
         request: { source: 'body', type: BrandDto.UpdateBrandStatusDto },
@@ -49,6 +52,7 @@ export class BrandController {
         return this.brandService.httpBaseFinanceUpdateBrandStatus(principal, input)
     }
 
+    @RequirePermissions('chat:finance:base:brand')
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询品牌' },
         request: { source: 'body', type: BrandDto.ListBrandDto },
@@ -58,6 +62,7 @@ export class BrandController {
         return this.brandService.httpBaseFinanceColumnBrand(input)
     }
 
+    @RequirePermissions('*')
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用品牌下拉选项' },
         response: { type: BrandSelectResponseDto, description: '可用品牌列表' }
