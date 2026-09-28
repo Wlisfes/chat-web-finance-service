@@ -1,9 +1,9 @@
 import { PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import { IntersectionType, PartialType, PickType } from '@nestjs/swagger'
-import { ApiProperty } from '@nestjs/swagger'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
-import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, Min } from 'class-validator'
+import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, IsOptional, Min } from 'class-validator'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
@@ -18,10 +18,14 @@ export class UpdateFrozenSmsDto extends IntersectionType(
     @Min(1, { message: '短信基础价格主键必须大于0' })
     keyId: number
 }
-export class ListFrozenSmsDto extends IntersectionType(
-    PageDto,
-    PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['code', 'mcc'] as const))
-) {}
+export class ListFrozenSmsDto extends IntersectionType(PageDto, PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['mcc'] as const))) {
+    @ApiPropertyOptional({ description: '国家/地区主键', example: 1000 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt({ message: '国家/地区主键必须是整数' })
+    @Min(1, { message: '国家/地区主键必须大于0' })
+    countryKeyId?: number
+}
 
 export class BatchFrozenSmsDto {
     @ApiProperty({ description: '国家/地区主键集合', type: [Number], example: [1, 2, 3] })

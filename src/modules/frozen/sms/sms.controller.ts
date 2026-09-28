@@ -1,6 +1,5 @@
 import { Body, Post } from '@nestjs/common'
-import { CurrentPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { RequirePermissions, CurrentPrincipal, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { FrozenSmsService } from '@/modules/frozen/sms/sms.service'
 import * as Schema from '@wlisfes/chat-web-base-schema'
@@ -10,6 +9,7 @@ import * as SmsDto from '@/modules/frozen/sms/dto/sms.dto'
 export class FrozenSmsController {
     constructor(private readonly frozenSmsService: FrozenSmsService) {}
 
+    @RequirePermissions('chat:finance:frozen:sms:create')
     @ApiServiceDecorator(Post('create'), {
         operation: { summary: '新增短信基础价格' },
         request: { source: 'body', type: SmsDto.CreateFrozenSmsDto },
@@ -19,6 +19,7 @@ export class FrozenSmsController {
         return this.frozenSmsService.httpBaseFinanceCreateFrozenSms(principal, input)
     }
 
+    @RequirePermissions('chat:finance:frozen:sms:update')
     @ApiServiceDecorator(Post('update'), {
         operation: { summary: '更新短信基础价格' },
         request: { source: 'body', type: SmsDto.UpdateFrozenSmsDto },
@@ -28,6 +29,7 @@ export class FrozenSmsController {
         return this.frozenSmsService.httpBaseFinanceUpdateFrozenSms(principal, input)
     }
 
+    @RequirePermissions('chat:finance:frozen:sms')
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询短信基础价格' },
         request: { source: 'body', type: SmsDto.ListFrozenSmsDto },
@@ -37,6 +39,7 @@ export class FrozenSmsController {
         return this.frozenSmsService.httpBaseFinanceColumnFrozenSms(input)
     }
 
+    @RequirePermissions('*')
     @ApiServiceDecorator(Post('batch'), {
         operation: { summary: '按国家地区批量查询短信基础价格' },
         request: { source: 'body', type: SmsDto.BatchFrozenSmsDto },

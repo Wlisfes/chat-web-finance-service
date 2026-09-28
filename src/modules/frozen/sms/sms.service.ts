@@ -47,8 +47,9 @@ export class FrozenSmsService {
     public async httpBaseFinanceColumnFrozenSms(body: SmsDto.ListFrozenSmsDto): Promise<PageResult<SmsDto.FrozenSmsListItemResponseDto>> {
         const { page, size } = fetchUntiePagination(body)
         return this.database.builder(this.repository, async qb => {
-            if (isNotEmpty(body.code?.trim())) {
-                qb.andWhere('t.code LIKE :code', { code: `%${body.code?.trim()}%` })
+            if (isNotEmpty(body.countryKeyId)) {
+                const [country] = await this.frozenSmsUtilsService.findCountriesRequired([body.countryKeyId])
+                qb.andWhere('t.code = :code AND t.mcc = :mcc', { code: country.code, mcc: country.mcc })
             }
             if (isNotEmpty(body.mcc?.trim())) {
                 qb.andWhere('t.mcc LIKE :mcc', { mcc: `%${body.mcc?.trim()}%` })
@@ -58,8 +59,8 @@ export class FrozenSmsService {
             qb.take(size)
             return await qb.getManyAndCount().then(async ([rates, total]) => {
                 const countries = await this.frozenSmsUtilsService.findCountriesByCodes(rates.map(rate => rate.code))
-                const countriesByCode = new Map(countries.map(country => [country.code, country]))
-                const items = rates.map(rate => ({ ...rate, countryOptions: countriesByCode.get(rate.code) }))
+                const countriesByCode = new Map(countries.map(country => [`${country.code}:${country.mcc}`, country]))
+                const items = rates.map(rate => ({ ...rate, countryOptions: countriesByCode.get(`${rate.code}:${rate.mcc}`) }))
                 return fetchResolver({
                     page,
                     size,

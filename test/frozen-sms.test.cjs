@@ -118,7 +118,7 @@ test('短信基础价格分页通过 Feign 补全创建人和修改人', async (
     const database = { builder: (repository, callback) => callback(qb) }
     const frozenSmsUtilsService = {
         async findCountriesByCodes() {
-            return [{ keyId: 1, code: '86', cnName: '中国' }]
+            return [{ keyId: 1, code: '86', mcc: '460', cnName: '中国' }]
         }
     }
     const accountFeignClient = {
@@ -133,7 +133,7 @@ test('短信基础价格分页通过 Feign 补全创建人和修改人', async (
     const result = await service.httpBaseFinanceColumnFrozenSms({ page: 1, size: 10 })
     assert.equal(result.total, 2)
     assert.deepEqual(calls, [{ authorization: 'Bearer service-token', body: { uids: ['1001'] } }])
-    assert.deepEqual(result.list[0].countryOptions, { keyId: 1, code: '86', cnName: '中国' })
+    assert.deepEqual(result.list[0].countryOptions, { keyId: 1, code: '86', mcc: '460', cnName: '中国' })
     assert.deepEqual(result.list[0].createByOptions, { uid: '0', name: '系统' })
     assert.deepEqual(result.list[0].modifyByOptions, { uid: '1001', number: '1001', name: '张三' })
     assert.deepEqual(result.list[1].createByOptions, { uid: '1001', number: '1001', name: '张三' })

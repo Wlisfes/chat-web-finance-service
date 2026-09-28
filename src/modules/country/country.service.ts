@@ -70,10 +70,11 @@ export class CountryService {
     /**国家地区下拉数据*/
     public async httpBaseFinanceSelectCountry(): Promise<CountryDto.CountrySelectResponseDto[]> {
         return await this.database.builder(this.countryRepository, qb => {
+            qb.select(['t.keyId', 't.code', 't.mcc', 't.cnName', 't.enName'])
             qb.where('t.status = :status', { status: Schema.TbFinanceCountryStatus.ENABLE })
             qb.orderBy('t.createTime', 'DESC')
             return qb.getMany().then(items => {
-                return items.map(item => ({ ...item, showName: `${item.cnName} -${item.enName}` }))
+                return items.map(item => ({ ...item, showName: `${item.code} ${item.cnName} - ${item.enName}` }))
             })
         })
     }
