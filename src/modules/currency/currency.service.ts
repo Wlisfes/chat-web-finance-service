@@ -54,7 +54,7 @@ export class CurrencyService {
     }
 
     /**编辑币种状态*/
-    public async httpBaseFinanceUpdateCurrencyStatus(
+    public async httpBaseFinanceCurrencyStatusUpdate(
         principal: AuthPrincipal,
         body: CurrencyDto.UpdateCurrencyStatusDto
     ): Promise<Schema.TbFinanceCurrency> {

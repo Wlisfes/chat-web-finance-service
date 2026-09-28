@@ -1,11 +1,14 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import * as feign from '@wlisfes/chat-web-base-schema/feign'
-import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
-import * as Schema from '@wlisfes/chat-web-base-schema'
-
 import { InjectRepository, EntityManager, In, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
+import { ConfigService } from '@nestjs/config'
+import * as Schema from '@wlisfes/chat-web-base-schema'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as CurrencyDto from '@/modules/currency/dto/currency.dto'
+
+/**汇率同步条目*/
+type ExchangeRateItem = { currency: string; rate: number }
+
 interface OpenExchangeRatesPayload {
     base?: string
     rates?: Record<string, number | string>
@@ -35,78 +38,74 @@ export class CurrencyExchangeSyncService {
         private readonly configService: ConfigService
     ) {}
 
-    /** 拉取最新汇率并按东八区当天日期新增；已经入库的汇率永不更新。 */
+    /**同步最新汇率：按东八区当天日期新增启用币种汇率，已入库的汇率不更新*/
     public async httpBaseFinanceSyncCurrencyExchange(): Promise<CurrencyDto.CurrencyExchangeSyncResponseDto> {
-        const fetched = await this.fetchOpenExchangeRates()
-        let insertedRates: Array<{ currency: string; rate: number }> = []
-
-        await this.exchangeRepository.manager.transaction(async manager => {
-            const writableRates = await this.filterEnabledCurrencies(fetched.rates, manager)
-            if (!writableRates.length) {
+        const { date, rates } = await this.fetchOpenExchangeRates()
+        const list = await this.exchangeRepository.manager.transaction(async manager => {
+            const enabledRates = await this.filterEnabledRates(rates, manager)
+            if (enabledRates.length === 0) {
                 throw new ServiceUnavailableException('没有可同步的启用币种')
             }
-
-            const existing = await manager.find(Schema.TbFinanceCurrencyExchange, {
-                select: ['currency'],
-                where: {
-                    date: fetched.date,
-                    currency: In(writableRates.map(item => item.currency))
-                }
-            })
-            const existingCurrencies = new Set(existing.map(item => item.currency.trim().toUpperCase()))
-            insertedRates = writableRates.filter(item => !existingCurrencies.has(item.currency))
-            if (!insertedRates.length) return
-
-            await manager
-                .createQueryBuilder()
-                .insert()
-                .into(Schema.TbFinanceCurrencyExchange)
-                .values(
-                    // 汇率由定时任务写入，没有人工操作人，创建人、更新人统一记为系统账号。
-                    insertedRates.map(item => ({
-                        ...item,
-                        date: fetched.date,
-                        createBy: feign.ACCOUNT_SYSTEM_UID,
-                        modifyBy: feign.ACCOUNT_SYSTEM_UID
-                    }))
-                )
-                .updateEntity(false)
-                .execute()
+            const pendingRates = await this.filterPendingRates(date, enabledRates, manager)
+            await this.insertExchangeRates(date, pendingRates, manager)
+            return pendingRates.map(item => ({ ...item, date }))
         })
-
-        const result = {
-            date: fetched.date,
-            count: insertedRates.length,
-            list: insertedRates.map(item => ({ ...item, date: fetched.date }))
+        if (list.length > 0) {
+            this.logger.log(`汇率同步完成：日期=${date}，新增=${list.length} 条`)
+        } else {
+            this.logger.log(`汇率已存在，跳过写入：日期=${date}`)
         }
-        this.logger.log(
-            result.count ? `汇率同步完成：日期=${result.date}，新增=${result.count} 条` : `汇率已存在，跳过写入：日期=${result.date}`
-        )
-        return result
+        return { date, count: list.length, list }
     }
 
-    private async filterEnabledCurrencies(
-        rates: Array<{ currency: string; rate: number }>,
-        manager: EntityManager
-    ): Promise<Array<{ currency: string; rate: number }>> {
+    /**过滤出已启用的币种汇率*/
+    private async filterEnabledRates(rates: ExchangeRateItem[], manager: EntityManager): Promise<ExchangeRateItem[]> {
         const currencies = rates.map(item => item.currency)
         const enabled = await this.currencyUtilsService.findEnabledCurrencies(currencies, manager)
         return rates.filter(item => enabled.has(item.currency))
     }
 
-    private async fetchOpenExchangeRates(): Promise<{ date: string; rates: Array<{ currency: string; rate: number }> }> {
+    /**过滤出当天尚未入库的币种汇率*/
+    private async filterPendingRates(date: string, rates: ExchangeRateItem[], manager: EntityManager): Promise<ExchangeRateItem[]> {
+        const existing = await manager.find(Schema.TbFinanceCurrencyExchange, {
+            select: ['currency'],
+            where: { date, currency: In(rates.map(item => item.currency)) }
+        })
+        const existingCurrencies = new Set(existing.map(item => item.currency.trim().toUpperCase()))
+        return rates.filter(item => !existingCurrencies.has(item.currency))
+    }
+
+    /**批量写入汇率；由定时任务写入，创建人、更新人统一记为系统账号*/
+    private async insertExchangeRates(date: string, rates: ExchangeRateItem[], manager: EntityManager): Promise<void> {
+        if (rates.length === 0) {
+            return
+        } else {
+            const items = rates.map(item => ({ ...item, date, createBy: feign.ACCOUNT_SYSTEM_UID, modifyBy: feign.ACCOUNT_SYSTEM_UID }))
+            await manager.createQueryBuilder().insert().into(Schema.TbFinanceCurrencyExchange).values(items).updateEntity(false).execute()
+        }
+    }
+
+    private async fetchOpenExchangeRates(): Promise<{ date: string; rates: ExchangeRateItem[] }> {
         const appId = this.configService.get<string>('integration.openExchangeRates.appid')
         if (typeof appId !== 'string' || !appId.trim()) {
             throw new ServiceUnavailableException('缺少汇率数据源凭据，请配置 integration.openExchangeRates.appid')
         }
 
         const response = await this.fetchOpenExchangeRatesResponseWithRetry(this.createOpenExchangeRatesUrl(appId.trim()))
-        if (!response.ok) throw new ServiceUnavailableException(`Open Exchange Rates 汇率服务返回 HTTP ${response.status}`)
+        if (!response.ok) {
+            throw new ServiceUnavailableException(`Open Exchange Rates 汇率服务返回 HTTP ${response.status}`)
+        }
         const payload = await this.readOpenExchangeRatesPayload(response)
-        if (payload.base !== 'USD') throw new ServiceUnavailableException('Open Exchange Rates 汇率基准币种不是 USD')
+        if (payload.base !== 'USD') {
+            throw new ServiceUnavailableException('Open Exchange Rates 汇率基准币种不是 USD')
+        }
         const rates = this.normalizeRates(payload.rates)
-        if (!rates.length) throw new ServiceUnavailableException('Open Exchange Rates 汇率响应没有可用数据')
-        if (!rates.some(item => item.currency === 'USD')) rates.unshift({ currency: 'USD', rate: 1 })
+        if (!rates.length) {
+            throw new ServiceUnavailableException('Open Exchange Rates 汇率响应没有可用数据')
+        }
+        if (!rates.some(item => item.currency === 'USD')) {
+            rates.unshift({ currency: 'USD', rate: 1 })
+        }
         return { date: this.currentRateDate(), rates: this.uniqueRates(rates) }
     }
 
@@ -130,12 +129,15 @@ export class CurrencyExchangeSyncService {
         for (let attempt = 1; attempt <= EXCHANGE_RATE_RETRY_ATTEMPTS; attempt += 1) {
             try {
                 const response = await this.fetchOpenExchangeRatesResponse(url)
-                if (response.ok || response.status < 500 || attempt === EXCHANGE_RATE_RETRY_ATTEMPTS) return response
+                if (response.ok || response.status < 500 || attempt === EXCHANGE_RATE_RETRY_ATTEMPTS) {
+                    return response
+                }
             } catch (error) {
                 lastError = error
-                if (attempt === EXCHANGE_RATE_RETRY_ATTEMPTS) throw error
+                if (attempt === EXCHANGE_RATE_RETRY_ATTEMPTS) {
+                    throw error
+                }
             }
-
             this.logger.warn(`Open Exchange Rates 请求失败，第 ${attempt}/${EXCHANGE_RATE_RETRY_ATTEMPTS} 次后重试`)
             await new Promise<void>(resolve => setTimeout(resolve, EXCHANGE_RATE_RETRY_DELAY_MS))
         }
@@ -152,22 +154,32 @@ export class CurrencyExchangeSyncService {
         }
     }
 
-    private normalizeRates(rates: OpenExchangeRatesPayload['rates']): Array<{ currency: string; rate: number }> {
-        if (!rates || typeof rates !== 'object' || Array.isArray(rates)) return []
+    private normalizeRates(rates: OpenExchangeRatesPayload['rates']): ExchangeRateItem[] {
+        if (!rates || typeof rates !== 'object' || Array.isArray(rates)) {
+            return []
+        }
         return Object.entries(rates).flatMap(([quote, value]) => {
-            if (typeof value !== 'number' && typeof value !== 'string') return []
-            if (typeof value === 'string' && !value.trim()) return []
+            if (typeof value !== 'number' && typeof value !== 'string') {
+                return []
+            }
+            if (typeof value === 'string' && !value.trim()) {
+                return []
+            }
             const currency = quote.trim().toUpperCase()
             const rate = Number(value)
-            if (!/^[A-Z]{3}$/.test(currency) || !Number.isFinite(rate) || rate < 0) return []
+            if (!/^[A-Z]{3}$/.test(currency) || !Number.isFinite(rate) || rate < 0) {
+                return []
+            }
             return [{ currency, rate: Number(rate.toFixed(6)) }]
         })
     }
 
-    private uniqueRates(rates: Array<{ currency: string; rate: number }>): Array<{ currency: string; rate: number }> {
+    private uniqueRates(rates: ExchangeRateItem[]): ExchangeRateItem[] {
         const seen = new Set<string>()
         return rates.filter(item => {
-            if (seen.has(item.currency)) return false
+            if (seen.has(item.currency)) {
+                return false
+            }
             seen.add(item.currency)
             return true
         })
@@ -186,18 +198,26 @@ export class CurrencyExchangeSyncService {
 
     private getTimeout(): number {
         const configured = this.configService.get<number | string>('integration.openExchangeRates.timeout')
-        if (configured === undefined || configured === '') return 10_000
+        if (configured === undefined || configured === '') {
+            return 10_000
+        }
         const timeout = Number(configured)
         return Number.isInteger(timeout) && timeout >= 1000 && timeout <= 60_000 ? timeout : 10_000
     }
 
     private errorMessage(error: unknown): string {
-        if (!(error instanceof Error)) return String(error)
+        if (!(error instanceof Error)) {
+            return String(error)
+        }
         const cause = (error as Error & { cause?: unknown }).cause
-        if (cause instanceof Error && cause.message && cause.message !== error.message) return `${error.message}（原因：${cause.message}）`
+        if (cause instanceof Error && cause.message && cause.message !== error.message) {
+            return `${error.message}（原因：${cause.message}）`
+        }
         if (cause && typeof cause === 'object' && 'code' in cause) {
             const code = (cause as { code?: unknown }).code
-            if (typeof code === 'string' && code) return `${error.message}（code=${code}）`
+            if (typeof code === 'string' && code) {
+                return `${error.message}（code=${code}）`
+            }
         }
         return error.message
     }

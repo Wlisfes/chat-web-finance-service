@@ -52,7 +52,7 @@ export class BrandService {
     }
 
     /**编辑品牌状态*/
-    public async httpBaseFinanceUpdateBrandStatus(
+    public async httpBaseFinanceBrandStatusUpdate(
         principal: AuthPrincipal,
         body: BrandDto.UpdateBrandStatusDto
     ): Promise<Schema.TbFinanceBrand> {

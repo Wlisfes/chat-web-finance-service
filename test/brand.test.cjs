@@ -108,7 +108,7 @@ test('品牌新增和编辑在事务内完成唯一性校验与写入', async ()
     assert.equal(updated.createBy, '10001')
     assert.equal(updated.modifyBy, '30001')
 
-    const statusUpdated = await service.httpBaseFinanceUpdateBrandStatus({ uid: '40001' }, { keyId: 8, status: 'enable' })
+    const statusUpdated = await service.httpBaseFinanceBrandStatusUpdate({ uid: '40001' }, { keyId: 8, status: 'enable' })
     assert.equal(repository.state.transactions, 3)
     assert.deepEqual(calls[3], { method: 'findRequired', keyId: 8, transactionManager: manager })
     assert.equal(statusUpdated.status, 'enable')
