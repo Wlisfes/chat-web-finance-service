@@ -23,6 +23,13 @@ export class UpdateBrandStatusDto extends PickType(Schema.TbFinanceBrandDto, ['s
     @Min(1, { message: '品牌主键必须大于0' })
     keyId: number
 }
+export class BrandKeyDto {
+    @ApiProperty({ description: '品牌主键', example: 1 })
+    @Type(() => Number)
+    @IsInt({ message: '品牌主键必须是整数' })
+    @Min(1, { message: '品牌主键必须大于0' })
+    keyId: number
+}
 export class ListBrandDto extends IntersectionType(PageDto, PartialType(PickType(Schema.TbFinanceBrandDto, ['name', 'status'] as const))) {}
 
 export class BrandEnumsResponseDto extends EnumsResponseDto({

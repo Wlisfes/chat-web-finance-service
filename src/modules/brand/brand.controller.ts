@@ -1,6 +1,6 @@
 import { Body, Get, Post } from '@nestjs/common'
 import { CurrentPrincipal, RequirePermissions, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
+import { ApiServiceDecorator, ApifoxController, SuccessResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { BrandService } from '@/modules/brand/brand.service'
 import { BrandPageResponseDto, BrandSelectResponseDto } from '@/dto/api-response.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
@@ -40,7 +40,7 @@ export class BrandController {
     }
 
     @RequirePermissions('chat:finance:base:brand:update')
-    @ApiServiceDecorator(Post('update/status'), {
+    @ApiServiceDecorator(Post('status/update'), {
         operation: { summary: '更新品牌状态' },
         request: { source: 'body', type: BrandDto.UpdateBrandStatusDto },
         response: { type: Schema.TbFinanceBrandDto, description: '更新后的品牌信息' }
@@ -50,6 +50,16 @@ export class BrandController {
         @Body() input: BrandDto.UpdateBrandStatusDto
     ) {
         return this.brandService.httpBaseFinanceUpdateBrandStatus(principal, input)
+    }
+
+    @RequirePermissions('chat:finance:base:brand:delete')
+    @ApiServiceDecorator(Post('delete'), {
+        operation: { summary: '删除品牌' },
+        request: { source: 'body', type: BrandDto.BrandKeyDto },
+        response: { type: SuccessResponseDataDto, description: '品牌删除结果' }
+    })
+    public async httpBaseFinanceDeleteBrand(@Body() input: BrandDto.BrandKeyDto) {
+        return this.brandService.httpBaseFinanceDeleteBrand(input)
     }
 
     @RequirePermissions('chat:finance:base:brand')

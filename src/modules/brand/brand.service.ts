@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { FeignClientAccountManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
+import { FeignClientAccountManager, FeignClientCrmManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
+import { SuccessResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { BrandListItemResponseDto, BrandSelectResponseDto, OperatorOptionResponseDto } from '@/dto/api-response.dto'
 import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 import * as BrandDto from '@/modules/brand/dto/brand.dto'
@@ -16,6 +17,7 @@ export class BrandService {
         private readonly database: DataBaseService,
         private readonly brandUtilsService: BrandUtilsService,
         private readonly accountFeignClient: FeignClientAccountManager,
+        private readonly crmFeignClient: FeignClientCrmManager,
         private readonly configService: ConfigService
     ) {}
 
@@ -56,6 +58,18 @@ export class BrandService {
             brand.modifyBy = principal.uid
             return manager.save(brand)
         })
+    }
+
+    /**删除未被客户引用的品牌*/
+    public async httpBaseFinanceDeleteBrand(body: BrandDto.BrandKeyDto): Promise<SuccessResponseDataDto> {
+        await this.brandUtilsService.findRequired(body.keyId)
+        await this.brandUtilsService.findUnusedRequired(
+            body.keyId,
+            this.crmFeignClient,
+            resolveFeignServiceAuthorization(this.configService)
+        )
+        await this.brandRepository.delete({ keyId: body.keyId })
+        return { success: true }
     }
 
     /**品牌分页数据*/

@@ -14,14 +14,12 @@ import { DatabaseModule } from '@/database/database.module'
 import { HealthModule } from '@/health/health.module'
 import { SmsRateModule } from '@/modules/sms-rate/sms-rate.module'
 import { FeignModule } from '@/feign/feign.module'
-import { IntegrationModule } from '@/modules/integration/integration.module'
 
 @Module({
     imports: [
         HttpResponseModule,
         ConfigModule.forRoot({ isGlobal: true }),
         NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
-        IntegrationModule,
         RedisModule,
         DatabaseModule,
         GatewayPrincipalModule,
