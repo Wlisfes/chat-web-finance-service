@@ -2,7 +2,6 @@ import { Body, Get, Post, Query } from '@nestjs/common'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { CurrencyService } from '@/modules/currency/currency.service'
 import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
-import { AllowFinanceServiceToken } from '@/modules/auth/finance-auth.decorator'
 import {
     CurrencyExchangePageResponseDto,
     CurrencyExchangeResponseDto,
@@ -72,7 +71,6 @@ export class CurrencyController {
         operation: { summary: '拉取并同步最新币种汇率' },
         response: { type: CurrencyExchangeSyncResponseDto, description: '汇率同步结果' }
     })
-    @AllowFinanceServiceToken()
     public async httpBaseFinanceSyncCurrencyExchange(): Promise<CurrencyExchangeSyncResponseDto> {
         return this.currencyExchangeSyncService.httpBaseFinanceSyncCurrencyExchange()
     }

@@ -1,6 +1,7 @@
 import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import { IsInt, Min } from 'class-validator'
+import { EnumsResponseDto } from '@wlisfes/chat-web-base-schema/decorator'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
@@ -23,3 +24,7 @@ export class UpdateBrandStatusDto extends PickType(Schema.TbFinanceBrandDto, ['s
     keyId: number
 }
 export class ListBrandDto extends IntersectionType(PageDto, PartialType(PickType(Schema.TbFinanceBrandDto, ['name', 'status'] as const))) {}
+
+export class BrandEnumsResponseDto extends EnumsResponseDto({
+    statusOptions: { description: '品牌状态选项', example: Schema.TbFinanceBrandStatusDefinition.options }
+}) {}

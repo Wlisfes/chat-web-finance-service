@@ -1,6 +1,5 @@
-import { Body, Post } from '@nestjs/common'
-import { CurrentPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { Body, Get, Post } from '@nestjs/common'
+import { CurrentPrincipal, RequirePermissions, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { BrandService } from '@/modules/brand/brand.service'
 import { BrandPageResponseDto, BrandSelectResponseDto } from '@/dto/api-response.dto'
@@ -10,6 +9,15 @@ import * as BrandDto from '@/modules/brand/dto/brand.dto'
 @ApifoxController('财务中心-品牌', 'brand', { bearerAuth: true })
 export class BrandController {
     constructor(private readonly brandService: BrandService) {}
+
+    @RequirePermissions('chat:finance:base:brand')
+    @ApiServiceDecorator(Get('enums'), {
+        operation: { summary: '获取品牌状态枚举' },
+        response: { type: BrandDto.BrandEnumsResponseDto, description: '品牌静态枚举' }
+    })
+    public async httpBaseFinanceBrandEnums() {
+        return this.brandService.httpBaseFinanceBrandEnums()
+    }
 
     @ApiServiceDecorator(Post('create'), {
         operation: { summary: '新增品牌' },

@@ -9,9 +9,11 @@ const { plainToInstance } = require('class-transformer')
 const { validate } = require('class-validator')
 const { HttpExceptionFilter } = require('@wlisfes/chat-web-base-schema/filters')
 const { SizePageDto } = require('@wlisfes/chat-web-base-schema/utils')
+const { FeignClientFinanceManager, getFeignMethodDefinitions } = require('@wlisfes/chat-web-base-schema/feign')
 
 const controllers = [
     require('../dist/app.controller').AppController,
+    require('../dist/feign/feign.controller').FeignController,
     require('../dist/modules/brand/brand.controller').BrandController,
     require('../dist/modules/country/country.controller').CountryController,
     require('../dist/modules/currency/currency.controller').CurrencyController,
@@ -60,13 +62,20 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
         assert.equal(properties.pageSize, undefined, `${schemaName} 不能保留 pageSize`)
         assert.equal(properties.items, undefined, `${schemaName} 不能保留 items`)
     }
-    const operations = Object.entries(document.paths).flatMap(([path, pathItem]) =>
-        Object.entries(pathItem)
-            .filter(([, operation]) => operation?.responses)
-            .map(([method, operation]) => ({ path, method, operation }))
-    )
+    const operations = Object.entries(document.paths)
+        .filter(([path]) => !path.startsWith('/feign/'))
+        .flatMap(([path, pathItem]) =>
+            Object.entries(pathItem)
+                .filter(([, operation]) => operation?.responses)
+                .map(([method, operation]) => ({ path, method, operation }))
+        )
 
-    assert.equal(operations.length, 22)
+    for (const [methodName, definition] of getFeignMethodDefinitions(FeignClientFinanceManager)) {
+        assert.ok(document.paths[definition.path]?.[definition.method.toLowerCase()], `Feign 客户端 ${methodName} 未找到对应服务路由`)
+    }
+
+    assert.equal(operations.length, 23)
+    assert.ok(document.paths['/brand/enums']?.get, '缺少品牌枚举接口')
     assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 13)
     assert.equal(operations.flatMap(({ operation }) => operation.parameters ?? []).filter(parameter => parameter.in === 'query').length, 1)
 

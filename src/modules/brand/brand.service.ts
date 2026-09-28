@@ -19,6 +19,13 @@ export class BrandService {
         private readonly configService: ConfigService
     ) {}
 
+    /**品牌静态枚举*/
+    public async httpBaseFinanceBrandEnums(): Promise<BrandDto.BrandEnumsResponseDto> {
+        return {
+            statusOptions: Schema.TbFinanceBrandStatusDefinition.options
+        }
+    }
+
     /**新增品牌*/
     public async httpBaseFinanceCreateBrand(principal: AuthPrincipal, body: BrandDto.CreateBrandDto): Promise<Schema.TbFinanceBrand> {
         return this.brandRepository.manager.transaction(async manager => {
