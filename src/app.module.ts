@@ -25,7 +25,6 @@ import { IntegrationModule } from '@/modules/integration/integration.module'
         IntegrationModule,
         RedisModule,
         DatabaseModule,
-        // 用户认证在网关完成一次；财务服务只校验网关签发的身份上下文签名。
         GatewayPrincipalModule,
         HealthModule,
         BrandModule,
