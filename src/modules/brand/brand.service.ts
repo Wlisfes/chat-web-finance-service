@@ -28,6 +28,11 @@ export class BrandService {
         }
     }
 
+    /**品牌详情*/
+    public async httpBaseFinanceBrandResolver(query: BrandDto.BrandKeyDto): Promise<Schema.TbFinanceBrand> {
+        return this.brandUtilsService.findRequired(query.keyId)
+    }
+
     /**新增品牌*/
     public async httpBaseFinanceCreateBrand(principal: AuthPrincipal, body: BrandDto.CreateBrandDto): Promise<Schema.TbFinanceBrand> {
         return this.brandRepository.manager.transaction(async manager => {

@@ -246,3 +246,17 @@ test('品牌删除前确认未被 CRM 客户引用', async () => {
         { method: 'delete', criteria: { keyId: 8 } }
     ])
 })
+
+test('品牌详情按主键查询', async () => {
+    const calls = []
+    const brandUtilsService = {
+        async findRequired(keyId) {
+            calls.push(keyId)
+            return { keyId, name: 'LYNKS' }
+        }
+    }
+    const service = new BrandService({}, {}, brandUtilsService, {}, {}, {})
+
+    assert.deepEqual(await service.httpBaseFinanceBrandResolver({ keyId: 6 }), { keyId: 6, name: 'LYNKS' })
+    assert.deepEqual(calls, [6])
+})

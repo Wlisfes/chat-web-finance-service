@@ -1,4 +1,4 @@
-import { Body, Get, Post } from '@nestjs/common'
+import { Body, Get, Post, Query } from '@nestjs/common'
 import { CurrentPrincipal, RequirePermissions, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController, SuccessResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { BrandService } from '@/modules/brand/brand.service'
@@ -17,6 +17,26 @@ export class BrandController {
     })
     public async httpBaseFinanceBrandEnums() {
         return this.brandService.httpBaseFinanceBrandEnums()
+    }
+
+    @RequirePermissions('chat:finance:base:brand')
+    @ApiServiceDecorator(Post('column'), {
+        operation: { summary: '分页查询品牌' },
+        request: { source: 'body', type: BrandDto.ListBrandDto },
+        response: { type: BrandPageResponseDto, description: '品牌分页数据' }
+    })
+    public async httpBaseFinanceColumnBrand(@Body() input: BrandDto.ListBrandDto) {
+        return this.brandService.httpBaseFinanceColumnBrand(input)
+    }
+
+    @RequirePermissions('chat:finance:base:brand')
+    @ApiServiceDecorator(Get('resolve'), {
+        operation: { summary: '获取品牌详情' },
+        request: { source: 'query', type: BrandDto.BrandKeyDto },
+        response: { type: Schema.TbFinanceBrandDto, description: '品牌详情' }
+    })
+    public async httpBaseFinanceBrandResolver(@Query() query: BrandDto.BrandKeyDto) {
+        return this.brandService.httpBaseFinanceBrandResolver(query)
     }
 
     @RequirePermissions('chat:finance:base:brand:create')
@@ -60,16 +80,6 @@ export class BrandController {
     })
     public async httpBaseFinanceDeleteBrand(@Body() input: BrandDto.BrandKeyDto) {
         return this.brandService.httpBaseFinanceDeleteBrand(input)
-    }
-
-    @RequirePermissions('chat:finance:base:brand')
-    @ApiServiceDecorator(Post('column'), {
-        operation: { summary: '分页查询品牌' },
-        request: { source: 'body', type: BrandDto.ListBrandDto },
-        response: { type: BrandPageResponseDto, description: '品牌分页数据' }
-    })
-    public async httpBaseFinanceColumnBrand(@Body() input: BrandDto.ListBrandDto) {
-        return this.brandService.httpBaseFinanceColumnBrand(input)
     }
 
     @RequirePermissions('*')
