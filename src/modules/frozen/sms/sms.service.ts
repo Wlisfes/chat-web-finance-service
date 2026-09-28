@@ -18,14 +18,26 @@ export class FrozenSmsService {
         private readonly configService: ConfigService
     ) {}
 
+    /**短信基础价格详情*/
+    public async httpBaseFinanceFrozenSmsResolver(query: SmsDto.FrozenSmsKeyDto): Promise<Schema.TbFinanceFrozenSms> {
+        return this.frozenSmsUtilsService.findRequired(query.keyId)
+    }
+
     /**新增短信基础价格*/
     public async httpBaseFinanceCreateFrozenSms(
         principal: AuthPrincipal,
         body: SmsDto.CreateFrozenSmsDto
     ): Promise<Schema.TbFinanceFrozenSms> {
         return this.repository.manager.transaction(async manager => {
-            await this.frozenSmsUtilsService.findAvailable(body.code, body.mcc, manager)
-            const rate = manager.create(Schema.TbFinanceFrozenSms, { ...body, createBy: principal.uid, modifyBy: principal.uid })
+            const [country] = await this.frozenSmsUtilsService.findCountriesRequired([body.countryKeyId])
+            await this.frozenSmsUtilsService.findAvailable(body.countryKeyId, manager)
+            const rate = manager.create(Schema.TbFinanceFrozenSms, {
+                ...body,
+                code: country.code,
+                mcc: country.mcc,
+                createBy: principal.uid,
+                modifyBy: principal.uid
+            })
             return manager.save(rate)
         })
     }
@@ -37,8 +49,9 @@ export class FrozenSmsService {
     ): Promise<Schema.TbFinanceFrozenSms> {
         return this.repository.manager.transaction(async manager => {
             const rate = await this.frozenSmsUtilsService.findRequired(body.keyId, manager)
-            await this.frozenSmsUtilsService.findAvailable(body.code, body.mcc, manager, body.keyId)
-            manager.merge(Schema.TbFinanceFrozenSms, rate, { ...body, modifyBy: principal.uid })
+            const [country] = await this.frozenSmsUtilsService.findCountriesRequired([body.countryKeyId])
+            await this.frozenSmsUtilsService.findAvailable(body.countryKeyId, manager, body.keyId)
+            manager.merge(Schema.TbFinanceFrozenSms, rate, { ...body, code: country.code, mcc: country.mcc, modifyBy: principal.uid })
             return manager.save(rate)
         })
     }
@@ -48,8 +61,7 @@ export class FrozenSmsService {
         const { page, size } = fetchUntiePagination(body)
         return this.database.builder(this.repository, async qb => {
             if (isNotEmpty(body.countryKeyId)) {
-                const [country] = await this.frozenSmsUtilsService.findCountriesRequired([body.countryKeyId])
-                qb.andWhere('t.code = :code AND t.mcc = :mcc', { code: country.code, mcc: country.mcc })
+                qb.andWhere('t.countryKeyId = :countryKeyId', { countryKeyId: body.countryKeyId })
             }
             if (isNotEmpty(body.mcc?.trim())) {
                 qb.andWhere('t.mcc LIKE :mcc', { mcc: `%${body.mcc?.trim()}%` })
@@ -58,9 +70,9 @@ export class FrozenSmsService {
             qb.skip((page - 1) * size)
             qb.take(size)
             return await qb.getManyAndCount().then(async ([rates, total]) => {
-                const countries = await this.frozenSmsUtilsService.findCountriesByCodes(rates.map(rate => rate.code))
-                const countriesByCode = new Map(countries.map(country => [`${country.code}:${country.mcc}`, country]))
-                const items = rates.map(rate => ({ ...rate, countryOptions: countriesByCode.get(`${rate.code}:${rate.mcc}`) }))
+                const countries = await this.frozenSmsUtilsService.findCountriesByKeyIds(rates.map(rate => rate.countryKeyId))
+                const countryByKeyId = new Map(countries.map(country => [country.keyId, country]))
+                const items = rates.map(rate => ({ ...rate, countryOptions: countryByKeyId.get(rate.countryKeyId) }))
                 return fetchResolver({
                     page,
                     size,
@@ -76,18 +88,18 @@ export class FrozenSmsService {
         const countryKeyIds = [...new Set(body.countryKeyIds)]
         const countries = await this.frozenSmsUtilsService.findCountriesRequired(countryKeyIds)
         const rates = await this.frozenSmsUtilsService.findRatesRequired(countries)
-        const rateByCountry = new Map(rates.map(rate => [`${rate.code}:${rate.mcc}`, rate]))
+        const rateByCountry = new Map(rates.map(rate => [rate.countryKeyId, rate]))
         const countryByKeyId = new Map(countries.map(country => [country.keyId, country]))
         return countryKeyIds.map(countryKeyId => {
             const country = countryByKeyId.get(countryKeyId)
             if (!country) {
                 throw new BadRequestException('部分国家/地区不存在')
             }
-            const rate = rateByCountry.get(`${country.code}:${country.mcc}`)
+            const rate = rateByCountry.get(country.keyId)
             if (!rate) {
                 throw new BadRequestException(`以下国家/地区尚未配置短信基础价格：${country.cnName}`)
             }
-            return { ...country, ...rate, countryKeyId: country.keyId }
+            return { ...country, ...rate }
         })
     }
 }

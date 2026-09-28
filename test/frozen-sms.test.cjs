@@ -45,8 +45,12 @@ test('短信价格新增和编辑在事务内完成组合唯一性校验与写�
     const calls = []
     const existingRate = { keyId: 18, code: '86', mcc: '460', upUsd: 0.02, downUsd: 0.01, createBy: '10001', modifyBy: '10001' }
     const frozenSmsUtilsService = {
-        async findAvailable(code, mcc, transactionManager, excludedKeyId) {
-            calls.push({ method: 'findAvailable', code, mcc, transactionManager, excludedKeyId })
+        async findCountriesRequired(countryKeyIds) {
+            calls.push({ method: 'findCountriesRequired', countryKeyIds })
+            return countryKeyIds[0] === 1001 ? [{ keyId: 1001, code: '1', mcc: '310' }] : [{ keyId: 1002, code: '852', mcc: '454' }]
+        },
+        async findAvailable(countryKeyId, transactionManager, excludedKeyId) {
+            calls.push({ method: 'findAvailable', countryKeyId, transactionManager, excludedKeyId })
         },
         async findRequired(keyId, transactionManager) {
             calls.push({ method: 'findRequired', keyId, transactionManager })
@@ -55,37 +59,29 @@ test('短信价格新增和编辑在事务内完成组合唯一性校验与写�
     }
     const service = new FrozenSmsService(repository, {}, frozenSmsUtilsService, {}, {})
 
-    const createBody = { code: '1', mcc: '310', upUsd: 0.03, downUsd: 0.02, remark: '北美价格' }
+    const createBody = { countryKeyId: 1001, upUsd: 0.03, downUsd: 0.02, remark: '北美价格' }
     const created = await service.httpBaseFinanceCreateFrozenSms({ uid: '20001' }, createBody)
 
     assert.equal(repository.state.transactions, 1)
-    assert.deepEqual(calls[0], {
-        method: 'findAvailable',
-        code: '1',
-        mcc: '310',
-        transactionManager: manager,
-        excludedKeyId: undefined
-    })
+    assert.deepEqual(calls[0], { method: 'findCountriesRequired', countryKeyIds: [1001] })
+    assert.deepEqual(calls[1], { method: 'findAvailable', countryKeyId: 1001, transactionManager: manager, excludedKeyId: undefined })
     assert.deepEqual(repository.state.creates[0].values, {
         ...createBody,
+        code: '1',
+        mcc: '310',
         createBy: '20001',
         modifyBy: '20001'
     })
     assert.equal(repository.state.saves[0], created)
 
-    const updateBody = { keyId: 18, code: '852', mcc: '454', upUsd: 0.04, downUsd: 0.03, remark: '香港价格' }
+    const updateBody = { keyId: 18, countryKeyId: 1002, upUsd: 0.04, downUsd: 0.03, remark: '香港价格' }
     const updated = await service.httpBaseFinanceUpdateFrozenSms({ uid: '30001' }, updateBody)
 
     assert.equal(repository.state.transactions, 2)
-    assert.deepEqual(calls[1], { method: 'findRequired', keyId: 18, transactionManager: manager })
-    assert.deepEqual(calls[2], {
-        method: 'findAvailable',
-        code: '852',
-        mcc: '454',
-        transactionManager: manager,
-        excludedKeyId: 18
-    })
-    assert.deepEqual(repository.state.merges[0].values, { ...updateBody, modifyBy: '30001' })
+    assert.deepEqual(calls[2], { method: 'findRequired', keyId: 18, transactionManager: manager })
+    assert.deepEqual(calls[3], { method: 'findCountriesRequired', countryKeyIds: [1002] })
+    assert.deepEqual(calls[4], { method: 'findAvailable', countryKeyId: 1002, transactionManager: manager, excludedKeyId: 18 })
+    assert.deepEqual(repository.state.merges[0].values, { ...updateBody, code: '852', mcc: '454', modifyBy: '30001' })
     assert.equal(repository.state.saves[1], existingRate)
     assert.equal(updated, existingRate)
     assert.equal(updated.createBy, '10001')
@@ -94,8 +90,8 @@ test('短信价格新增和编辑在事务内完成组合唯一性校验与写�
 
 test('短信基础价格分页通过 Feign 补全创建人和修改人', async () => {
     const items = [
-        { keyId: 1000, code: '86', mcc: '460', createBy: '0', modifyBy: '1001' },
-        { keyId: 1001, code: '1', mcc: '310', createBy: '1001', modifyBy: null }
+        { keyId: 1000, countryKeyId: 1, code: '86', mcc: '460', createBy: '0', modifyBy: '1001' },
+        { keyId: 1001, countryKeyId: 2, code: '1', mcc: '310', createBy: '1001', modifyBy: null }
     ]
     const qb = {
         andWhere() {
@@ -117,7 +113,7 @@ test('短信基础价格分页通过 Feign 补全创建人和修改人', async (
     const calls = []
     const database = { builder: (repository, callback) => callback(qb) }
     const frozenSmsUtilsService = {
-        async findCountriesByCodes() {
+        async findCountriesByKeyIds() {
             return [{ keyId: 1, code: '86', mcc: '460', cnName: '中国' }]
         }
     }

@@ -27,11 +27,11 @@ export class FrozenSmsUtilsService {
         return rate
     }
 
-    /**校验国家地区移动代码价格*/
-    public async findAvailable(code: string, mcc: string, manager?: EntityManager, excludedKeyId?: number): Promise<void> {
+    /**校验国家地区价格是否已配置*/
+    public async findAvailable(countryKeyId: number, manager?: EntityManager, excludedKeyId?: number): Promise<void> {
         const repository = (manager ?? this.rateRepository.manager).getRepository(Schema.TbFinanceFrozenSms)
         const exists = await this.database.builder(repository, qb => {
-            qb.where('t.code = :code AND t.mcc = :mcc', { code, mcc })
+            qb.where('t.countryKeyId = :countryKeyId', { countryKeyId })
             if (isNotEmpty(excludedKeyId)) {
                 qb.andWhere('t.keyId <> :excludedKeyId', { excludedKeyId })
             }
@@ -41,17 +41,21 @@ export class FrozenSmsUtilsService {
             return qb.getExists()
         })
         if (exists) {
-            throw new ConflictException('该国家/地区的移动代码已配置过价格')
+            throw new ConflictException('该国家/地区已配置过价格')
         }
     }
 
-    /**按区号获取国家地区*/
-    public async findCountriesByCodes(codes: string[]): Promise<Schema.TbFinanceCountry[]> {
-        const uniqueCodes = [...new Set(codes)]
-        if (uniqueCodes.length === 0) {
+    /**按主键获取国家地区选项*/
+    public async findCountriesByKeyIds(countryKeyIds: number[]): Promise<Schema.TbFinanceCountry[]> {
+        const uniqueKeyIds = [...new Set(countryKeyIds)]
+        if (uniqueKeyIds.length === 0) {
             return []
         }
-        return this.database.builder(this.countryRepository, qb => qb.where('t.code IN (:...codes)', { codes: uniqueCodes }).getMany())
+        return this.database.builder(this.countryRepository, qb => {
+            qb.select(['t.keyId', 't.code', 't.mcc', 't.cnName', 't.enName'])
+            qb.where('t.keyId IN (:...countryKeyIds)', { countryKeyIds: uniqueKeyIds })
+            return qb.getMany()
+        })
     }
 
     /**获取指定国家地区*/
@@ -68,10 +72,10 @@ export class FrozenSmsUtilsService {
     /**获取指定国家地区的短信基础价格*/
     public async findRatesRequired(countries: Schema.TbFinanceCountry[]): Promise<Schema.TbFinanceFrozenSms[]> {
         const rates = await this.database.builder(this.rateRepository, qb => {
-            return qb.where(countries.map(country => ({ code: country.code, mcc: country.mcc }))).getMany()
+            return qb.where('t.countryKeyId IN (:...countryKeyIds)', { countryKeyIds: countries.map(country => country.keyId) }).getMany()
         })
-        const rateByCountry = new Map(rates.map(rate => [`${rate.code}:${rate.mcc}`, rate]))
-        const missingCountries = countries.filter(country => !rateByCountry.has(`${country.code}:${country.mcc}`))
+        const rateByCountry = new Map(rates.map(rate => [rate.countryKeyId, rate]))
+        const missingCountries = countries.filter(country => !rateByCountry.has(country.keyId))
         if (missingCountries.length > 0) {
             throw new BadRequestException(
                 `以下国家/地区尚未配置短信基础价格：${missingCountries.map(country => country.cnName).join('、')}`

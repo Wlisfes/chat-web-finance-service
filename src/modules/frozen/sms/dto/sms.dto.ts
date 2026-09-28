@@ -7,12 +7,19 @@ import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsInt, IsOptional, Min } from 'cl
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
-export class CreateFrozenSmsDto extends PickType(Schema.TbFinanceFrozenSmsDto, ['code', 'mcc', 'upUsd', 'downUsd', 'remark'] as const) {}
+export class CreateFrozenSmsDto extends PickType(Schema.TbFinanceFrozenSmsDto, ['countryKeyId', 'upUsd', 'downUsd', 'remark'] as const) {}
 export class UpdateFrozenSmsDto extends IntersectionType(
-    PickType(Schema.TbFinanceFrozenSmsDto, ['code', 'mcc', 'upUsd', 'downUsd'] as const),
+    PickType(Schema.TbFinanceFrozenSmsDto, ['countryKeyId', 'upUsd', 'downUsd'] as const),
     PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['remark'] as const))
 ) {
     @ApiProperty({ description: '短信基础价格主键', example: 1 })
+    @Type(() => Number)
+    @IsInt({ message: '短信基础价格主键必须是整数' })
+    @Min(1, { message: '短信基础价格主键必须大于0' })
+    keyId: number
+}
+export class FrozenSmsKeyDto {
+    @ApiProperty({ description: '短信基础价格主键', example: 1000 })
     @Type(() => Number)
     @IsInt({ message: '短信基础价格主键必须是整数' })
     @Min(1, { message: '短信基础价格主键必须大于0' })
@@ -38,9 +45,17 @@ export class BatchFrozenSmsDto {
     countryKeyIds: number[]
 }
 
+export class FrozenSmsCountryOptionsResponseDto extends PickType(Schema.TbFinanceCountryDto, [
+    'keyId',
+    'code',
+    'mcc',
+    'cnName',
+    'enName'
+] as const) {}
+
 export class FrozenSmsListItemResponseDto extends Schema.TbFinanceFrozenSmsDto {
-    @ApiProperty({ description: '国家地区信息', type: Schema.TbFinanceCountryDto, required: false })
-    countryOptions?: Schema.TbFinanceCountryDto
+    @ApiProperty({ description: '国家地区信息', type: FrozenSmsCountryOptionsResponseDto, required: false })
+    countryOptions?: FrozenSmsCountryOptionsResponseDto
 
     @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
     createByOptions?: feign.AccountUserOptionResponseDto
@@ -55,9 +70,6 @@ export class FrozenSmsPageResponseDto extends PageResponseDataDto {
 }
 
 export class BatchFrozenSmsResponseDto extends Schema.TbFinanceFrozenSmsDto {
-    @ApiProperty({ description: '国家地区主键', example: 1 })
-    countryKeyId: number
-
     @ApiProperty({ description: '国家地区中文名称', example: '中国' })
     cnName: string
 

@@ -74,14 +74,15 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
         assert.ok(document.paths[definition.path]?.[definition.method.toLowerCase()], `Feign 客户端 ${methodName} 未找到对应服务路由`)
     }
 
-    assert.equal(operations.length, 27)
+    assert.equal(operations.length, 28)
     assert.ok(document.paths['/brand/enums']?.get, '缺少品牌枚举接口')
     assert.ok(document.paths['/brand/resolve']?.get, '缺少品牌详情接口')
+    assert.ok(document.paths['/frozen/sms/resolve']?.get, '缺少短信基础价格详情接口')
     assert.ok(document.paths['/country/enums']?.get, '缺少国家地区枚举接口')
     assert.ok(document.paths['/currency/enums']?.get, '缺少币种枚举接口')
     assert.ok(document.paths['/brand/delete']?.post, '缺少品牌删除接口')
     assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 14)
-    assert.equal(operations.flatMap(({ operation }) => operation.parameters ?? []).filter(parameter => parameter.in === 'query').length, 2)
+    assert.equal(operations.flatMap(({ operation }) => operation.parameters ?? []).filter(parameter => parameter.in === 'query').length, 3)
 
     for (const { path, method, operation } of operations) {
         const operationLabel = `${method.toUpperCase()} ${path}`

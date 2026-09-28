@@ -1,4 +1,4 @@
-import { Body, Post } from '@nestjs/common'
+import { Body, Get, Post, Query } from '@nestjs/common'
 import { RequirePermissions, CurrentPrincipal, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { FrozenSmsService } from '@/modules/frozen/sms/sms.service'
@@ -8,6 +8,16 @@ import * as SmsDto from '@/modules/frozen/sms/dto/sms.dto'
 @ApifoxController('财务中心-短信基础价格', 'frozen/sms', { bearerAuth: true })
 export class FrozenSmsController {
     constructor(private readonly frozenSmsService: FrozenSmsService) {}
+
+    @RequirePermissions('chat:finance:frozen:sms')
+    @ApiServiceDecorator(Get('resolve'), {
+        operation: { summary: '获取短信基础价格详情' },
+        request: { source: 'query', type: SmsDto.FrozenSmsKeyDto },
+        response: { type: Schema.TbFinanceFrozenSmsDto, description: '短信基础价格详情' }
+    })
+    public async httpBaseFinanceFrozenSmsResolver(@Query() query: SmsDto.FrozenSmsKeyDto) {
+        return this.frozenSmsService.httpBaseFinanceFrozenSmsResolver(query)
+    }
 
     @RequirePermissions('chat:finance:frozen:sms:create')
     @ApiServiceDecorator(Post('create'), {
