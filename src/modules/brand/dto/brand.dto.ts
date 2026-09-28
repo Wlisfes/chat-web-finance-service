@@ -2,9 +2,9 @@ import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/sw
 import { Type } from 'class-transformer'
 import { IsInt, Min } from 'class-validator'
 import { EnumsResponseDto } from '@wlisfes/chat-web-base-schema/decorator'
+import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 export class CreateBrandDto extends PickType(Schema.TbFinanceBrandDto, ['name', 'document', 'status'] as const) {}
 export class UpdateBrandDto extends IntersectionType(
     PickType(Schema.TbFinanceBrandDto, ['name', 'document'] as const),
