@@ -1,17 +1,21 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { PageResult, isNotEmpty, fetchUntiePagination, fetchResolver } from '@wlisfes/chat-web-base-schema/utils'
 import { FrozenSmsUtilsService } from '@/modules/frozen/sms/sms.utils.service'
 import * as SmsDto from '@/modules/frozen/sms/dto/sms.dto'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
-import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class FrozenSmsService {
     constructor(
         @InjectRepository(Schema.TbFinanceFrozenSms) private readonly repository: Repository<Schema.TbFinanceFrozenSms>,
         private readonly database: DataBaseService,
-        private readonly frozenSmsUtilsService: FrozenSmsUtilsService
+        private readonly frozenSmsUtilsService: FrozenSmsUtilsService,
+        private readonly accountFeignClient: feign.FeignClientAccountManager,
+        private readonly configService: ConfigService
     ) {}
 
     /**新增短信基础价格*/
@@ -41,6 +45,7 @@ export class FrozenSmsService {
 
     /**短信基础价格分页数据*/
     public async httpBaseFinanceColumnFrozenSms(body: SmsDto.ListFrozenSmsDto): Promise<PageResult<SmsDto.FrozenSmsListItemResponseDto>> {
+        const { page, size } = fetchUntiePagination(body)
         return this.database.builder(this.repository, async qb => {
             if (isNotEmpty(body.code?.trim())) {
                 qb.andWhere('t.code LIKE :code', { code: `%${body.code?.trim()}%` })
@@ -49,22 +54,19 @@ export class FrozenSmsService {
                 qb.andWhere('t.mcc LIKE :mcc', { mcc: `%${body.mcc?.trim()}%` })
             }
             qb.orderBy('t.createTime', 'DESC')
-                .skip((body.page - 1) * body.size)
-                .take(body.size)
-            const [rates, total] = await qb.getManyAndCount()
-            const countries = await this.frozenSmsUtilsService.findCountriesByCodes(rates.map(rate => rate.code))
-            const countriesByCode = new Map(countries.map(country => [country.code, country]))
-            return {
-                page: body.page,
-                size: body.size,
-                total,
-                list: rates.map(rate => ({
-                    ...rate,
-                    countryOptions: countriesByCode.get(rate.code),
-                    createByOptions: isNotEmpty(rate.createBy) ? { uid: rate.createBy } : undefined,
-                    modifyByOptions: isNotEmpty(rate.modifyBy) ? { uid: rate.modifyBy } : undefined
-                }))
-            }
+            qb.skip((page - 1) * size)
+            qb.take(size)
+            return await qb.getManyAndCount().then(async ([rates, total]) => {
+                const countries = await this.frozenSmsUtilsService.findCountriesByCodes(rates.map(rate => rate.code))
+                const countriesByCode = new Map(countries.map(country => [country.code, country]))
+                const items = rates.map(rate => ({ ...rate, countryOptions: countriesByCode.get(rate.code) }))
+                return fetchResolver({
+                    page,
+                    size,
+                    total,
+                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                })
+            })
         })
     }
 

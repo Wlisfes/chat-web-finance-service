@@ -14,7 +14,7 @@ test('首次部署只使用显式 Finance 凭据生成 Nacos 数据库配置', (
     })
     assert.match(financeConfig, /server:\n  port: 5030/)
     assert.match(financeConfig, /database:\n  chat-web-finance:/)
-    assert.match(financeConfig, /name: "chat_web_finance"/)
+    assert.match(financeConfig, /database: "chat_web_finance"/)
     assert.match(financeConfig, /username: "finance-service"/)
     assert.match(financeConfig, /redis:\n  host: "chat-web-redis"\n  port: 6379\n  database: 3/)
     assert.match(financeConfig, /gateway:\n  feign:\n    service_token: "redacted-token"/)
@@ -43,7 +43,7 @@ integration:
 database:
   chat-web-finance:
     host: mysql
-    name: chat_web_finance
+    database: chat_web_finance
     username: finance-service
     password: redacted
 redis:
@@ -69,7 +69,7 @@ gateway:
 database:
   chat-web-finance:
     host: mysql
-    name: chat_web_finance
+    database: chat_web_finance
     username: finance-service
     password: redacted
 security:
@@ -102,7 +102,7 @@ integration:
 database:
   chat-web-finance:
     host: mysql
-    name: chat_web_finance
+    database: chat_web_finance
     username: finance-service
     password: redacted
 redis:
