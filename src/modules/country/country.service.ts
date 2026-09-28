@@ -55,7 +55,7 @@ export class CountryService {
     }
 
     /**编辑国家地区状态*/
-    public async httpBaseFinanceUpdateCountryStatus(
+    public async httpBaseFinanceCountryStatusUpdate(
         principal: AuthPrincipal,
         body: CountryDto.UpdateCountryStatusDto
     ): Promise<Schema.TbFinanceCountry> {

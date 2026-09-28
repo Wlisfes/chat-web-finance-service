@@ -64,11 +64,11 @@ export class BrandController {
         request: { source: 'body', type: BrandDto.UpdateBrandStatusDto },
         response: { type: Schema.TbFinanceBrandDto, description: '更新后的品牌信息' }
     })
-    public async httpBaseFinanceUpdateBrandStatus(
+    public async httpBaseFinanceBrandStatusUpdate(
         @CurrentPrincipal() principal: AuthPrincipal,
         @Body() input: BrandDto.UpdateBrandStatusDto
     ) {
-        return this.brandService.httpBaseFinanceUpdateBrandStatus(principal, input)
+        return this.brandService.httpBaseFinanceBrandStatusUpdate(principal, input)
     }
 
     @RequirePermissions('chat:finance:base:brand:delete')

@@ -1,9 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { InjectRepository, DataBaseService, EntityManager, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { FeignClientCrmManager } from '@wlisfes/chat-web-base-schema/feign'
+import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-import { InjectRepository, DataBaseService, EntityManager, Repository } from '@wlisfes/chat-web-base-schema/database'
-import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class BrandUtilsService {
     constructor(

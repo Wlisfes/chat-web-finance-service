@@ -208,7 +208,7 @@ test('币种状态更新在事务内锁定实体后写入', async () => {
         }
     }
     const currencyService = new CurrencyService(currencyTransactional.repository, {}, {}, currencyUtilsService)
-    await currencyService.httpBaseFinanceUpdateCurrencyStatus({ uid: '1001' }, { keyId: 2, status: 'disable' })
+    await currencyService.httpBaseFinanceCurrencyStatusUpdate({ uid: '1001' }, { keyId: 2, status: 'disable' })
     assert.equal(currencyTransactional.repository.state.transactions, 1)
     assert.equal(currency.status, 'disable')
     assert.equal(currency.modifyBy, '1001')

@@ -1,5 +1,5 @@
 import { Body, Get, Post, Query } from '@nestjs/common'
-import { CurrentPrincipal, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { CurrentPrincipal, RequirePermissions, type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { CurrencyService } from '@/modules/currency/currency.service'
 import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
@@ -13,6 +13,7 @@ export class CurrencyController {
         private readonly currencyExchangeSyncService: CurrencyExchangeSyncService
     ) {}
 
+    @RequirePermissions('chat:finance:base:currency')
     @ApiServiceDecorator(Get('enums'), {
         operation: { summary: '获取币种状态枚举' },
         response: { type: CurrencyDto.CurrencyEnumsResponseDto, description: '币种静态枚举' }
@@ -21,6 +22,7 @@ export class CurrencyController {
         return this.currencyService.httpBaseFinanceCurrencyEnums()
     }
 
+    @RequirePermissions('chat:finance:base:currency')
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询币种' },
         request: { source: 'body', type: CurrencyDto.ListCurrencyDto },
@@ -30,18 +32,20 @@ export class CurrencyController {
         return this.currencyService.httpBaseFinanceColumnCurrency(input)
     }
 
-    @ApiServiceDecorator(Post('update/status'), {
+    @RequirePermissions('chat:finance:base:currency:update')
+    @ApiServiceDecorator(Post('status/update'), {
         operation: { summary: '更新币种状态' },
         request: { source: 'body', type: CurrencyDto.UpdateCurrencyStatusDto },
         response: { type: Schema.TbFinanceCurrencyDto, description: '更新后的币种信息' }
     })
-    public async httpBaseFinanceUpdateCurrencyStatus(
+    public async httpBaseFinanceCurrencyStatusUpdate(
         @CurrentPrincipal() principal: AuthPrincipal,
         @Body() input: CurrencyDto.UpdateCurrencyStatusDto
     ): Promise<Schema.TbFinanceCurrencyDto> {
-        return this.currencyService.httpBaseFinanceUpdateCurrencyStatus(principal, input)
+        return this.currencyService.httpBaseFinanceCurrencyStatusUpdate(principal, input)
     }
 
+    @RequirePermissions('*')
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取可用币种下拉选项' },
         response: { type: CurrencyDto.CurrencySelectResponseDto, isArray: true, description: '可用币种列表' }
@@ -50,6 +54,7 @@ export class CurrencyController {
         return this.currencyService.httpBaseFinanceSelectCurrency()
     }
 
+    @RequirePermissions('chat:finance:base:exchange')
     @ApiServiceDecorator(Post('exchange/column'), {
         operation: { summary: '分页查询币种汇率' },
         request: { source: 'body', type: CurrencyDto.ListCurrencyExchangeDto },
@@ -59,6 +64,7 @@ export class CurrencyController {
         return this.currencyService.httpBaseFinanceColumnCurrencyExchange(input)
     }
 
+    @RequirePermissions('chat:finance:base:exchange')
     @ApiServiceDecorator(Get('exchange/resolve'), {
         operation: { summary: '获取币种最新汇率' },
         request: { source: 'query', type: CurrencyDto.ResolveCurrencyExchangeDto },
@@ -70,6 +76,7 @@ export class CurrencyController {
         return this.currencyService.httpBaseFinanceResolverCurrencyExchange(input)
     }
 
+    @RequirePermissions('chat:finance:base:exchange')
     @ApiServiceDecorator(Post('exchange/sync'), {
         operation: { summary: '拉取并同步最新币种汇率' },
         response: { type: CurrencyDto.CurrencyExchangeSyncResponseDto, description: '汇率同步结果' }
