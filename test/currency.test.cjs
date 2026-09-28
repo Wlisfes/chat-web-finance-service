@@ -136,8 +136,8 @@ test('Finance 使用 Open Exchange Rates、过滤未启用币种并只新增汇�
         assert.equal(state.inserts[0].updateEntity, false)
         assert.equal(state.inserts[0].values.length, 2)
         assert.deepEqual(state.inserts[0].values, [
-            { currency: 'USD', rate: 1, rateDate: result.date },
-            { currency: 'CNY', rate: 7.123457, rateDate: result.date }
+            { currency: 'USD', rate: 1, date: result.date, createBy: '0', modifyBy: '0' },
+            { currency: 'CNY', rate: 7.123457, date: result.date, createBy: '0', modifyBy: '0' }
         ])
         assert.deepEqual(result, {
             date: result.date,
@@ -208,7 +208,8 @@ test('币种状态更新在事务内锁定实体后写入', async () => {
         }
     }
     const currencyService = new CurrencyService(currencyTransactional.repository, {}, {}, currencyUtilsService)
-    await currencyService.httpBaseFinanceUpdateCurrencyStatus({ keyId: 2, status: 'disable' })
+    await currencyService.httpBaseFinanceUpdateCurrencyStatus({ uid: '1001' }, { keyId: 2, status: 'disable' })
     assert.equal(currencyTransactional.repository.state.transactions, 1)
     assert.equal(currency.status, 'disable')
+    assert.equal(currency.modifyBy, '1001')
 })

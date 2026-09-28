@@ -1,10 +1,11 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
-import type { CurrencyExchangeSyncResponseDto } from '@/dto/api-response.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 import { InjectRepository, EntityManager, In, Repository } from '@wlisfes/chat-web-base-schema/database'
+import * as CurrencyDto from '@/modules/currency/dto/currency.dto'
 interface OpenExchangeRatesPayload {
     base?: string
     rates?: Record<string, number | string>
@@ -35,7 +36,7 @@ export class CurrencyExchangeSyncService {
     ) {}
 
     /** 拉取最新汇率并按东八区当天日期新增；已经入库的汇率永不更新。 */
-    public async httpBaseFinanceSyncCurrencyExchange(): Promise<CurrencyExchangeSyncResponseDto> {
+    public async httpBaseFinanceSyncCurrencyExchange(): Promise<CurrencyDto.CurrencyExchangeSyncResponseDto> {
         const fetched = await this.fetchOpenExchangeRates()
         let insertedRates: Array<{ currency: string; rate: number }> = []
 
@@ -48,7 +49,7 @@ export class CurrencyExchangeSyncService {
             const existing = await manager.find(Schema.TbFinanceCurrencyExchange, {
                 select: ['currency'],
                 where: {
-                    rateDate: fetched.date,
+                    date: fetched.date,
                     currency: In(writableRates.map(item => item.currency))
                 }
             })
@@ -60,7 +61,15 @@ export class CurrencyExchangeSyncService {
                 .createQueryBuilder()
                 .insert()
                 .into(Schema.TbFinanceCurrencyExchange)
-                .values(insertedRates.map(item => ({ ...item, rateDate: fetched.date })))
+                .values(
+                    // 汇率由定时任务写入，没有人工操作人，创建人、更新人统一记为系统账号。
+                    insertedRates.map(item => ({
+                        ...item,
+                        date: fetched.date,
+                        createBy: feign.ACCOUNT_SYSTEM_UID,
+                        modifyBy: feign.ACCOUNT_SYSTEM_UID
+                    }))
+                )
                 .updateEntity(false)
                 .execute()
         })

@@ -85,8 +85,8 @@ export async function syncFinanceCurrencies(
     }
     if (!apply) return currencies.length
 
-    const sql = `INSERT INTO \`tb_finance_currency\` (\`currency\`, \`name\`, \`symbol\`, \`status\`)
-        VALUES (?, ?, ?, 'enable')
+    const sql = `INSERT INTO \`tb_finance_currency\` (\`currency\`, \`name\`, \`symbol\`, \`status\`, \`create_by\`, \`modify_by\`)
+        VALUES (?, ?, ?, 'enable', '0', '0')
         ON DUPLICATE KEY UPDATE \`name\` = VALUES(\`name\`), \`symbol\` = VALUES(\`symbol\`)`
     await connection.beginTransaction()
     try {
@@ -120,8 +120,8 @@ export async function syncFinanceCountries(
     }
     if (!apply) return countries.length
 
-    const sql = `INSERT INTO \`tb_finance_country\` (\`code\`, \`mcc\`, \`cn_name\`, \`en_name\`, \`status\`)
-        VALUES (?, ?, ?, ?, 'enable')
+    const sql = `INSERT INTO \`tb_finance_country\` (\`code\`, \`mcc\`, \`cn_name\`, \`en_name\`, \`status\`, \`create_by\`, \`modify_by\`)
+        VALUES (?, ?, ?, ?, 'enable', '0', '0')
         ON DUPLICATE KEY UPDATE
             \`cn_name\` = VALUES(\`cn_name\`),
             \`en_name\` = VALUES(\`en_name\`)`

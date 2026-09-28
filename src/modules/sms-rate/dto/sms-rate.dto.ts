@@ -1,3 +1,5 @@
+import { PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import { IntersectionType, PartialType, PickType } from '@nestjs/swagger'
 import { ApiProperty } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
@@ -30,4 +32,31 @@ export class BatchSmsRateDto {
     @IsInt({ each: true, message: '国家/地区主键必须是整数' })
     @Min(1, { each: true, message: '国家/地区主键必须大于0' })
     countryKeyIds: number[]
+}
+
+export class SmsRateListItemResponseDto extends Schema.TbFinanceBasicSmsRateDto {
+    @ApiProperty({ description: '国家地区信息', type: Schema.TbFinanceCountryDto, required: false })
+    countryOptions?: Schema.TbFinanceCountryDto
+
+    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    createByOptions?: feign.AccountUserOptionResponseDto
+
+    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.AccountUserOptionResponseDto
+}
+
+export class SmsRatePageResponseDto extends PageResponseDataDto {
+    @ApiProperty({ description: '短信基础价格列表', type: [SmsRateListItemResponseDto] })
+    list: SmsRateListItemResponseDto[]
+}
+
+export class BatchSmsRateResponseDto extends Schema.TbFinanceBasicSmsRateDto {
+    @ApiProperty({ description: '国家地区主键', example: 1 })
+    countryKeyId: number
+
+    @ApiProperty({ description: '国家地区中文名称', example: '中国' })
+    cnName: string
+
+    @ApiProperty({ description: '国家地区英文名称', example: 'China' })
+    enName: string
 }

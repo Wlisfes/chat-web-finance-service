@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { FeignClientAccountManager, FeignModule } from '@wlisfes/chat-web-base-schema/feign'
 import { TbFinanceCurrency, TbFinanceCurrencyExchange } from '@wlisfes/chat-web-base-schema/chat-web-finance-mysql'
 import { CurrencyController } from '@/modules/currency/currency.controller'
 import { CurrencyService } from '@/modules/currency/currency.service'
@@ -7,7 +8,7 @@ import { CurrencyUtilsService } from '@/modules/currency/currency.utils.service'
 import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
 
 @Module({
-    imports: [TypeOrmModule.forFeature([TbFinanceCurrency, TbFinanceCurrencyExchange])],
+    imports: [TypeOrmModule.forFeature([TbFinanceCurrency, TbFinanceCurrencyExchange]), FeignModule.register([FeignClientAccountManager])],
     controllers: [CurrencyController],
     providers: [CurrencyService, CurrencyUtilsService, CurrencyExchangeSyncService],
     exports: [CurrencyService, CurrencyExchangeSyncService]

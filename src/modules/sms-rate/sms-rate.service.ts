@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common'
 import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { BatchSmsRateResponseDto, SmsRateListItemResponseDto } from '@/dto/api-response.dto'
 import { SmsRateUtilsService } from '@/modules/sms-rate/sms-rate.utils.service'
 import * as SmsRateDto from '@/modules/sms-rate/dto/sms-rate.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
@@ -41,7 +40,7 @@ export class SmsRateService {
     }
 
     /**短信基础价格分页数据*/
-    public async httpBaseFinanceColumnSmsRate(body: SmsRateDto.ListSmsRateDto): Promise<PageResult<SmsRateListItemResponseDto>> {
+    public async httpBaseFinanceColumnSmsRate(body: SmsRateDto.ListSmsRateDto): Promise<PageResult<SmsRateDto.SmsRateListItemResponseDto>> {
         return this.database.builder(this.repository, async qb => {
             if (isNotEmpty(body.code?.trim())) {
                 qb.andWhere('t.code LIKE :code', { code: `%${body.code?.trim()}%` })
@@ -70,7 +69,7 @@ export class SmsRateService {
     }
 
     /**按国家地区批量获取短信基础价格*/
-    public async httpBaseFinanceBatchSmsRate(body: SmsRateDto.BatchSmsRateDto): Promise<BatchSmsRateResponseDto[]> {
+    public async httpBaseFinanceBatchSmsRate(body: SmsRateDto.BatchSmsRateDto): Promise<SmsRateDto.BatchSmsRateResponseDto[]> {
         const countryKeyIds = [...new Set(body.countryKeyIds)]
         const countries = await this.smsRateUtilsService.findCountriesRequired(countryKeyIds)
         const rates = await this.smsRateUtilsService.findRatesRequired(countries)

@@ -31,7 +31,7 @@ export class CurrencyUtilsService {
     /**获取币种最新汇率*/
     public async findExchangeRequired(currency: string): Promise<Schema.TbFinanceCurrencyExchange> {
         const exchange = await this.database.builder(this.exchangeRepository, qb => {
-            return qb.where('t.currency = :currency', { currency }).orderBy('t.rateDate', 'DESC').addOrderBy('t.keyId', 'DESC').getOne()
+            return qb.where('t.currency = :currency', { currency }).orderBy('t.date', 'DESC').addOrderBy('t.keyId', 'DESC').getOne()
         })
         if (!exchange) {
             throw new NotFoundException(`币种 ${currency} 暂无可用汇率`)

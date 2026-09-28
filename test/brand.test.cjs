@@ -144,7 +144,7 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
         }
     }
     const configService = { get: key => (key === 'gateway.feign.service_token' ? 'service-token' : undefined) }
-    const service = new BrandService(repository, database, {}, accountFeignClient, configService)
+    const service = new BrandService(repository, database, {}, accountFeignClient, {}, configService)
 
     const result = await service.httpBaseFinanceColumnBrand({ page: 2, size: 10, name: ' 品牌 ', status: 'enable' })
 
@@ -191,7 +191,7 @@ test('品牌分页没有操作人时不调用账号服务', async () => {
         }
     }
     const configService = { get: () => 'service-token' }
-    const service = new BrandService({}, database, {}, accountFeignClient, configService)
+    const service = new BrandService({}, database, {}, accountFeignClient, {}, configService)
 
     const result = await service.httpBaseFinanceColumnBrand({ page: 1, size: 10 })
     assert.equal(accountFeignClient.calls, 0)
@@ -207,7 +207,7 @@ test('品牌分页组合账号信息失败时透传账号服务异常', async ()
         }
     }
     const configService = { get: () => 'service-token' }
-    const service = new BrandService({}, database, {}, accountFeignClient, configService)
+    const service = new BrandService({}, database, {}, accountFeignClient, {}, configService)
 
     await assert.rejects(() => service.httpBaseFinanceColumnBrand({ page: 1, size: 10 }), /账号服务异常/)
 })
@@ -215,7 +215,48 @@ test('品牌分页组合账号信息失败时透传账号服务异常', async ()
 test('缺少服务间凭据时品牌分页拒绝调用账号服务', async () => {
     const queryBuilder = fakePageQueryBuilder([{ keyId: 1, name: '品牌一', createBy: '10001', modifyBy: undefined }], 1)
     const database = { builder: async (_repository, callback) => callback(queryBuilder) }
-    const service = new BrandService({}, database, {}, { async httpBaseAccountColumnUserResolver() {} }, { get: () => undefined })
+    const service = new BrandService({}, database, {}, { async httpBaseAccountColumnUserResolver() {} }, {}, { get: () => undefined })
 
     await assert.rejects(() => service.httpBaseFinanceColumnBrand({ page: 1, size: 10 }), /feign\.service_token/)
+})
+
+test('品牌删除前确认未被 CRM 客户引用', async () => {
+    const calls = []
+    const repository = {
+        async delete(criteria) {
+            calls.push({ method: 'delete', criteria })
+        }
+    }
+    const brandUtilsService = {
+        async findRequired(keyId) {
+            calls.push({ method: 'findRequired', keyId })
+            return { keyId }
+        },
+        async findUnusedRequired(keyId, crmFeignClient, authorization) {
+            calls.push({ method: 'findUnusedRequired', keyId, crmFeignClient, authorization })
+        }
+    }
+    const crmFeignClient = {}
+    const service = new BrandService(repository, {}, brandUtilsService, {}, crmFeignClient, { get: () => 'service-token' })
+
+    assert.deepEqual(await service.httpBaseFinanceDeleteBrand({ keyId: 8 }), { success: true })
+    assert.deepEqual(calls, [
+        { method: 'findRequired', keyId: 8 },
+        { method: 'findUnusedRequired', keyId: 8, crmFeignClient, authorization: 'Bearer service-token' },
+        { method: 'delete', criteria: { keyId: 8 } }
+    ])
+})
+
+test('品牌详情按主键查询', async () => {
+    const calls = []
+    const brandUtilsService = {
+        async findRequired(keyId) {
+            calls.push(keyId)
+            return { keyId, name: 'LYNKS' }
+        }
+    }
+    const service = new BrandService({}, {}, brandUtilsService, {}, {}, {})
+
+    assert.deepEqual(await service.httpBaseFinanceBrandResolver({ keyId: 6 }), { keyId: 6, name: 'LYNKS' })
+    assert.deepEqual(calls, [6])
 })
