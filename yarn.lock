@@ -730,13 +730,14 @@
     "@webassemblyjs/ast" "1.14.1"
     "@xtuc/long" "4.2.2"
 
-"@wlisfes/chat-web-base-schema@1.6.67":
-  version "1.6.67"
-  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.6.67/e2bf83dd24b02291186e03d0dd6b5fae8b3ab3d4#e2bf83dd24b02291186e03d0dd6b5fae8b3ab3d4"
-  integrity sha512-vJWONZWhdNZXB/f25xP6X4/n7uFv9F9rk1e2ciEW7I8/MFORhwNVAf9iMKc1UWfQ9vGm8LWQKPRmaeo5qJvGDQ==
+"@wlisfes/chat-web-base-schema@1.6.68":
+  version "1.6.68"
+  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.6.68/04f26bc093d16c71e8bad42bbc29def38494ab04#04f26bc093d16c71e8bad42bbc29def38494ab04"
+  integrity sha512-ZpK1NOA06BNHAB7UpYKD29EJbPob9egDR4rjnVblsQFY9FhPqzAY54XCdsYexF5hjnX5TyhUvjPlWDkEYc8TAA==
   dependencies:
     "@opentelemetry/api" "^1.9.0"
     "@types/lodash" "^4.17.25"
+    big.js "^7.0.1"
     class-validator "^0.15.1"
     cookie-parser "^1.4.7"
     dayjs "^1.11.21"
@@ -955,6 +956,11 @@ baseline-browser-mapping@^2.11.12:
   version "2.11.15"
   resolved "https://registry.npmmirror.com/baseline-browser-mapping/-/baseline-browser-mapping-2.11.15.tgz#9c0cac93d7d304f3d61bb41088a102cd62e68676"
   integrity sha512-FwMjJJ7HnyZpWe+oWxegG0fezZyBZUagI5LZEoO3GCbtbKNwRfMH9Ue5d5v01PNePBy1QSfPSDTTeVL0Hb9EzA==
+
+big.js@^7.0.1:
+  version "7.0.1"
+  resolved "https://registry.npmmirror.com/big.js/-/big.js-7.0.1.tgz#c537c649ec6ea11d1306723d13c096ba199aadc4"
+  integrity sha512-iFgV784tD8kq4ccF1xtNMZnXeZzVuXWWM+ERFzKQjv+A5G9HC8CY3DuV45vgzFFcW+u2tIvmF95+AzWgs6BjCg==
 
 bl@^4.1.0:
   version "4.1.0"
