@@ -10,6 +10,6 @@ import { FrozenSmsUtilsService } from '@/modules/frozen/sms/sms.utils.service'
     imports: [TypeOrmModule.forFeature([...FINANCE_MYSQL_ENTITIES]), FeignModule.register([FeignClientAccountManager])],
     controllers: [FrozenSmsController],
     providers: [FrozenSmsService, FrozenSmsUtilsService],
-    exports: [FrozenSmsService]
+    exports: [FrozenSmsUtilsService]
 })
 export class FrozenModule {}

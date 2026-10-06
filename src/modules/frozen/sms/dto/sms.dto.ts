@@ -60,17 +60,6 @@ export class ListFrozenSmsDto extends IntersectionType(PageDto, PartialType(Pick
     countryKeyId?: number
 }
 
-export class BatchFrozenSmsDto {
-    @ApiProperty({ description: '国家/地区主键集合', type: [Number], example: [1, 2, 3] })
-    @IsArray({ message: '国家/地区主键集合必须是数组' })
-    @ArrayNotEmpty({ message: '国家/地区主键集合不能为空' })
-    @ArrayMaxSize(200, { message: '单次最多查询200个国家/地区' })
-    @Type(() => Number)
-    @IsInt({ each: true, message: '国家/地区主键必须是整数' })
-    @Min(1, { each: true, message: '国家/地区主键必须大于0' })
-    countryKeyIds: number[]
-}
-
 export class FluctuateFrozenSmsDto {
     @ApiProperty({ description: '需要调价的国家/地区主键集合', type: [Number], example: [1000, 1001] })
     @IsArray({ message: '国家/地区主键集合必须是数组' })
@@ -143,12 +132,4 @@ export class FrozenSmsListItemResponseDto extends FrozenSmsResponseDto {
 export class FrozenSmsPageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '短信基础价格列表', type: [FrozenSmsListItemResponseDto] })
     list: FrozenSmsListItemResponseDto[]
-}
-
-export class BatchFrozenSmsResponseDto extends Schema.TbFinanceFrozenSmsDto {
-    @ApiProperty({ description: '国家地区中文名称', example: '中国' })
-    cnName: string
-
-    @ApiProperty({ description: '国家地区英文名称', example: 'China' })
-    enName: string
 }
