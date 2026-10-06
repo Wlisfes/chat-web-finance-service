@@ -184,5 +184,5 @@ test('业务异常使用 HTTP 200 和响应体自定义 code', () => {
     assert.equal(response.body.code, 400)
     assert.equal(response.body.message, '品牌参数错误')
     assert.equal(response.headers['x-request-id'], response.body.logId)
-    assert.deepEqual(Object.keys(response.body), ['data', 'code', 'message', 'logId', 'timestamp'])
+    assert.deepEqual(Object.keys(response.body), ['data', 'code', 'message', 'logId', 'timestamp', 'url'])
 })
