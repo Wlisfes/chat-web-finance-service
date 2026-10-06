@@ -69,14 +69,4 @@ export class FrozenSmsController {
     public async httpBaseFinanceColumnFrozenSms(@Body() input: SmsDto.ListFrozenSmsDto) {
         return this.frozenSmsService.httpBaseFinanceColumnFrozenSms(input)
     }
-
-    @RequirePermissions('*')
-    @ApiServiceDecorator(Post('batch'), {
-        operation: { summary: '按国家地区批量查询短信基础价格' },
-        request: { source: 'body', type: SmsDto.BatchFrozenSmsDto },
-        response: { type: SmsDto.BatchFrozenSmsResponseDto, isArray: true, description: '国家地区短信基础价格列表' }
-    })
-    public async httpBaseFinanceBatchFrozenSms(@Body() input: SmsDto.BatchFrozenSmsDto) {
-        return this.frozenSmsService.httpBaseFinanceBatchFrozenSms(input)
-    }
 }

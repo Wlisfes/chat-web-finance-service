@@ -27,6 +27,22 @@ export class BrandUtilsService {
         return brand
     }
 
+    /**按主键批量获取品牌展示摘要，供 Feign 列表回显使用*/
+    public async findColumnResolver(keyIds: number[]): Promise<Array<Pick<Schema.TbFinanceBrand, 'keyId' | 'name' | 'status'>>> {
+        const uniqueKeyIds = [...new Set(keyIds)].filter(keyId => Number.isInteger(keyId) && keyId > 0)
+        if (uniqueKeyIds.length === 0) {
+            return []
+        }
+        if (uniqueKeyIds.length > 100) {
+            throw new BadRequestException('单次最多查询100个品牌')
+        }
+        return await this.database.builder(this.brandRepository, qb => {
+            qb.select(['t.keyId', 't.name', 't.status'])
+            qb.where('t.keyId IN (:...keyIds)', { keyIds: uniqueKeyIds })
+            return qb.getMany()
+        })
+    }
+
     /**校验品牌名称*/
     public async findNameAvailable(name: string, manager?: EntityManager, excludedKeyId?: number): Promise<void> {
         const repository = (manager ?? this.brandRepository.manager).getRepository(Schema.TbFinanceBrand)

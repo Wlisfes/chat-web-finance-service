@@ -9,6 +9,7 @@ import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 @Module({
     imports: [TypeOrmModule.forFeature([TbFinanceBrand]), FeignModule.register([FeignClientAccountManager, FeignClientCrmManager])],
     controllers: [BrandController],
-    providers: [BrandService, BrandUtilsService]
+    providers: [BrandService, BrandUtilsService],
+    exports: [BrandUtilsService]
 })
 export class BrandModule {}

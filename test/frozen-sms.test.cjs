@@ -2,7 +2,6 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { plainToInstance } = require('class-transformer')
 const { validate } = require('class-validator')
-const { BatchFrozenSmsDto } = require('../dist/modules/frozen/sms/dto/sms.dto')
 const { FrozenSmsService } = require('../dist/modules/frozen/sms/sms.service')
 const { FrozenSmsUtilsService } = require('../dist/modules/frozen/sms/sms.utils.service')
 
@@ -35,10 +34,43 @@ function fakeTransactionalRepository() {
     return { manager, repository }
 }
 
-test('CRM 聚合接口使用国家数组查询短信价格 DTO', async () => {
-    const batch = plainToInstance(BatchFrozenSmsDto, { countryKeyIds: [1, 2, 2] })
-    assert.deepEqual(await validate(batch), [])
-    assert.ok((await validate(plainToInstance(BatchFrozenSmsDto, { countryKeyIds: 1 }))).length > 0)
+test('短信价格 Feign 批量查询去重、忽略未配置价格，单条查询不存在时抛出 404', async () => {
+    const queries = []
+    const database = {
+        async builder(_repository, callback) {
+            const qb = {
+                select() {
+                    return qb
+                },
+                where(sql, params) {
+                    queries.push(params.countryKeyIds)
+                    return qb
+                },
+                async getMany() {
+                    return [{ countryKeyId: 1, upUsd: 20000, downUsd: 10000 }]
+                }
+            }
+            return callback(qb)
+        }
+    }
+    const service = Object.assign(new FrozenSmsUtilsService({}, {}, database), {
+        async findCountriesByKeyIds() {
+            return [
+                { keyId: 1, code: '86', mcc: '460', cnName: '中国', enName: 'China' },
+                { keyId: 2, code: '1', mcc: '310', cnName: '美国', enName: 'United States' }
+            ]
+        }
+    })
+    assert.deepEqual(await service.findColumnResolver([1, 2, 2]), [
+        { countryKeyId: 1, code: '86', mcc: '460', cnName: '中国', enName: 'China', upUsd: 20000, downUsd: 10000 }
+    ])
+    assert.deepEqual(queries[0], [1, 2])
+    assert.deepEqual(await service.findColumnResolver([]), [])
+    await assert.rejects(() => service.findColumnResolver(Array.from({ length: 101 }, (_, index) => index + 1)), /100/)
+    await assert.rejects(
+        () => Object.assign(service, { findColumnResolver: async () => [] }).findResolver(3),
+        error => error.status === 404
+    )
 })
 
 test('短信价格新增和编辑在事务内完成组合唯一性校验与写入', async () => {

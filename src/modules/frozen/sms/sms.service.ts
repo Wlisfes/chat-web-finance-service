@@ -126,24 +126,4 @@ export class FrozenSmsService {
             })
         })
     }
-
-    /**按国家地区批量获取短信基础价格*/
-    public async httpBaseFinanceBatchFrozenSms(body: SmsDto.BatchFrozenSmsDto): Promise<SmsDto.BatchFrozenSmsResponseDto[]> {
-        const countryKeyIds = [...new Set(body.countryKeyIds)]
-        const countries = await this.frozenSmsUtilsService.findCountriesRequired(countryKeyIds)
-        const rates = await this.frozenSmsUtilsService.findRatesRequired(countries)
-        const rateByCountry = new Map(rates.map(rate => [rate.countryKeyId, rate]))
-        const countryByKeyId = new Map(countries.map(country => [country.keyId, country]))
-        return countryKeyIds.map(countryKeyId => {
-            const country = countryByKeyId.get(countryKeyId)
-            if (!country) {
-                throw new BadRequestException('部分国家/地区不存在')
-            }
-            const rate = rateByCountry.get(country.keyId)
-            if (!rate) {
-                throw new BadRequestException(`以下国家/地区尚未配置短信基础价格：${country.cnName}`)
-            }
-            return { ...country, ...rate }
-        })
-    }
 }

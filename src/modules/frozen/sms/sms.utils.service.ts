@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { InjectRepository, DataBaseService, EntityManager, In, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { isNotEmpty, fetchDivNumber, fetchMinusNumner, fetchPlusNumber, fetchTimesNumber } from '@wlisfes/chat-web-base-schema/utils'
 import * as SmsConstants from '@/modules/frozen/sms/sms.constants'
+import type * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 @Injectable()
@@ -126,18 +127,49 @@ export class FrozenSmsUtilsService {
         return countries
     }
 
-    /**获取指定国家地区的短信基础价格*/
-    public async findRatesRequired(countries: Schema.TbFinanceCountry[]): Promise<Schema.TbFinanceFrozenSms[]> {
-        const rates = await this.database.builder(this.rateRepository, qb => {
-            return qb.where('t.countryKeyId IN (:...countryKeyIds)', { countryKeyIds: countries.map(country => country.keyId) }).getMany()
-        })
-        const rateByCountry = new Map(rates.map(rate => [rate.countryKeyId, rate]))
-        const missingCountries = countries.filter(country => !rateByCountry.has(country.keyId))
-        if (missingCountries.length > 0) {
-            throw new BadRequestException(
-                `以下国家/地区尚未配置短信基础价格：${missingCountries.map(country => country.cnName).join('、')}`
-            )
+    /**按国家/地区主键批量获取短信基础价格摘要，供 Feign 使用；未配置价格的国家/地区直接忽略*/
+    public async findColumnResolver(countryKeyIds: number[]): Promise<feign.FinanceFrozenSmsSummary[]> {
+        const uniqueKeyIds = [...new Set(countryKeyIds)].filter(keyId => Number.isInteger(keyId) && keyId > 0)
+        if (uniqueKeyIds.length === 0) {
+            return []
         }
-        return rates
+        if (uniqueKeyIds.length > 100) {
+            throw new BadRequestException('单次最多查询100个国家/地区')
+        }
+        const [countries, rates] = await Promise.all([
+            this.findCountriesByKeyIds(uniqueKeyIds),
+            this.database.builder(this.rateRepository, qb => {
+                qb.select(['t.countryKeyId', 't.upUsd', 't.downUsd'])
+                qb.where('t.countryKeyId IN (:...countryKeyIds)', { countryKeyIds: uniqueKeyIds })
+                return qb.getMany()
+            })
+        ])
+        const countryByKeyId = new Map(countries.map(country => [country.keyId, country]))
+        return rates.flatMap(rate => {
+            const country = countryByKeyId.get(rate.countryKeyId)
+            if (!country) {
+                return []
+            }
+            return [
+                {
+                    countryKeyId: country.keyId,
+                    code: country.code,
+                    mcc: country.mcc,
+                    cnName: country.cnName,
+                    enName: country.enName,
+                    upUsd: rate.upUsd,
+                    downUsd: rate.downUsd
+                }
+            ]
+        })
+    }
+
+    /**按国家/地区主键获取单个短信基础价格摘要，供 Feign 使用；不存在或未配置价格时抛出 404*/
+    public async findResolver(countryKeyId: number): Promise<feign.FinanceFrozenSmsSummary> {
+        const [summary] = await this.findColumnResolver([countryKeyId])
+        if (!summary) {
+            throw new NotFoundException('该国家/地区未配置短信基础价格')
+        }
+        return summary
     }
 }
