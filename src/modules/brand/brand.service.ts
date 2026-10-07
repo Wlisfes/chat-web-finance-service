@@ -132,6 +132,7 @@ export class BrandService {
     /**品牌下拉数据*/
     public async httpBaseFinanceSelectBrand(): Promise<BrandDto.BrandSelectResponseDto[]> {
         return await this.database.builder(this.brandRepository, qb => {
+            qb.select(['t.keyId', 't.name', 't.status', 't.document'])
             qb.where('t.status = :status', { status: Schema.TbFinanceBrandStatus.ENABLE })
             qb.orderBy('t.createTime', 'DESC')
             return qb.getMany()

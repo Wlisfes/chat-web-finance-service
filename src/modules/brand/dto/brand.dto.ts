@@ -50,4 +50,4 @@ export class BrandPageResponseDto extends PageResponseDataDto {
     list: BrandListItemResponseDto[]
 }
 
-export class BrandSelectResponseDto extends Schema.TbFinanceBrandDto {}
+export class BrandSelectResponseDto extends PickType(Schema.TbFinanceBrandDto, ['keyId', 'name', 'status', 'document'] as const) {}

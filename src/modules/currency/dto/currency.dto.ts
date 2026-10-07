@@ -56,7 +56,13 @@ export class CurrencyPageResponseDto extends PageResponseDataDto {
     list: CurrencyListItemResponseDto[]
 }
 
-export class CurrencySelectResponseDto extends Schema.TbFinanceCurrencyDto {}
+export class CurrencySelectResponseDto extends PickType(Schema.TbFinanceCurrencyDto, [
+    'keyId',
+    'currency',
+    'name',
+    'symbol',
+    'status'
+] as const) {}
 
 export class CurrencyExchangeListItemResponseDto extends Schema.TbFinanceCurrencyExchangeDto {
     @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
