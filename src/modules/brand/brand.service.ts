@@ -89,44 +89,14 @@ export class BrandService {
             qb.skip((body.page - 1) * body.size)
             qb.take(body.size)
             return await qb.getManyAndCount().then(async ([items, total]) => {
-                const operatorUids = [...new Set(items.flatMap(item => [item.createBy, item.modifyBy]).filter(uid => isNotEmpty(uid)))]
-                // 操作人姓名属于展示元数据，使用服务间凭据按列表批量还原，不转发终端用户令牌。
-                const users =
-                    operatorUids.length > 0
-                        ? await this.accountFeignClient.httpBaseAccountColumnUserResolver(
-                              feign.resolveFeignServiceAuthorization(this.configService),
-                              {
-                                  uids: operatorUids
-                              }
-                          )
-                        : []
-                const userOptionsByUid = new Map<string, feign.AccountUserOptionResponseDto>(
-                    users.map(user => {
-                        const option: feign.AccountUserOptionResponseDto = { uid: user.uid, number: user.number, name: user.name }
-                        if (isNotEmpty(user.avatar)) option.avatar = user.avatar
-                        return [user.uid, option]
-                    })
-                )
                 return {
                     page: body.page,
                     size: body.size,
                     total,
-                    list: items.map(item => ({
-                        ...item,
-                        createByOptions: this.toOperatorOption(item.createBy, userOptionsByUid),
-                        modifyByOptions: this.toOperatorOption(item.modifyBy, userOptionsByUid)
-                    }))
+                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
                 }
             })
         })
-    }
-
-    private toOperatorOption(
-        uid: string | undefined,
-        userOptionsByUid: Map<string, feign.AccountUserOptionResponseDto>
-    ): feign.AccountUserOptionResponseDto | undefined {
-        if (!isNotEmpty(uid)) return undefined
-        return userOptionsByUid.get(uid) ?? { uid }
     }
 
     /**品牌下拉数据*/
