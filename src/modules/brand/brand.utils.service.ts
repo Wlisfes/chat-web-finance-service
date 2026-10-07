@@ -63,7 +63,7 @@ export class BrandUtilsService {
 
     /**校验品牌未被 CRM 客户引用*/
     public async findUnusedRequired(keyId: number, crmFeignClient: FeignClientCrmManager, authorization: string): Promise<void> {
-        const result = await crmFeignClient.httpBaseCrmColumnConsumer(authorization, { page: 1, size: 1, brandKeyId: keyId })
+        const result = await crmFeignClient.httpBaseCrmColumnUser(authorization, { page: 1, size: 1, brandKeyId: keyId })
         if ((result.total ?? 0) > 0) {
             throw new BadRequestException('品牌已被客户使用，不能删除')
         }

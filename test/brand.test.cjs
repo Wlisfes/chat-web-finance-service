@@ -148,6 +148,7 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
 
     const result = await service.httpBaseFinanceColumnBrand({ page: 2, size: 10, name: ' 品牌 ', status: 'enable' })
 
+    assert.equal(result.list, items)
     assert.equal(state.builderCalls, 1)
     assert.equal(state.repository, repository)
     assert.deepEqual(queryBuilder.calls, [
