@@ -69,6 +69,7 @@ export class CurrencyService {
     /**币种下拉数据*/
     public async httpBaseFinanceSelectCurrency(): Promise<CurrencyDto.CurrencySelectResponseDto[]> {
         return await this.database.builder(this.currencyRepository, qb => {
+            qb.select(['t.keyId', 't.currency', 't.name', 't.symbol', 't.status'])
             qb.where('t.status = :status', { status: Schema.TbFinanceCurrencyStatus.ENABLE })
             qb.orderBy('t.createTime', 'DESC')
             return qb.getMany()
