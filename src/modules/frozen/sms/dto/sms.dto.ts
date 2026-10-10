@@ -29,10 +29,12 @@ export class FrozenSmsResponseDto extends IntersectionType(
     FrozenSmsPriceDto
 ) {}
 
+/** 新增短信基础价格入参：POST /frozen/sms/create。 */
 export class CreateFrozenSmsDto extends IntersectionType(
     PickType(Schema.TbFinanceFrozenSmsDto, ['countryKeyId', 'remark'] as const),
     FrozenSmsPriceDto
 ) {}
+/** 更新短信基础价格入参：POST /frozen/sms/update。 */
 export class UpdateFrozenSmsDto extends IntersectionType(
     PickType(Schema.TbFinanceFrozenSmsDto, ['countryKeyId'] as const),
     FrozenSmsPriceDto,
@@ -44,6 +46,7 @@ export class UpdateFrozenSmsDto extends IntersectionType(
     @Min(1, { message: '短信基础价格主键必须大于0' })
     keyId: number
 }
+/** 获取短信基础价格详情入参：GET /frozen/sms/resolve。 */
 export class FrozenSmsKeyDto {
     @ApiProperty({ description: '短信基础价格主键', example: 1000 })
     @Type(() => Number)
@@ -51,6 +54,7 @@ export class FrozenSmsKeyDto {
     @Min(1, { message: '短信基础价格主键必须大于0' })
     keyId: number
 }
+/** 分页查询短信基础价格入参：POST /frozen/sms/column。 */
 export class ListFrozenSmsDto extends IntersectionType(PageDto, PartialType(PickType(Schema.TbFinanceFrozenSmsDto, ['mcc'] as const))) {
     @ApiPropertyOptional({ description: '国家/地区主键', example: 1000 })
     @IsOptional()
@@ -60,6 +64,7 @@ export class ListFrozenSmsDto extends IntersectionType(PageDto, PartialType(Pick
     countryKeyId?: number
 }
 
+/** 批量上调、下调短信基础价格入参：POST /frozen/sms/fluctuate。 */
 export class FluctuateFrozenSmsDto {
     @ApiProperty({ description: '需要调价的国家/地区主键集合', type: [Number], example: [1000, 1001] })
     @IsArray({ message: '国家/地区主键集合必须是数组' })
@@ -101,15 +106,18 @@ export class FluctuateFrozenSmsDto {
     downValue: number
 }
 
+/** 获取短信基础价格静态枚举响应：GET /frozen/sms/enums。 */
 export class FrozenSmsEnumsResponseDto extends EnumsResponseDto({
     modeOptions: { description: '调价方式选项', example: SmsConstants.FrozenSmsFluctuateModeDefinition.options }
 }) {}
 
+/** 批量上调、下调短信基础价格响应：POST /frozen/sms/fluctuate。 */
 export class FluctuateFrozenSmsResponseDto {
     @ApiProperty({ description: '实际调整的记录数', example: 2 })
     count: number
 }
 
+/** FrozenSmsListItemResponseDto.countryOptions 字段结构；分页查询短信基础价格响应：POST /frozen/sms/column。 */
 export class FrozenSmsCountryOptionsResponseDto extends PickType(Schema.TbFinanceCountryDto, [
     'keyId',
     'code',
@@ -118,6 +126,7 @@ export class FrozenSmsCountryOptionsResponseDto extends PickType(Schema.TbFinanc
     'enName'
 ] as const) {}
 
+/** FrozenSmsPageResponseDto.list 字段结构；分页查询短信基础价格响应：POST /frozen/sms/column。 */
 export class FrozenSmsListItemResponseDto extends FrozenSmsResponseDto {
     @ApiProperty({ description: '国家地区信息', type: FrozenSmsCountryOptionsResponseDto, required: false })
     countryOptions?: FrozenSmsCountryOptionsResponseDto
@@ -129,6 +138,7 @@ export class FrozenSmsListItemResponseDto extends FrozenSmsResponseDto {
     modifyByOptions?: feign.AccountUserOptionResponseDto
 }
 
+/** 分页查询短信基础价格响应：POST /frozen/sms/column。 */
 export class FrozenSmsPageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '短信基础价格列表', type: [FrozenSmsListItemResponseDto] })
     list: FrozenSmsListItemResponseDto[]

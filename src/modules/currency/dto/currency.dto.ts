@@ -6,10 +6,12 @@ import * as Schema from '@wlisfes/chat-web-base-schema'
 import * as feign from '@wlisfes/chat-web-base-schema/feign'
 
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
+/** 分页查询币种入参：POST /currency/column。 */
 export class ListCurrencyDto extends IntersectionType(
     PageDto,
     PartialType(PickType(Schema.TbFinanceCurrencyDto, ['name', 'status'] as const))
 ) {}
+/** 更新币种状态入参：POST /currency/status/update。 */
 export class UpdateCurrencyStatusDto extends PickType(Schema.TbFinanceCurrencyDto, ['status'] as const) {
     @ApiProperty({ description: '币种主键', example: 1 })
     @Type(() => Number)
@@ -18,6 +20,7 @@ export class UpdateCurrencyStatusDto extends PickType(Schema.TbFinanceCurrencyDt
     keyId: number
 }
 
+/** 分页查询币种汇率入参：POST /currency/exchange/column。 */
 export class ListCurrencyExchangeDto extends PageDto {
     @ApiPropertyOptional({ description: '币种编码', example: 'CNY' })
     @IsOptional()
@@ -31,6 +34,7 @@ export class ListCurrencyExchangeDto extends PageDto {
     date?: string
 }
 
+/** 获取币种最新汇率入参：GET /currency/exchange/resolve。 */
 export class ResolveCurrencyExchangeDto {
     @ApiProperty({ description: '币种编码', example: 'CNY' })
     @IsString({ message: '币种编码必须是字符串' })
@@ -39,10 +43,12 @@ export class ResolveCurrencyExchangeDto {
     currency: string
 }
 
+/** 获取币种状态枚举响应：GET /currency/enums。 */
 export class CurrencyEnumsResponseDto extends EnumsResponseDto({
     statusOptions: { description: '币种状态选项', example: Schema.TbFinanceCurrencyStatusDefinition.options }
 }) {}
 
+/** CurrencyPageResponseDto.list 字段结构；分页查询币种响应：POST /currency/column。 */
 export class CurrencyListItemResponseDto extends Schema.TbFinanceCurrencyDto {
     @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
     createByOptions?: feign.AccountUserOptionResponseDto
@@ -51,11 +57,13 @@ export class CurrencyListItemResponseDto extends Schema.TbFinanceCurrencyDto {
     modifyByOptions?: feign.AccountUserOptionResponseDto
 }
 
+/** 分页查询币种响应：POST /currency/column。 */
 export class CurrencyPageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '币种列表', type: [CurrencyListItemResponseDto] })
     list: CurrencyListItemResponseDto[]
 }
 
+/** 获取可用币种下拉选项响应：POST /currency/select。 */
 export class CurrencySelectResponseDto extends PickType(Schema.TbFinanceCurrencyDto, [
     'keyId',
     'currency',
@@ -64,6 +72,7 @@ export class CurrencySelectResponseDto extends PickType(Schema.TbFinanceCurrency
     'status'
 ] as const) {}
 
+/** CurrencyExchangePageResponseDto.list 字段结构；分页查询币种汇率响应：POST /currency/exchange/column。 */
 export class CurrencyExchangeListItemResponseDto extends Schema.TbFinanceCurrencyExchangeDto {
     @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
     createByOptions?: feign.AccountUserOptionResponseDto
@@ -72,13 +81,16 @@ export class CurrencyExchangeListItemResponseDto extends Schema.TbFinanceCurrenc
     modifyByOptions?: feign.AccountUserOptionResponseDto
 }
 
+/** 获取币种最新汇率响应：GET /currency/exchange/resolve。 */
 export class CurrencyExchangeResponseDto extends PickType(Schema.TbFinanceCurrencyExchangeDto, ['currency', 'rate', 'date'] as const) {}
 
+/** 分页查询币种汇率响应：POST /currency/exchange/column。 */
 export class CurrencyExchangePageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '汇率列表', type: [CurrencyExchangeListItemResponseDto] })
     list: CurrencyExchangeListItemResponseDto[]
 }
 
+/** CurrencyExchangeSyncResponseDto.list 字段结构；拉取并同步最新币种汇率响应：POST /currency/exchange/sync。 */
 export class CurrencyExchangeSyncListItemResponseDto {
     @ApiProperty({ description: '币种编码', example: 'CNY' })
     currency: string
@@ -90,6 +102,7 @@ export class CurrencyExchangeSyncListItemResponseDto {
     date: string
 }
 
+/** 拉取并同步最新币种汇率响应：POST /currency/exchange/sync。 */
 export class CurrencyExchangeSyncResponseDto {
     @ApiProperty({ description: '汇率日期', format: 'date', example: '2026-09-02' })
     date: string

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 
+/** 财务服务存活检查响应：GET /health/live。 */
 export class ServiceLivenessResponseDto {
     @ApiProperty({ description: '服务状态', enum: ['UP'], example: 'UP' })
     status: string
@@ -8,6 +9,7 @@ export class ServiceLivenessResponseDto {
     timestamp: string
 }
 
+/** 依赖状态（数据库、Redis）结构：ServiceReadinessResponseDto 使用，见 GET /health、GET /health/ready。 */
 export class ServiceDependencyResponseDto {
     @ApiProperty({ description: '依赖是否连接成功', example: true })
     connected: boolean
@@ -22,11 +24,13 @@ export class ServiceDependencyResponseDto {
     error?: string
 }
 
+/** 鉴权模式结构：ServiceReadinessResponseDto.auth 使用，见 GET /health、GET /health/ready。 */
 export class ServiceAuthModeResponseDto {
     @ApiProperty({ description: '鉴权模式', example: 'gateway-principal' })
     mode: string
 }
 
+/** 财务服务就绪检查响应：GET /health、GET /health/ready。 */
 export class ServiceReadinessResponseDto {
     @ApiProperty({ description: '服务就绪状态', enum: ['UP', 'DOWN'], example: 'UP' })
     status: string

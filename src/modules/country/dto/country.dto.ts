@@ -6,10 +6,12 @@ import * as Schema from '@wlisfes/chat-web-base-schema'
 import * as feign from '@wlisfes/chat-web-base-schema/feign'
 
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
+/** 分页查询国家地区入参：POST /country/column。 */
 export class ListCountryDto extends IntersectionType(
     PageDto,
     PartialType(PickType(Schema.TbFinanceCountryDto, ['cnName', 'status', 'mcc'] as const))
 ) {}
+/** 更新国家地区状态入参：POST /country/status/update。 */
 export class UpdateCountryStatusDto extends PickType(Schema.TbFinanceCountryDto, ['status'] as const) {
     @ApiProperty({ description: '国家地区主键', example: 1 })
     @Type(() => Number)
@@ -18,10 +20,12 @@ export class UpdateCountryStatusDto extends PickType(Schema.TbFinanceCountryDto,
     keyId: number
 }
 
+/** 获取国家地区状态枚举响应：GET /country/enums。 */
 export class CountryEnumsResponseDto extends EnumsResponseDto({
     statusOptions: { description: '国家/地区状态选项', example: Schema.TbFinanceCountryStatusDefinition.options }
 }) {}
 
+/** CountryPageResponseDto.list 字段结构；分页查询国家地区响应：POST /country/column。 */
 export class CountryListItemResponseDto extends Schema.TbFinanceCountryDto {
     @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
     createByOptions?: feign.AccountUserOptionResponseDto
@@ -30,11 +34,13 @@ export class CountryListItemResponseDto extends Schema.TbFinanceCountryDto {
     modifyByOptions?: feign.AccountUserOptionResponseDto
 }
 
+/** 分页查询国家地区响应：POST /country/column。 */
 export class CountryPageResponseDto extends PageResponseDataDto {
     @ApiProperty({ description: '国家地区列表', type: [CountryListItemResponseDto] })
     list: CountryListItemResponseDto[]
 }
 
+/** 获取可用国家地区下拉选项响应：POST /country/select。 */
 export class CountrySelectResponseDto extends PickType(Schema.TbFinanceCountryDto, ['keyId', 'code', 'mcc', 'cnName', 'enName'] as const) {
     @ApiProperty({ description: '编码及中英文组合展示名称', example: '86 中国 - China' })
     showName: string
