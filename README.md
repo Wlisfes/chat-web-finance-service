@@ -3,7 +3,7 @@
 财务中心微服务，负责品牌、币种、汇率、国家地区和短信基础价格。外部客户由账号服务的 `tb_account_consumer` 统一管理。
 
 ```bash
-yarn install
+node scripts/yarn-auth.cjs install --frozen-lockfile --check-files --ignore-scripts
 yarn test
 node dist/cli/apply-schema.js
 ```
