@@ -21,7 +21,7 @@
 ## 目录与文件命名
 
 - 通用入口固定为 `src/main.ts` 和 `src/app.module.ts`。
-- 业务模块放在 `src/modules/<module-name>/`。`health`、`feign`、`database` 三个基础设施模块必须提取到 `src/` 一级目录（`src/health/`、`src/feign/`、`src/database/`），不要放进 `src/modules/`。后续改造其他 NestJS 服务时必须与 Account 保持同一目录级别。若某服务当前没有其中某个模块，不要为对齐而空建目录。
+- 业务模块放在 `src/modules/<module-name>/`。`health`、`feign`、`database` 三个基础设施模块必须提取到 `src/` 一级目录（`src/health/`、`src/feign/`、`src/database/`），不要放进 `src/modules/`。后续改造其他 NestJS 服务时必须与 Skyline 保持同一目录级别。若某服务当前没有其中某个模块，不要为对齐而空建目录。
 - 文件名使用小写 kebab-case，并使用职责后缀：
     - `*.module.ts`
     - `*.controller.ts`
@@ -38,9 +38,9 @@
 - 类、接口、类型、枚举和装饰器使用 PascalCase。
 - 变量、函数、方法、参数和实例属性使用 camelCase。
 - 常量和注入 Token 使用 UPPER_SNAKE_CASE。
-- 环境变量使用 UPPER_SNAKE_CASE，并优先添加所属服务或模块前缀，例如 `ACCOUNT_*`、`GATEWAY_*`。
-- NestJS 类使用明确职责后缀，例如 `AccountService`、`GatewayController`、`NacosModule`。
-- 禁止无意义的导出别名，例如 `export { TbAccountUser as tbAccountUser }`。
+- 环境变量使用 UPPER_SNAKE_CASE，并优先添加所属服务或模块前缀，例如 `SKYLINE_*`、`GATEWAY_*`。
+- NestJS 类使用明确职责后缀，例如 `SkylineService`、`GatewayController`、`NacosModule`。
+- 禁止无意义的导出别名，例如 `export { TbSkylineUser as tbSkylineUser }`。
 - 日志、校验消息、Swagger 描述和面向维护者的错误信息使用中文；代码标识符使用英文。
 
 ## 模块边界
@@ -61,7 +61,7 @@
 - 多选配置必须使用数组字段并通过 `POST` `body` 传输，禁止逗号分隔字符串。
 - 分页接口统一使用 `page`（从 1 开始）和 `size`（默认 50、最大 100），响应统一使用 `page`、`size`、`total`、`list`；禁止使用 `pageSize`、`items`、`records` 或 `rows` 作为同义字段。
 - 路由使用单数业务模块和动作式后缀，例如 `user/resolver`、`user/column`、`role/update/menu`；Controller 方法使用与 `nest-platform-service` 一致的 `httpBase<Service><Action><Resource>` 风格。
-- 服务间 Feign 查询接口必须同时提供单条和多条两个版本：单条命名为 `httpBase<Service><Resource>Resolver`，路由 `/<resource>/resolve`，入参使用单个主键（如 `{ keyId }`、`{ uid }`），返回单个对象，记录不存在时抛 `NotFoundException`；多条命名为 `httpBase<Service>Column<Resource>Resolver`，路由 `/<resource>/column/resolve`，入参使用主键数组（如 `{ keyIds }`、`{ uids }`），单次上限 100 个，返回数组，不存在的主键直接忽略。两个接口返回同一个摘要类型，并在 Schema 的 Feign 契约、客户端、服务端实现和测试中同步补齐；列表回显统一通过 Schema `feign-<service>.utils.ts` 中的 `append<Service><Resource>Options` 工具调用多条接口。基准为 `httpBaseAccountUserResolver`/`httpBaseAccountColumnUserResolver`、`httpBaseFinanceBrandResolver`/`httpBaseFinanceColumnBrandResolver`。
+- 服务间 Feign 查询接口必须同时提供单条和多条两个版本：单条命名为 `httpBase<Service><Resource>Resolver`，路由 `/<resource>/resolve`，入参使用单个主键（如 `{ keyId }`、`{ uid }`），返回单个对象，记录不存在时抛 `NotFoundException`；多条命名为 `httpBase<Service>Column<Resource>Resolver`，路由 `/<resource>/column/resolve`，入参使用主键数组（如 `{ keyIds }`、`{ uids }`），单次上限 100 个，返回数组，不存在的主键直接忽略。两个接口返回同一个摘要类型，并在 Schema 的 Feign 契约、客户端、服务端实现和测试中同步补齐；列表回显统一通过 Schema `feign-<service>.utils.ts` 中的 `append<Service><Resource>Options` 工具调用多条接口。基准为 `httpBaseSkylineUserResolver`/`httpBaseSkylineColumnUserResolver`、`httpBaseFinanceBrandResolver`/`httpBaseFinanceColumnBrandResolver`。
 - 管理端 `src/api/**/modules/*.service.ts` 必须保持为干净的传输层：接口函数接收与后端协议一致的类型，只负责发起请求并原样传递 `query`/`body`，禁止在 API 层做参数归一化、字段改名、默认值注入、类型转换、响应映射或响应包装。
 - 管理端页面字段与接口字段不一致时，转换、兼容和业务默认值必须放在页面/业务域层（如 composable、store 或业务 service）；不得在 API 文件中增加私有转换函数、Adapter 或隐式适配逻辑。服务端协议转换应放在 DTO/业务层。
 - HTTP 业务服务统一接入 `chat-web-base-schema` 的请求上下文中间件，用于接收网关传入的请求 ID；完整 HTTP 访问日志只由网关记录，业务服务不得重复注册 `createRequestLoggingMiddleware`，只记录业务过程、外部调用、定时任务和异常日志。
@@ -88,7 +88,7 @@
 ### 目录分层
 
 - 业务模块只放 `src/modules/<module-name>/`，每个模块包含：`<name>.module.ts`、`<name>.controller.ts`、`<name>.service.ts`、按需 `<name>.utils.service.ts`、`dto/<name>.dto.ts`。
-- `health`、`feign`、`database` 三个基础设施模块必须提取到 `src/` 一级目录：`src/health/`、`src/feign/`、`src/database/`。不要放进 `src/modules/`。后续改造其他服务必须与 Account 保持同一目录级别。若某服务当前没有其中某个模块，不要为对齐而空建目录。
+- `health`、`feign`、`database` 三个基础设施模块必须提取到 `src/` 一级目录：`src/health/`、`src/feign/`、`src/database/`。不要放进 `src/modules/`。后续改造其他服务必须与 Skyline 保持同一目录级别。若某服务当前没有其中某个模块，不要为对齐而空建目录。
 - 禁止保留一次性迁移脚本、菜单种子和 `repair-*`。部署需要的 CLI 仅允许 `src/cli/nacos-auth.ts`、`src/cli/isolate-service-databases.ts`、`src/cli/apply-schema.ts`。
 - 隔离脚本只读取本服务 Nacos Data ID、只连接本服务数据库；禁止读取或连接其他服务的 Nacos Data ID。
 
@@ -123,7 +123,7 @@
 ### 数据范围资源编码
 
 - 功能权限码与数据范围资源编码分离。权限码用于 `@RequirePermissions`。
-- 数据范围 `resourceCode` 格式固定为 `chat:{服务}:{资源}`，全小写，例如 `chat:account:user`、`chat:crm:consumer`、`chat:finance:voucher`。`*` 表示默认规则。
+- 数据范围 `resourceCode` 格式固定为 `chat:{服务}:{资源}`，全小写，例如 `chat:skyline:user`、`chat:crm:consumer`、`chat:finance:voucher`。`*` 表示默认规则。
 - 只有使用了 `@RequirePermissions` 的接口才会请求 `/feign/auth/permission/authorized-principal`。多个权限码为或关系；传入 `*` 时跳过权限校验，但仍查询当前用户的角色与数据权限。未使用该装饰器的接口不得调用该 Feign。
 - 权限校验通过后，Auth 返回的 `superAdmin`、`roleCodes`、`all`、`items` 由 `AuthorizationGuard` 挂到 `request.user`，业务代码从 `CurrentPrincipal` 读取，不得再调用 `hasPermission` / `isSuperAdmin` / `resolveDataScope`，也不得再请求 `/permission/check`。
 
@@ -217,11 +217,11 @@
 
 ### 服务数据边界
 
-- 本服务独占 MySQL 数据库 `chat_web_finance` 和独立账号。运行与 Schema 升级账号只能访问 `chat_web_finance.*`，不得拥有全局权限、Account 库权限或跨库角色；数据库由外部基础设施预创建，升级器不得执行 `CREATE DATABASE`。
+- 本服务独占 MySQL 数据库 `chat_web_finance` 和独立账号。运行与 Schema 升级账号只能访问 `chat_web_finance.*`，不得拥有全局权限、Skyline 库权限或跨库角色；数据库由外部基础设施预创建，升级器不得执行 `CREATE DATABASE`。
 - 本服务独占 Redis index `3`。Redis 库号以 Nacos `redis.database` 为准，部署不得通过 `.env` 覆盖为其他业务服务的库号。
-- 认证归 `chat-web-auth-service`。禁止导入 Account Entity、连接 `chat_web_account`、读取登录会话存储或持有 `security.jwt.*`；网关调用鉴权服务的 `/internal/auth/token/introspect` 后向本服务签发身份上下文，Finance 只通过共享 `GatewayPrincipalModule` 校验该上下文，共享包 `auth-session` 子路径只允许鉴权服务导入。
+- 认证归 `chat-web-auth-service`。禁止导入 Skyline Entity、连接 `chat_web_skyline`、读取登录会话存储或持有 `security.jwt.*`；网关调用鉴权服务的 `/internal/auth/token/introspect` 后向本服务签发身份上下文，Finance 只通过共享 `GatewayPrincipalModule` 校验该上下文，共享包 `auth-session` 子路径只允许鉴权服务导入。
 - 跨服务业务数据访问必须使用共享包的强类型 Feign 客户端。所有 `/feign/*` 调用都使用 `resolveFeignServiceAuthorization` 组装的服务间凭据，不得转发终端用户令牌；Gateway 对 `/feign/**` 只负责路由，不调用 Auth 用户鉴权。禁止在本仓库重复定义其他服务的 Feign 客户端。
-- 需要把操作人 UID 渲染为姓名工号时，统一使用共享客户端的 `httpBaseAccountColumnUserResolver`，禁止在列表查询中按行发起单条查询。
+- 需要把操作人 UID 渲染为姓名工号时，统一使用共享客户端的 `httpBaseSkylineColumnUserResolver`，禁止在列表查询中按行发起单条查询。
 - 跨服务客户端统一通过 Gateway，地址和超时读取 Nacos `gateway.feign.url/timeout`，服务间凭据读取 `gateway.feign.service_token`。Finance 不得在本服务 Nacos 或部署 `.env` 中维护未使用的目标服务 URL、用户 Token 或历史凭据别名。
 - 汇率同步的外部数据拉取、响应解析、启用币种过滤和财务数据库持久化全部由 Finance 负责；Skyline 只通过无业务请求体的 `/feign/finance/currency/exchange/sync` 触发任务。Open Exchange Rates App ID 读取 Nacos 必需项 `integration.openExchangeRates.appid`，请求超时读取可选项 `integration.openExchangeRates.timeout`；汇率表只允许新增，不得更新已入库记录。
 
@@ -230,7 +230,7 @@
 - 所有公开 HTTP 模块必须以 `chat-web-skyline-service/src/modules/sheet/` 的 Controller、Service、Utils Service、Module 和 DTO 分层为唯一实现基准；新模块不得自行设计另一套调用结构。
 - Controller 必须保持为薄传输层，只保留路由、鉴权、接口文档等装饰器，使用 `@Query()` 或 `@Body()` 接收入参，并调用同名 Service 方法；禁止在 Controller 中查询数据库、转换参数、拼装响应或执行业务校验。
 - Cookie 读写、Header 解析、流或文件响应、重定向等依赖 Express 的纯 HTTP 协议适配允许保留在 Controller；禁止把 `Request`、`Response`、Cookie、Header 或响应发送逻辑传入业务 Service，协议例外必须写中文职责注释。
-- Controller 与对应 Service 的公开接口方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseFinance<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseFinance<Resource><Action>`，命名语义参考基准模块的 `httpBaseAccountSheetTreeStructure`、`httpBaseAccountSheetResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 不得再调用 `create`、`list`、`update`、`select` 等短方法名。
+- Controller 与对应 Service 的公开接口方法统一声明为 `public async`；CRUD、列表等通用动作通常使用 `httpBaseFinance<Action><Resource>`，Tree、Resolver 等资源专属读取语义可使用 `httpBaseFinance<Resource><Action>`，命名语义参考基准模块的 `httpBaseSkylineSheetTreeStructure`、`httpBaseSkylineSheetResolver`。两层方法名必须完全一致，不得只为统一单词顺序而机械倒装；Controller 不得再调用 `create`、`list`、`update`、`select` 等短方法名。
 - 每个公开 Service 方法必须添加简洁中文职责注释并声明明确的 `Promise<...>` 返回类型；分页结果使用共享 `PageResult<T>`，对外扩展字段使用独立响应 DTO，禁止依赖隐式推断掩盖响应结构变化。
 - 请求 DTO 必须位于模块自己的 `dto/*.dto.ts`，Controller 和 Service 共同使用同一协议类型；禁止在 Controller、Service 或装饰器配置中声明临时匿名 DTO。
 - 业务 Service 引用本模块请求 DTO 时统一使用 `import * as <Module>Dto` 命名空间归组，并通过 `<Module>Dto.<Type>` 标注参数；响应 DTO 继续按需使用命名导入，禁止把请求与响应协议混在同一组散乱导入中。
