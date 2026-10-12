@@ -14,6 +14,9 @@ interface OpenExchangeRatesPayload {
     rates?: Record<string, number | string>
 }
 
+/** 汇率数据来源名称，写入同步结果和日志。 */
+const OPEN_EXCHANGE_RATES_SOURCE = 'Open Exchange Rates'
+
 /** Open Exchange Rates 最新汇率接口；App ID 只从 Nacos 读取，不写入仓库。 */
 const OPEN_EXCHANGE_RATES_LATEST_URL = 'https://openexchangerates.org/api/latest.json'
 
@@ -41,28 +44,42 @@ export class CurrencyExchangeSyncService {
     /**同步最新汇率：按东八区当天日期新增启用币种汇率，已入库的汇率不更新*/
     public async httpBaseFinanceSyncCurrencyExchange(): Promise<CurrencyDto.CurrencyExchangeSyncResponseDto> {
         const { date, rates } = await this.fetchOpenExchangeRates()
-        const list = await this.exchangeRepository.manager.transaction(async manager => {
-            const enabledRates = await this.filterEnabledRates(rates, manager)
+        const summary = await this.exchangeRepository.manager.transaction(async manager => {
+            const enabledCurrencies = await this.currencyUtilsService.findAllEnabledCurrencies(manager)
+            const enabledRates = rates.filter(item => enabledCurrencies.has(item.currency))
             if (enabledRates.length === 0) {
                 throw new ServiceUnavailableException('没有可同步的启用币种')
             }
             const pendingRates = await this.filterPendingRates(date, enabledRates, manager)
             await this.insertExchangeRates(date, pendingRates, manager)
-            return pendingRates.map(item => ({ ...item, date }))
+            const pendingSet = new Set(pendingRates.map(item => item.currency))
+            const returnedSet = new Set(rates.map(item => item.currency))
+            return {
+                enabled: enabledCurrencies.size,
+                list: pendingRates.map(item => ({ ...item, date })),
+                skippedCurrencies: enabledRates.filter(item => !pendingSet.has(item.currency)).map(item => item.currency),
+                missingCurrencies: [...enabledCurrencies].filter(currency => !returnedSet.has(currency)).sort()
+            }
         })
-        if (list.length > 0) {
-            this.logger.log(`汇率同步完成：日期=${date}，新增=${list.length} 条`)
-        } else {
-            this.logger.log(`汇率已存在，跳过写入：日期=${date}`)
+        const insertedCurrencies = summary.list.map(item => item.currency)
+        this.logger.log(
+            `汇率同步完成：日期=${date}，来源=${OPEN_EXCHANGE_RATES_SOURCE}，外部返回=${rates.length} 个，启用=${summary.enabled} 个，` +
+                `新增=${insertedCurrencies.length} 个[${insertedCurrencies.join(',') || '-'}]，` +
+                `跳过=${summary.skippedCurrencies.length} 个，未返回=${summary.missingCurrencies.length} 个[${summary.missingCurrencies.join(',') || '-'}]`
+        )
+        return {
+            date,
+            count: summary.list.length,
+            list: summary.list,
+            source: OPEN_EXCHANGE_RATES_SOURCE,
+            fetched: rates.length,
+            enabled: summary.enabled,
+            inserted: insertedCurrencies.length,
+            skipped: summary.skippedCurrencies.length,
+            insertedCurrencies,
+            skippedCurrencies: summary.skippedCurrencies,
+            missingCurrencies: summary.missingCurrencies
         }
-        return { date, count: list.length, list }
-    }
-
-    /**过滤出已启用的币种汇率*/
-    private async filterEnabledRates(rates: ExchangeRateItem[], manager: EntityManager): Promise<ExchangeRateItem[]> {
-        const currencies = rates.map(item => item.currency)
-        const enabled = await this.currencyUtilsService.findEnabledCurrencies(currencies, manager)
-        return rates.filter(item => enabled.has(item.currency))
     }
 
     /**过滤出当天尚未入库的币种汇率*/

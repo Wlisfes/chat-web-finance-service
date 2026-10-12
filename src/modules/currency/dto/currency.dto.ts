@@ -112,4 +112,28 @@ export class CurrencyExchangeSyncResponseDto {
 
     @ApiProperty({ description: '已同步汇率列表', type: [CurrencyExchangeSyncListItemResponseDto] })
     list: CurrencyExchangeSyncListItemResponseDto[]
+
+    @ApiProperty({ description: '汇率数据来源', example: 'Open Exchange Rates' })
+    source: string
+
+    @ApiProperty({ description: '外部数据源返回的有效币种数量', example: 170 })
+    fetched: number
+
+    @ApiProperty({ description: '系统中已启用的币种数量', example: 30 })
+    enabled: number
+
+    @ApiProperty({ description: '本次新增写入的币种数量', example: 28 })
+    inserted: number
+
+    @ApiProperty({ description: '当天已存在、本次跳过的币种数量', example: 2 })
+    skipped: number
+
+    @ApiProperty({ description: '本次新增的币种代码', type: [String], example: ['CNY', 'EUR'] })
+    insertedCurrencies: string[]
+
+    @ApiProperty({ description: '当天已存在、本次跳过的币种代码', type: [String], example: ['USD'] })
+    skippedCurrencies: string[]
+
+    @ApiProperty({ description: '已启用但外部数据源未返回汇率的币种代码', type: [String], example: [] })
+    missingCurrencies: string[]
 }

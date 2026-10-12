@@ -51,4 +51,13 @@ export class CurrencyUtilsService {
         })
         return new Set(list.map(item => item.currency.trim().toUpperCase()))
     }
+
+    /** 查询全部已启用的币种代码，用于汇率同步时发现外部数据源缺失的币种。 */
+    public async findAllEnabledCurrencies(manager?: EntityManager): Promise<Set<string>> {
+        const repository = (manager ?? this.currencyRepository.manager).getRepository(Schema.TbFinanceCurrency)
+        const list = await this.database.builder(repository, qb => {
+            return qb.where('t.status = :status', { status: Schema.TbFinanceCurrencyStatus.ENABLE }).getMany()
+        })
+        return new Set(list.map(item => item.currency.trim().toUpperCase()))
+    }
 }
