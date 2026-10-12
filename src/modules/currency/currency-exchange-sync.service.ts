@@ -80,7 +80,7 @@ export class CurrencyExchangeSyncService {
         if (rates.length === 0) {
             return
         } else {
-            const items = rates.map(item => ({ ...item, date, createBy: feign.ACCOUNT_SYSTEM_UID, modifyBy: feign.ACCOUNT_SYSTEM_UID }))
+            const items = rates.map(item => ({ ...item, date, createBy: feign.SKYLINE_SYSTEM_UID, modifyBy: feign.SKYLINE_SYSTEM_UID }))
             await manager.createQueryBuilder().insert().into(Schema.TbFinanceCurrencyExchange).values(items).updateEntity(false).execute()
         }
     }

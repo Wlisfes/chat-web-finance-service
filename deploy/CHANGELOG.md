@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-10-12：操作人回显切换到 Skyline 账号 Feign
+
+- 影响机器：`chat-home-server`。
+- 依赖：升级 `@wlisfes/chat-web-base-schema` 到 `1.6.84`。
+- 变更内容：冻结短信、国家地区、品牌、币种与汇率列表的 `createBy`、`modifyBy` 回显由 `FeignClientAccountManager` 改为 `FeignClientSkylineManager`；汇率同步的系统操作人改用 `SKYLINE_SYSTEM_UID`（值仍为 `0`）。响应字段与结构不变。
+- 机器侧操作：无需修改 `.env` 与 Nacos，继续使用 `gateway.feign.url/timeout/service_token`。
+- 验证命令：`yarn format:check`、`yarn test`；部署后检查 `https://chat.lisfes.cn/api/finance/health/live`，并确认品牌、币种列表 `createByOptions` 正常回显。
+- 回滚方法：恢复上一完整 Git SHA 镜像（Account 服务下线前可回滚）。
+
 ## 2026-09-17：P0 事故记录，同机禁止注册 WireGuard 地址
 
 - 影响机器：`chat-home-server`。

@@ -15,7 +15,7 @@ export class BrandService {
         @InjectRepository(Schema.TbFinanceBrand) private readonly brandRepository: Repository<Schema.TbFinanceBrand>,
         private readonly database: DataBaseService,
         private readonly brandUtilsService: BrandUtilsService,
-        private readonly accountFeignClient: feign.FeignClientAccountManager,
+        private readonly skylineFeignClient: feign.FeignClientSkylineManager,
         private readonly crmFeignClient: feign.FeignClientCrmManager,
         private readonly configService: ConfigService
     ) {}
@@ -93,7 +93,7 @@ export class BrandService {
                     page: body.page,
                     size: body.size,
                     total,
-                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                    list: await feign.appendSkylineUserOptions(this.skylineFeignClient, this.configService, items, ['createBy', 'modifyBy'])
                 }
             })
         })

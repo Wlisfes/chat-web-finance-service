@@ -45,11 +45,11 @@ export class BrandEnumsResponseDto extends EnumsResponseDto({
 
 /** BrandPageResponseDto.list 字段结构；分页查询品牌响应：POST /brand/column。 */
 export class BrandListItemResponseDto extends Schema.TbFinanceBrandDto {
-    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    createByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '创建人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    createByOptions?: feign.SkylineUserOptionResponseDto
 
-    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    modifyByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '修改人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.SkylineUserOptionResponseDto
 }
 
 /** 分页查询品牌响应：POST /brand/column。 */

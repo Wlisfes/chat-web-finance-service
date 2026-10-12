@@ -14,7 +14,7 @@ export class CountryService {
         @InjectRepository(Schema.TbFinanceCountry) private readonly countryRepository: Repository<Schema.TbFinanceCountry>,
         private readonly database: DataBaseService,
         private readonly countryUtilsService: CountryUtilsService,
-        private readonly accountFeignClient: feign.FeignClientAccountManager,
+        private readonly skylineFeignClient: feign.FeignClientSkylineManager,
         private readonly configService: ConfigService
     ) {}
 
@@ -48,7 +48,7 @@ export class CountryService {
                     page,
                     size,
                     total,
-                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                    list: await feign.appendSkylineUserOptions(this.skylineFeignClient, this.configService, items, ['createBy', 'modifyBy'])
                 })
             })
         })

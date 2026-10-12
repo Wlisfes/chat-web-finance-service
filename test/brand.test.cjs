@@ -131,9 +131,9 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
             return callback(queryBuilder)
         }
     }
-    const accountFeignClient = {
+    const skylineFeignClient = {
         calls: [],
-        async httpBaseAccountColumnUserResolver(authorization, input) {
+        async httpBaseSkylineColumnUserResolver(authorization, input) {
             this.calls.push({ authorization, input })
             return input.uids.map(uid => ({
                 uid,
@@ -144,7 +144,7 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
         }
     }
     const configService = { get: key => (key === 'gateway.feign.service_token' ? 'service-token' : undefined) }
-    const service = new BrandService(repository, database, {}, accountFeignClient, {}, configService)
+    const service = new BrandService(repository, database, {}, skylineFeignClient, {}, configService)
 
     const result = await service.httpBaseFinanceColumnBrand({ page: 2, size: 10, name: ' 品牌 ', status: 'enable' })
 
@@ -178,37 +178,37 @@ test('品牌分页通过 DataBaseService builder 查询并返回统一分页结�
         ]
     })
     // 操作人还原只发起一次列表批量调用，并使用服务间凭据而不是终端用户令牌。
-    assert.deepEqual(accountFeignClient.calls, [{ authorization: 'Bearer service-token', input: { uids: ['10001', '10002'] } }])
+    assert.deepEqual(skylineFeignClient.calls, [{ authorization: 'Bearer service-token', input: { uids: ['10001', '10002'] } }])
 })
 
 test('品牌分页没有操作人时不调用账号服务', async () => {
     const queryBuilder = fakePageQueryBuilder([{ keyId: 1, name: '品牌一', createBy: undefined, modifyBy: undefined }], 1)
     const database = { builder: async (_repository, callback) => callback(queryBuilder) }
-    const accountFeignClient = {
+    const skylineFeignClient = {
         calls: 0,
-        async httpBaseAccountColumnUserResolver() {
+        async httpBaseSkylineColumnUserResolver() {
             this.calls += 1
             return []
         }
     }
     const configService = { get: () => 'service-token' }
-    const service = new BrandService({}, database, {}, accountFeignClient, {}, configService)
+    const service = new BrandService({}, database, {}, skylineFeignClient, {}, configService)
 
     const result = await service.httpBaseFinanceColumnBrand({ page: 1, size: 10 })
-    assert.equal(accountFeignClient.calls, 0)
+    assert.equal(skylineFeignClient.calls, 0)
     assert.deepEqual(result.list[0].createByOptions, undefined)
 })
 
 test('品牌分页组合账号信息失败时透传账号服务异常', async () => {
     const queryBuilder = fakePageQueryBuilder([{ keyId: 1, name: '品牌一', createBy: '10001', modifyBy: undefined }], 1)
     const database = { builder: async (_repository, callback) => callback(queryBuilder) }
-    const accountFeignClient = {
-        httpBaseAccountColumnUserResolver: async () => {
+    const skylineFeignClient = {
+        httpBaseSkylineColumnUserResolver: async () => {
             throw new Error('账号服务异常')
         }
     }
     const configService = { get: () => 'service-token' }
-    const service = new BrandService({}, database, {}, accountFeignClient, {}, configService)
+    const service = new BrandService({}, database, {}, skylineFeignClient, {}, configService)
 
     await assert.rejects(() => service.httpBaseFinanceColumnBrand({ page: 1, size: 10 }), /账号服务异常/)
 })
@@ -216,7 +216,7 @@ test('品牌分页组合账号信息失败时透传账号服务异常', async ()
 test('缺少服务间凭据时品牌分页拒绝调用账号服务', async () => {
     const queryBuilder = fakePageQueryBuilder([{ keyId: 1, name: '品牌一', createBy: '10001', modifyBy: undefined }], 1)
     const database = { builder: async (_repository, callback) => callback(queryBuilder) }
-    const service = new BrandService({}, database, {}, { async httpBaseAccountColumnUserResolver() {} }, {}, { get: () => undefined })
+    const service = new BrandService({}, database, {}, { async httpBaseSkylineColumnUserResolver() {} }, {}, { get: () => undefined })
 
     await assert.rejects(() => service.httpBaseFinanceColumnBrand({ page: 1, size: 10 }), /feign\.service_token/)
 })
