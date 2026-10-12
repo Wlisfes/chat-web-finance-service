@@ -48,7 +48,7 @@ test('国家状态更新在事务内锁定实体后写入', async () => {
     assert.equal(country.modifyBy, '1001')
 })
 
-test('国家地区列表通过 Account Feign 还原创建人和更新人', async () => {
+test('国家地区列表通过 Skyline 账号 Feign 还原创建人和更新人', async () => {
     const items = [
         { keyId: 1, cnName: '中国', createBy: '0', modifyBy: '1001' },
         { keyId: 2, cnName: '美国', createBy: '1001', modifyBy: null }
@@ -72,14 +72,14 @@ test('国家地区列表通过 Account Feign 还原创建人和更新人', async
         }
     }
     const database = { builder: (repository, callback) => callback(qb) }
-    const accountFeignClient = {
-        async httpBaseAccountColumnUserResolver(authorization, body) {
+    const skylineFeignClient = {
+        async httpBaseSkylineColumnUserResolver(authorization, body) {
             calls.push({ authorization, body })
             return [{ uid: '1001', number: '1001', name: '张三' }]
         }
     }
     const configService = { get: () => 'service-token' }
-    const service = new CountryService({}, database, {}, accountFeignClient, configService)
+    const service = new CountryService({}, database, {}, skylineFeignClient, configService)
 
     const result = await service.httpBaseFinanceColumnCountry({ page: 1, size: 10 })
     assert.equal(result.total, 2)

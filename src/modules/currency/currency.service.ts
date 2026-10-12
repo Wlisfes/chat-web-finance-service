@@ -16,7 +16,7 @@ export class CurrencyService {
         private readonly exchangeRepository: Repository<Schema.TbFinanceCurrencyExchange>,
         private readonly database: DataBaseService,
         private readonly currencyUtilsService: CurrencyUtilsService,
-        private readonly accountFeignClient: feign.FeignClientAccountManager,
+        private readonly skylineFeignClient: feign.FeignClientSkylineManager,
         private readonly configService: ConfigService
     ) {}
 
@@ -47,7 +47,7 @@ export class CurrencyService {
                     page,
                     size,
                     total,
-                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                    list: await feign.appendSkylineUserOptions(this.skylineFeignClient, this.configService, items, ['createBy', 'modifyBy'])
                 })
             })
         })
@@ -97,7 +97,7 @@ export class CurrencyService {
                     page,
                     size,
                     total,
-                    list: await feign.appendAccountUserOptions(this.accountFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                    list: await feign.appendSkylineUserOptions(this.skylineFeignClient, this.configService, items, ['createBy', 'modifyBy'])
                 })
             })
         })

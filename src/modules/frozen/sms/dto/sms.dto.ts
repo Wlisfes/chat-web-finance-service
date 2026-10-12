@@ -131,11 +131,11 @@ export class FrozenSmsListItemResponseDto extends FrozenSmsResponseDto {
     @ApiProperty({ description: '国家地区信息', type: FrozenSmsCountryOptionsResponseDto, required: false })
     countryOptions?: FrozenSmsCountryOptionsResponseDto
 
-    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    createByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '创建人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    createByOptions?: feign.SkylineUserOptionResponseDto
 
-    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    modifyByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '修改人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.SkylineUserOptionResponseDto
 }
 
 /** 分页查询短信基础价格响应：POST /frozen/sms/column。 */

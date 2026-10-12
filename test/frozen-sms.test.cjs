@@ -161,14 +161,14 @@ test('短信基础价格分页通过 Feign 补全创建人和修改人', async (
             return [{ keyId: 1, code: '86', mcc: '460', cnName: '中国' }]
         }
     })
-    const accountFeignClient = {
-        async httpBaseAccountColumnUserResolver(authorization, body) {
+    const skylineFeignClient = {
+        async httpBaseSkylineColumnUserResolver(authorization, body) {
             calls.push({ authorization, body })
             return [{ uid: '1001', number: '1001', name: '张三' }]
         }
     }
     const configService = { get: () => 'service-token' }
-    const service = new FrozenSmsService({}, database, frozenSmsUtilsService, accountFeignClient, configService)
+    const service = new FrozenSmsService({}, database, frozenSmsUtilsService, skylineFeignClient, configService)
 
     const result = await service.httpBaseFinanceColumnFrozenSms({ page: 1, size: 10 })
     assert.equal(result.total, 2)

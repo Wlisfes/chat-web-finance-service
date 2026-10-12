@@ -50,11 +50,11 @@ export class CurrencyEnumsResponseDto extends EnumsResponseDto({
 
 /** CurrencyPageResponseDto.list 字段结构；分页查询币种响应：POST /currency/column。 */
 export class CurrencyListItemResponseDto extends Schema.TbFinanceCurrencyDto {
-    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    createByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '创建人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    createByOptions?: feign.SkylineUserOptionResponseDto
 
-    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    modifyByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '修改人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.SkylineUserOptionResponseDto
 }
 
 /** 分页查询币种响应：POST /currency/column。 */
@@ -74,11 +74,11 @@ export class CurrencySelectResponseDto extends PickType(Schema.TbFinanceCurrency
 
 /** CurrencyExchangePageResponseDto.list 字段结构；分页查询币种汇率响应：POST /currency/exchange/column。 */
 export class CurrencyExchangeListItemResponseDto extends Schema.TbFinanceCurrencyExchangeDto {
-    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    createByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '创建人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    createByOptions?: feign.SkylineUserOptionResponseDto
 
-    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    modifyByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '修改人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.SkylineUserOptionResponseDto
 }
 
 /** 获取币种最新汇率响应：GET /currency/exchange/resolve。 */

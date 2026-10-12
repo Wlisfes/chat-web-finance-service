@@ -27,11 +27,11 @@ export class CountryEnumsResponseDto extends EnumsResponseDto({
 
 /** CountryPageResponseDto.list 字段结构；分页查询国家地区响应：POST /country/column。 */
 export class CountryListItemResponseDto extends Schema.TbFinanceCountryDto {
-    @ApiProperty({ description: '创建人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    createByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '创建人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    createByOptions?: feign.SkylineUserOptionResponseDto
 
-    @ApiProperty({ description: '修改人选项', type: feign.AccountUserOptionResponseDto, required: false })
-    modifyByOptions?: feign.AccountUserOptionResponseDto
+    @ApiProperty({ description: '修改人选项', type: feign.SkylineUserOptionResponseDto, required: false })
+    modifyByOptions?: feign.SkylineUserOptionResponseDto
 }
 
 /** 分页查询国家地区响应：POST /country/column。 */
