@@ -107,6 +107,9 @@ function createCurrencyExchangeSyncService(values = {}, enabledCurrencies = ['US
         {
             async findEnabledCurrencies() {
                 return new Set(enabledCurrencies)
+            },
+            async findAllEnabledCurrencies() {
+                return new Set(enabledCurrencies)
             }
         },
         config(values)
@@ -145,7 +148,15 @@ test('Finance 使用 Open Exchange Rates、过滤未启用币种并只新增汇�
             list: [
                 { currency: 'USD', rate: 1, date: result.date },
                 { currency: 'CNY', rate: 7.123457, date: result.date }
-            ]
+            ],
+            source: 'Open Exchange Rates',
+            fetched: 3,
+            enabled: 2,
+            inserted: 2,
+            skipped: 0,
+            insertedCurrencies: ['USD', 'CNY'],
+            skippedCurrencies: [],
+            missingCurrencies: []
         })
     } finally {
         global.fetch = originalFetch
@@ -164,6 +175,9 @@ test('Finance 已存在当日汇率时不更新也不重复插入', async () => 
     try {
         const result = await service.httpBaseFinanceSyncCurrencyExchange()
         assert.equal(result.count, 0)
+        assert.equal(result.inserted, 0)
+        assert.equal(result.skipped, 2)
+        assert.deepEqual(result.skippedCurrencies, ['USD', 'CNY'])
         assert.equal(state.inserts.length, 0)
     } finally {
         global.fetch = originalFetch
@@ -212,4 +226,19 @@ test('币种状态更新在事务内锁定实体后写入', async () => {
     assert.equal(currencyTransactional.repository.state.transactions, 1)
     assert.equal(currency.status, 'disable')
     assert.equal(currency.modifyBy, '1001')
+})
+
+test('Finance 同步结果列出已启用但外部未返回汇率的币种', async () => {
+    const originalFetch = global.fetch
+    const { service } = createCurrencyExchangeSyncService({ 'integration.openExchangeRates.appid': 'test-app-id' }, ['USD', 'CNY', 'JPY'])
+    global.fetch = async () => mockJsonResponse({ base: 'USD', rates: { USD: 1, CNY: 7.1 } })
+
+    try {
+        const result = await service.httpBaseFinanceSyncCurrencyExchange()
+        assert.equal(result.enabled, 3)
+        assert.equal(result.inserted, 2)
+        assert.deepEqual(result.missingCurrencies, ['JPY'])
+    } finally {
+        global.fetch = originalFetch
+    }
 })
