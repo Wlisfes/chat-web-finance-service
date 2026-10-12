@@ -48,7 +48,6 @@ docker inspect chat-web-finance-service --format '{{json .HostConfig.LogConfig}}
 | 数据库             | `chat_web_finance`                            |
 | MySQL 授权边界     | 仅 `chat_web_finance.*`                       |
 | Redis index        | `3`                                           |
-| Feign Account 地址 | `http://chat-web-account-service:5010`        |
 | 部署目录           | `/opt/chat-web-finance-service`               |
 | Docker 网络        | `chat-web-infrastructure`                     |
 | 部署主机           | `chat-home-server`                            |
@@ -67,15 +66,15 @@ curl -fsS http://127.0.0.1:5030/health
 
 日志配置预期为 `json-file`、`max-size=20m`、`max-file=30`。请求日志应包含 `logId`、方法、URL、状态码、来源和耗时，密码及 Token 等敏感字段必须脱敏。
 
-Finance 部署不读取 Account 的 `.env`、JWT 密钥或 Redis 会话。`/opt/chat-web-finance-service/.env` 只配置 NODE_ENV、PORT 和 Nacos 连接/注册参数；Redis、数据库和 Gateway Feign 地址/超时全部由云端 Nacos 提供。Feign 配置使用 `gateway.feign.url/timeout`，服务间凭据使用 `gateway.feign.service_token`。
+Finance 部署不读取其他服务的 `.env`、JWT 密钥或 Redis 会话。`/opt/chat-web-finance-service/.env` 只配置 NODE_ENV、PORT 和 Nacos 连接/注册参数；Redis、数据库和 Gateway Feign 地址/超时全部由云端 Nacos 提供。Feign 配置使用 `gateway.feign.url/timeout`，服务间凭据使用 `gateway.feign.service_token`。
 
 共享包包含 `forRootNacosRuntimeOptions` 后，Finance 在 `AppModule` 中直接调用 `NacosModule.forRoot(forRootNacosRuntimeOptions(process.env))`，由 base 统一把环境变量转换为完整 `NacosRuntimeOptions`。服务器 `.env` 必须显式提供 `NACOS_SERVER`、`NACOS_NAMESPACE`、`NACOS_SERVICE_NAME` 和 `PORT`；其余字段均由共享包提供默认值，只有确需覆盖时才配置。修改启动连接参数后必须重新创建容器，不能再依赖 Nacos 远端配置反向改变启动连接或注册参数。
 
-仓库根目录 `.env.example` 只用于本地进程启动和 Nacos 建连；Finance 数据库、Redis index `3`、Account 上游地址和超时直接读取远端 `chat-web-finance-service.yaml`。服务器 `deploy/.env.example` 只保留 Compose 和 Nacos 启动参数，不得用根示例覆盖。
+仓库根目录 `.env.example` 只用于本地进程启动和 Nacos 建连；Finance 数据库、Redis index `3`、Gateway Feign 地址和超时直接读取远端 `chat-web-finance-service.yaml`。服务器 `deploy/.env.example` 只保留 Compose 和 Nacos 启动参数，不得用根示例覆盖。
 
 Nacos 的 Redis 节点使用 `redis.host`、`redis.port`、`redis.database: 3`、`redis.tls` 和 `redis.connectTimeoutMs`；Redis 密码、用户名或 URL 只放在该 Data ID 中，不写入 `.env`。
 
-Finance Nacos Data ID 由运维预先在云端 Nacos 创建并维护，包含 Finance 专用数据库、Redis 和 Account Feign 配置；部署不会从服务器 `.env` 生成或覆盖业务配置。数据库 `chat_web_finance` 必须由外部基础设施预创建。
+Finance Nacos Data ID 由运维预先在云端 Nacos 创建并维护，包含 Finance 专用数据库、Redis 和 Gateway Feign 配置；部署不会从服务器 `.env` 生成或覆盖业务配置。数据库 `chat_web_finance` 必须由外部基础设施预创建。
 
 使用 Finance 连接参数进入 MySQL 后核对：
 
@@ -86,9 +85,9 @@ SHOW GRANTS FOR CURRENT_USER();
 
 Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现全局权限、其他数据库权限或角色授权时，部署会在切换容器前失败。真实用户名和密码不得写入仓库、命令日志或完整 `.env` 示例。
 
-业务请求的 Bearer Token 由网关调用鉴权服务的内部 `POST /internal/auth/token/introspect` 校验，并签发身份上下文给 Finance；Finance 不在本地验签，也不访问 Account Redis index `0`。业务 Feign 调用只使用 Nacos `gateway.feign.service_token`。
+业务请求的 Bearer Token 由网关调用鉴权服务的内部 `POST /internal/auth/token/introspect` 校验，并签发身份上下文给 Finance；Finance 不在本地验签，也不访问 Auth Redis index `0`。业务 Feign 调用只使用 Nacos `gateway.feign.service_token`。
 
-Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 Account 的 `tb_account_consumer`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
+Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 CRM 的 `tb_crm_user`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 
 已有 Finance 数据库需要补充国际常用币种时，使用幂等的币种同步命令。它只新增缺失记录，保留已有记录的启用/禁用状态：
 
