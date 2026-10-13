@@ -121,7 +121,10 @@ export class FrozenSmsService {
                     page,
                     size,
                     total,
-                    list: await feign.appendSkylineUserOptions(this.skylineFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                    list: await feign.fetchAppendSkylineUserOptions(this.skylineFeignClient, this.configService, items, [
+                        'createBy',
+                        'modifyBy'
+                    ])
                 })
             })
         })
