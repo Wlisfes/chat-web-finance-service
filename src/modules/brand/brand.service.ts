@@ -93,7 +93,10 @@ export class BrandService {
                     page: body.page,
                     size: body.size,
                     total,
-                    list: await feign.appendSkylineUserOptions(this.skylineFeignClient, this.configService, items, ['createBy', 'modifyBy'])
+                    list: await feign.fetchAppendSkylineUserOptions(this.skylineFeignClient, this.configService, items, [
+                        'createBy',
+                        'modifyBy'
+                    ])
                 }
             })
         })
