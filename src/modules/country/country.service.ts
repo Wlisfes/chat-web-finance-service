@@ -77,7 +77,10 @@ export class CountryService {
             qb.where('t.status = :status', { status: Schema.TbFinanceCountryStatus.ENABLE })
             qb.orderBy('t.createTime', 'DESC')
             return qb.getMany().then(items => {
-                return items.map(item => ({ ...item, showName: `${item.code} ${item.cnName} - ${item.enName}` }))
+                return items.map(item => {
+                    const showName = `${item.code} ${item.cnName} - ${item.enName}`
+                    return { ...item, showName, value: item.keyId, label: showName }
+                })
             })
         })
     }
