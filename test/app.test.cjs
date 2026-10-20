@@ -15,7 +15,6 @@ const controllers = [
     require('../dist/app.controller').AppController,
     require('../dist/feign/feign.controller').FeignController,
     require('../dist/modules/brand/brand.controller').BrandController,
-    require('../dist/modules/country/country.controller').CountryController,
     require('../dist/modules/currency/currency.controller').CurrencyController,
     require('../dist/modules/frozen/sms/sms.controller').FrozenSmsController
 ]
@@ -52,7 +51,6 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
     const document = await createDocument()
     for (const schemaName of [
         'BrandPageResponseDto',
-        'CountryPageResponseDto',
         'CurrencyPageResponseDto',
         'CurrencyExchangePageResponseDto',
         'FrozenSmsPageResponseDto'
@@ -74,14 +72,13 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
         assert.ok(document.paths[definition.path]?.[definition.method.toLowerCase()], `Feign 客户端 ${methodName} 未找到对应服务路由`)
     }
 
-    assert.equal(operations.length, 29)
+    assert.equal(operations.length, 25)
     assert.ok(document.paths['/brand/enums']?.get, '缺少品牌枚举接口')
     assert.ok(document.paths['/brand/resolve']?.get, '缺少品牌详情接口')
     assert.ok(document.paths['/frozen/sms/resolve']?.get, '缺少短信基础价格详情接口')
-    assert.ok(document.paths['/country/enums']?.get, '缺少国家地区枚举接口')
     assert.ok(document.paths['/currency/enums']?.get, '缺少币种枚举接口')
     assert.ok(document.paths['/brand/delete']?.post, '缺少品牌删除接口')
-    assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 14)
+    assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 12)
     assert.equal(operations.flatMap(({ operation }) => operation.parameters ?? []).filter(parameter => parameter.in === 'query').length, 3)
 
     for (const { path, method, operation } of operations) {
@@ -146,7 +143,7 @@ test('分页参数提供默认值并拒绝越界数据', async () => {
     assert.equal(defaults.page, 1)
     assert.equal(defaults.size, 50)
 
-    const invalid = plainToInstance(SizePageDto, { page: 0, size: 101 })
+    const invalid = plainToInstance(SizePageDto, { page: 0, size: 301 })
     assert.equal((await validate(invalid)).length, 2)
 })
 

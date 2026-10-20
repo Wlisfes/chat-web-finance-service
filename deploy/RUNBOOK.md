@@ -87,7 +87,7 @@ Schema 升级器会自动执行同一授权检查；除 `USAGE ON *.*` 外出现
 
 业务请求的 Bearer Token 由网关调用鉴权服务的内部 `POST /internal/auth/token/introspect` 校验，并签发身份上下文给 Finance；Finance 不在本地验签，也不访问 Auth Redis index `0`。业务 Feign 调用只使用 Nacos `gateway.feign.service_token`。
 
-Finance 只管理品牌、币种、汇率、国家地区和基础价格。外部客户主表属于 CRM 的 `tb_crm_user`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
+Finance 只管理品牌、币种、汇率和基础价格；国家/地区基础数据已迁到 Skyline 的 `tb_skyline_country`。外部客户主表属于 CRM 的 `tb_crm_user`；`tb_finance_client*` 已由 Schema 增量删除，不得重新建表、接入 TypeORM 或恢复业务写入。
 
 已有 Finance 数据库需要补充国际常用币种时，使用幂等的币种同步命令。它只新增缺失记录，保留已有记录的启用/禁用状态：
 

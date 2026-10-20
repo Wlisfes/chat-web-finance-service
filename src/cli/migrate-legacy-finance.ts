@@ -20,15 +20,11 @@ export const TABLE_MIGRATIONS = [
         columns: 'key_id,currency,rate,date,create_by,modify_by,create_time,modify_time',
         select: "key_id,currency,rate,date,'0','0',create_time,modify_time"
     },
-    {
-        source: 'tb_windows_country',
-        target: 'tb_finance_country',
-        columns: 'key_id,code,mcc,cn_name,en_name,status,create_by,modify_by,create_time,modify_time',
-        select: "key_id,code,mcc,cn_name,en_name,status,'0','0',create_time,modify_time"
-    },
+
     {
         source: 'tb_windows_basic_sms_rate',
         target: 'tb_finance_frozen_sms',
+        // 国家/地区基础数据已迁到 Skyline（保留原 key_id），这里仍按 Finance 库保留的旧表 tb_finance_country 回填 country_key_id，主键与 Skyline 一致。
         columns: 'key_id,country_key_id,code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time',
         select: 'key_id,(SELECT `country`.`key_id` FROM `{targetDatabase}`.`tb_finance_country` AS `country` WHERE `country`.`code` = `legacy`.`code` AND `country`.`mcc` = `legacy`.`mcc`),code,mcc,up_usd,down_usd,remark,create_by,modify_by,create_time,modify_time'
     }

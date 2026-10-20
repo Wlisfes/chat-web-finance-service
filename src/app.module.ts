@@ -8,7 +8,6 @@ import { RedisModule } from '@wlisfes/chat-web-base-schema/redis'
 import { AppController } from '@/app.controller'
 import { AppService } from '@/app.service'
 import { BrandModule } from '@/modules/brand/brand.module'
-import { CountryModule } from '@/modules/country/country.module'
 import { CurrencyModule } from '@/modules/currency/currency.module'
 import { DatabaseModule } from '@/database/database.module'
 import { HealthModule } from '@/health/health.module'
@@ -27,7 +26,6 @@ import { FeignModule } from '@/feign/feign.module'
         HealthModule,
         BrandModule,
         CurrencyModule,
-        CountryModule,
         FrozenModule,
         FeignModule
     ],
