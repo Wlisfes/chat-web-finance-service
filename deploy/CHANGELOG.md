@@ -1,5 +1,15 @@
 # 部署变更记录
 
+## 2026-10-20：国家/地区基础数据迁出到 Skyline
+
+- 影响机器：`chat-home-server`。
+- 变更内容：移除国家/地区模块（`/country/*` 接口）和 `TbFinanceCountry` 实体，短信基础价格新增、编辑、列表回显改为通过 Skyline Feign `httpBaseSkylineColumnCountryResolver` 按 `countryKeyId` 查询；`finance-master-data` 移除 `--sync-countries`。旧表 `tb_finance_country` 暂不删除，仅供旧数据迁移 CLI 回填 `country_key_id`。
+- 依赖：新版 `@wlisfes/chat-web-base-schema`；Skyline 先完成国家/地区迁移上线；管理端同步发布。
+- 机器侧操作：无需修改 `.env` 与 Nacos，继续使用 `gateway.feign.url/timeout/service_token`。
+- 验证命令：`yarn test`；部署后短信基础价格列表国家/地区名称正常回显，新增、编辑、调价正常。
+- 回滚方法：Finance 与管理端同时回退到上一完整 Git SHA 镜像；`tb_finance_country` 数据仍在。
+
+
 ## 2026-10-12：操作人回显切换到 Skyline 账号 Feign
 
 - 影响机器：`chat-home-server`。

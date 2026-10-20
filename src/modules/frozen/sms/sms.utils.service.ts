@@ -1,16 +1,18 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository, DataBaseService, EntityManager, In, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { isNotEmpty, fetchDivNumber, fetchMinusNumner, fetchPlusNumber, fetchTimesNumber } from '@wlisfes/chat-web-base-schema/utils'
+import { ConfigService } from '@nestjs/config'
 import * as SmsConstants from '@/modules/frozen/sms/sms.constants'
-import type * as feign from '@wlisfes/chat-web-base-schema/feign'
+import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 @Injectable()
 export class FrozenSmsUtilsService {
     constructor(
         @InjectRepository(Schema.TbFinanceFrozenSms) private readonly rateRepository: Repository<Schema.TbFinanceFrozenSms>,
-        @InjectRepository(Schema.TbFinanceCountry) private readonly countryRepository: Repository<Schema.TbFinanceCountry>,
-        private readonly database: DataBaseService
+        private readonly database: DataBaseService,
+        private readonly skylineFeignClient: feign.FeignClientSkylineManager,
+        private readonly configService: ConfigService
     ) {}
 
     /**获取短信基础价格详情*/
@@ -103,25 +105,26 @@ export class FrozenSmsUtilsService {
         }
     }
 
-    /**按主键获取国家地区选项*/
-    public async findCountriesByKeyIds(countryKeyIds: number[]): Promise<Schema.TbFinanceCountry[]> {
-        const uniqueKeyIds = [...new Set(countryKeyIds)]
+    /**按主键获取国家地区选项：国家/地区基础数据由 Skyline 维护，通过 Skyline Feign 按 100 个一批查询，不存在的主键直接忽略*/
+    public async findCountriesByKeyIds(countryKeyIds: number[]): Promise<feign.SkylineCountrySummary[]> {
+        const uniqueKeyIds = [...new Set(countryKeyIds)].filter(keyId => Number.isInteger(keyId) && keyId > 0)
         if (uniqueKeyIds.length === 0) {
             return []
         }
-        return this.database.builder(this.countryRepository, qb => {
-            qb.select(['t.keyId', 't.code', 't.mcc', 't.cnName', 't.enName'])
-            qb.where('t.keyId IN (:...countryKeyIds)', { countryKeyIds: uniqueKeyIds })
-            return qb.getMany()
-        })
+        const authorization = feign.resolveFeignServiceAuthorization(this.configService)
+        const groups = Array.from({ length: Math.ceil(uniqueKeyIds.length / 100) }, (_, index) =>
+            uniqueKeyIds.slice(index * 100, (index + 1) * 100)
+        )
+        const results = await Promise.all(
+            groups.map(keyIds => this.skylineFeignClient.httpBaseSkylineColumnCountryResolver(authorization, { keyIds }))
+        )
+        return results.flat()
     }
 
-    /**获取指定国家地区*/
-    public async findCountriesRequired(countryKeyIds: number[]): Promise<Schema.TbFinanceCountry[]> {
-        const countries = await this.database.builder(this.countryRepository, qb => {
-            return qb.where('t.keyId IN (:...countryKeyIds)', { countryKeyIds }).getMany()
-        })
-        if (countries.length !== countryKeyIds.length) {
+    /**获取指定国家地区，有任一不存在时拒绝*/
+    public async findCountriesRequired(countryKeyIds: number[]): Promise<feign.SkylineCountrySummary[]> {
+        const countries = await this.findCountriesByKeyIds(countryKeyIds)
+        if (countries.length !== new Set(countryKeyIds).size) {
             throw new BadRequestException('部分国家/地区不存在')
         }
         return countries

@@ -1,6 +1,6 @@
 # chat-web-finance-service
 
-财务中心微服务，负责品牌、币种、汇率、国家地区和短信基础价格。外部客户由账号服务的 `tb_account_consumer` 统一管理。
+财务中心微服务，负责品牌、币种、汇率和短信基础价格；国家/地区基础数据由 Skyline 服务维护，通过 Skyline Feign 查询。外部客户由账号服务的 `tb_account_consumer` 统一管理。
 
 ```bash
 node scripts/yarn-auth.cjs install --frozen-lockfile --check-files --ignore-scripts

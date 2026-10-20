@@ -1,6 +1,5 @@
 import mysql, { Connection, ResultSetHeader, RowDataPacket } from 'mysql2/promise'
 import { getDatabaseName, loadFinanceDatabaseConfig, loadLocalEnvironment } from '@/cli/database-config'
-import { FINANCE_COUNTRY_DATA } from '@/cli/finance-country-data'
 
 import { assertMysqlDatabaseIsolation } from '@wlisfes/chat-web-base-schema/database'
 export const FINANCE_COMMON_CURRENCIES = [
@@ -50,22 +49,6 @@ export function shouldSyncFinanceCurrencies(argumentsList: readonly string[]): b
     return argumentsList.includes('--sync-currencies')
 }
 
-export function shouldSyncFinanceCountries(argumentsList: readonly string[]): boolean {
-    return argumentsList.includes('--sync-countries')
-}
-
-async function prefixedCodeConflictCount(connection: Connection, table: 'tb_finance_country' | 'tb_finance_frozen_sms'): Promise<number> {
-    const [rows] = await connection.execute<(RowDataPacket & { count: number })[]>(
-        `SELECT COUNT(*) count
-        FROM \`${table}\` legacy
-        INNER JOIN \`${table}\` normalized
-            ON normalized.\`code\` = TRIM(LEADING '+' FROM legacy.\`code\`)
-            AND normalized.\`mcc\` = legacy.\`mcc\`
-        WHERE legacy.\`code\` LIKE '+%'`
-    )
-    return Number(rows[0].count)
-}
-
 /**
  * 将常用币种补充到已有的 Finance 数据库。
  *
@@ -98,58 +81,11 @@ export async function syncFinanceCurrencies(
     }
 }
 
-/**
- * 将国家/地区主数据补充到 Finance 数据库。
- *
- * 以国际区号和代表 MCC 作为唯一键，重复执行只同步名称，不会生成重复数据或覆盖人工维护的启停状态。
- */
-export async function syncFinanceCountries(
-    connection: Connection,
-    database: string,
-    apply: boolean,
-    countries = FINANCE_COUNTRY_DATA
-): Promise<number> {
-    if (!(await tableExists(connection, database, 'tb_finance_country'))) {
-        throw new Error('国家/地区写入目标表不存在：tb_finance_country')
-    }
-    if (!(await tableExists(connection, database, 'tb_finance_frozen_sms'))) {
-        throw new Error('国家/地区关联表不存在：tb_finance_frozen_sms')
-    }
-    if (!apply) return countries.length
-
-    const sql = `INSERT INTO \`tb_finance_country\` (\`code\`, \`mcc\`, \`cn_name\`, \`en_name\`, \`status\`, \`create_by\`, \`modify_by\`)
-        VALUES (?, ?, ?, ?, 'enable', '0', '0')
-        ON DUPLICATE KEY UPDATE
-            \`cn_name\` = VALUES(\`cn_name\`),
-            \`en_name\` = VALUES(\`en_name\`)`
-    await connection.beginTransaction()
-    try {
-        const countryConflicts = await prefixedCodeConflictCount(connection, 'tb_finance_country')
-        const smsRateConflicts = await prefixedCodeConflictCount(connection, 'tb_finance_frozen_sms')
-        if (countryConflicts > 0 || smsRateConflicts > 0) {
-            throw new Error(`国家区号格式转换存在重复记录：country=${countryConflicts}, smsRate=${smsRateConflicts}`)
-        }
-        await connection.execute(`UPDATE \`tb_finance_country\`
-            SET \`code\` = TRIM(LEADING '+' FROM \`code\`)
-            WHERE \`code\` LIKE '+%'`)
-        await connection.execute(`UPDATE \`tb_finance_frozen_sms\`
-            SET \`code\` = TRIM(LEADING '+' FROM \`code\`)
-            WHERE \`code\` LIKE '+%'`)
-        for (const item of countries) await connection.execute<ResultSetHeader>(sql, [item.code, item.mcc, item.cnName, item.enName])
-        await connection.commit()
-        return countries.length
-    } catch (error) {
-        await connection.rollback()
-        throw error
-    }
-}
-
 async function main(): Promise<void> {
     loadLocalEnvironment()
     const argumentsList = process.argv.slice(2)
     const apply = shouldApplyFinanceMasterData(argumentsList)
     const syncCurrencies = shouldSyncFinanceCurrencies(argumentsList)
-    const syncCountries = shouldSyncFinanceCountries(argumentsList)
     const config = await loadFinanceDatabaseConfig()
     const database = getDatabaseName(config)
     const connection = await mysql.createConnection({
@@ -166,18 +102,13 @@ async function main(): Promise<void> {
             grantRows.flatMap(row => Object.values(row).filter((value): value is string => typeof value === 'string')),
             database
         )
-        if (syncCountries) {
-            const count = await syncFinanceCountries(connection, database, apply)
-            process.stdout.write(
-                `${JSON.stringify({ mode: apply ? 'apply' : 'dry-run', target: 'tb_finance_country', database, count }, null, 2)}\n`
-            )
-        } else if (syncCurrencies) {
+        if (syncCurrencies) {
             const count = await syncFinanceCurrencies(connection, database, apply)
             process.stdout.write(
                 `${JSON.stringify({ mode: apply ? 'apply' : 'dry-run', target: 'tb_finance_currency', database, count }, null, 2)}\n`
             )
         } else {
-            throw new Error('必须指定 --sync-countries 或 --sync-currencies')
+            throw new Error('必须指定 --sync-currencies；国家/地区基础数据已迁移到 Skyline 服务维护')
         }
     } finally {
         await connection.end()

@@ -53,7 +53,7 @@ test('短信价格 Feign 批量查询去重、忽略未配置价格，单条查�
             return callback(qb)
         }
     }
-    const service = Object.assign(new FrozenSmsUtilsService({}, {}, database), {
+    const service = Object.assign(new FrozenSmsUtilsService({}, database, {}, {}), {
         async findCountriesByKeyIds() {
             return [
                 { keyId: 1, code: '86', mcc: '460', cnName: '中国', enName: 'China' },
@@ -77,7 +77,7 @@ test('短信价格新增和编辑在事务内完成组合唯一性校验与写�
     const { manager, repository } = fakeTransactionalRepository()
     const calls = []
     const existingRate = { keyId: 18, code: '86', mcc: '460', upUsd: 20000, downUsd: 10000, createBy: '10001', modifyBy: '10001' }
-    const frozenSmsUtilsService = Object.assign(new FrozenSmsUtilsService({}, {}, {}), {
+    const frozenSmsUtilsService = Object.assign(new FrozenSmsUtilsService({}, {}, {}, {}), {
         async findCountriesRequired(countryKeyIds) {
             calls.push({ method: 'findCountriesRequired', countryKeyIds })
             return countryKeyIds[0] === 1001 ? [{ keyId: 1001, code: '1', mcc: '310' }] : [{ keyId: 1002, code: '852', mcc: '454' }]
@@ -156,7 +156,7 @@ test('短信基础价格分页通过 Feign 补全创建人和修改人', async (
     }
     const calls = []
     const database = { builder: (repository, callback) => callback(qb) }
-    const frozenSmsUtilsService = Object.assign(new FrozenSmsUtilsService({}, {}, {}), {
+    const frozenSmsUtilsService = Object.assign(new FrozenSmsUtilsService({}, {}, {}, {}), {
         async findCountriesByKeyIds() {
             return [{ keyId: 1, code: '86', mcc: '460', cnName: '中国' }]
         }
@@ -191,7 +191,7 @@ test('批量调价按金额和百分比计算，并在价格小于 0 时整批�
     const { repository } = fakeTransactionalRepository()
     let rates = []
     // 使用真实工具服务的校验和计算逻辑，只替换数据库查询。
-    const frozenSmsUtilsService = Object.assign(new FrozenSmsUtilsService({}, {}, {}), {
+    const frozenSmsUtilsService = Object.assign(new FrozenSmsUtilsService({}, {}, {}, {}), {
         async findListRequired(countryKeyIds) {
             return rates.filter(rate => countryKeyIds.includes(rate.countryKeyId))
         }
@@ -270,4 +270,28 @@ test('短信基础价格枚举返回调价方式', async () => {
             ['decrease_percent', '按百分比下调']
         ]
     )
+})
+
+test('短信基础价格通过 Skyline Feign 查询国家/地区，按 100 个分批并校验必需国家/地区', async () => {
+    const calls = []
+    const skylineFeignClient = {
+        async httpBaseSkylineColumnCountryResolver(authorization, input) {
+            calls.push({ authorization, keyIds: input.keyIds })
+            return input.keyIds
+                .filter(keyId => keyId !== 404)
+                .map(keyId => ({ keyId, code: '86', mcc: '460', cnName: '中国', enName: 'China' }))
+        }
+    }
+    const configService = { get: key => (key === 'gateway.feign.service_token' ? 'service-token' : undefined) }
+    const service = new FrozenSmsUtilsService({}, {}, skylineFeignClient, configService)
+    const keyIds = Array.from({ length: 150 }, (_, index) => index + 1)
+    const countries = await service.findCountriesByKeyIds([...keyIds, 1, 0])
+    assert.equal(countries.length, 150)
+    assert.deepEqual(
+        calls.map(call => call.keyIds.length),
+        [100, 50]
+    )
+    assert.equal(calls[0].authorization, 'Bearer service-token')
+    assert.deepEqual(await service.findCountriesByKeyIds([]), [])
+    await assert.rejects(() => service.findCountriesRequired([1, 404]), /部分国家\/地区不存在/)
 })

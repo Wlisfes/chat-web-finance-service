@@ -118,7 +118,7 @@ export class FluctuateFrozenSmsResponseDto {
 }
 
 /** FrozenSmsListItemResponseDto.countryOptions 字段结构；分页查询短信基础价格响应：POST /frozen/sms/column。 */
-export class FrozenSmsCountryOptionsResponseDto extends PickType(Schema.TbFinanceCountryDto, [
+export class FrozenSmsCountryOptionsResponseDto extends PickType(feign.SkylineCountrySummaryResponseDto, [
     'keyId',
     'code',
     'mcc',
