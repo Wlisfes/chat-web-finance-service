@@ -1,6 +1,12 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
-const { TABLE_MIGRATIONS, buildInsertSelectSql, migrateLegacyTables, shouldApplyMigration } = require('../dist/cli/migrate-legacy-finance')
+const {
+    TABLE_MIGRATIONS,
+    buildInsertSelectSql,
+    buildCountryKeyIdSql,
+    migrateLegacyTables,
+    shouldApplyMigration
+} = require('../dist/cli/migrate-legacy-finance')
 
 function fakeMigrationConnection() {
     const sourceTables = new Set(['tb_windows_brand'])
@@ -74,10 +80,12 @@ test('迁移币种时以系统账号回填操作人字段', () => {
     assert.match(sql, /SELECT `legacy`.`key_id`,`legacy`.`currency`,`legacy`.`name`,`legacy`.`symbol`,`legacy`.`status`,'0','0',/)
 })
 
-test('迁移短信基础价格时按区号和 MCC 回填国家/地区主键', () => {
+test('迁移短信基础价格时按 Skyline Feign 返回的区号和 MCC 回填国家/地区主键', () => {
     const sms = TABLE_MIGRATIONS.find(item => item.source === 'tb_windows_basic_sms_rate')
-    const sql = buildInsertSelectSql(sms, 'legacy_windows', 'chat_web_finance')
+    const sql = buildInsertSelectSql(sms, 'legacy_windows', 'chat_web_finance', [{ code: '86', mcc: '460', keyId: 1000 }])
     assert.match(sql, /\(`key_id`,`country_key_id`,`code`,`mcc`,/)
-    assert.match(sql, /FROM `chat_web_finance`.`tb_finance_country` AS `country` WHERE `country`.`code` = `legacy`.`code`/)
+    assert.match(sql, /SELECT '86' AS `code`, '460' AS `mcc`, 1000 AS `key_id`/)
+    assert.equal(sql.includes('tb_finance_country'), false)
     assert.match(sql, /FROM `legacy_windows`.`tb_windows_basic_sms_rate` AS `legacy`$/)
+    assert.match(buildCountryKeyIdSql([{ code: '44', mcc: '234', keyId: 1005 }]), /1005 AS `key_id`/)
 })
