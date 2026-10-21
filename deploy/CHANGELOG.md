@@ -1,5 +1,14 @@
 # 部署变更记录
 
+## 2026-10-21：旧财务导入改为调用 Skyline 国家 Feign
+
+- 影响机器：仅手动执行 `migrate-legacy-finance` 时；日常服务部署不改端口、健康检查或 Nacos。
+- 变更内容：短信基础价格回填 `country_key_id` 不再查询 `tb_finance_country`，改为调用 Skyline Feign `POST /feign/skyline/country/column/code/resolve`，按国际区号和 MCC 解析主键。
+- 依赖：Skyline 需先发布包含该 Feign 的版本。
+- 机器侧操作：无需修改 `.env`。执行导入前确认 Nacos `gateway.feign.url` 和 `gateway.feign.service_token` 可用。
+- 验证命令：`yarn test`。
+- 回滚方法：回退本服务 CLI 镜像；旧表 `tb_finance_country` 仍保留。
+
 ## 2026-10-20：国家/地区基础数据迁出到 Skyline
 
 - 影响机器：`chat-home-server`。

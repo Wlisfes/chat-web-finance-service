@@ -48,6 +48,23 @@ export function identifier(value: string, label: string): string {
     return value
 }
 
+export async function loadNacosConfig(): Promise<Record<string, unknown>> {
+    const server = required('NACOS_SERVER')
+    const baseUrl = /^https?:\/\//i.test(server) ? server : `http://${server}`
+    const params = new URLSearchParams({
+        dataId: required('NACOS_CONFIG_DATA_ID'),
+        group: process.env.NACOS_CONFIG_GROUP?.trim() || process.env.NACOS_GROUP?.trim() || 'DEFAULT_GROUP',
+        tenant: process.env.NACOS_NAMESPACE?.trim() || 'public'
+    })
+    const accessToken = await getNacosAccessToken(baseUrl)
+    if (accessToken) params.set('accessToken', accessToken)
+    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/nacos/v1/cs/configs?${params}`)
+    if (!response.ok) throw new Error(`读取 Nacos 配置失败：HTTP ${response.status}`)
+    const parsed = yaml.load(await response.text())
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Nacos 配置格式错误')
+    return parsed as Record<string, unknown>
+}
+
 export async function loadFinanceDatabaseConfig(): Promise<DatabaseConfig> {
     const directHost = process.env.FINANCE_MYSQL_HOST?.trim()
     const directUser = process.env.FINANCE_MYSQL_USERNAME?.trim()
@@ -65,19 +82,8 @@ export async function loadFinanceDatabaseConfig(): Promise<DatabaseConfig> {
         }
     }
 
-    const server = required('NACOS_SERVER')
-    const baseUrl = /^https?:\/\//i.test(server) ? server : `http://${server}`
-    const params = new URLSearchParams({
-        dataId: required('NACOS_CONFIG_DATA_ID'),
-        group: process.env.NACOS_CONFIG_GROUP?.trim() || process.env.NACOS_GROUP?.trim() || 'DEFAULT_GROUP',
-        tenant: process.env.NACOS_NAMESPACE?.trim() || 'public'
-    })
-    const accessToken = await getNacosAccessToken(baseUrl)
-    if (accessToken) params.set('accessToken', accessToken)
-    const response = await fetch(`${baseUrl.replace(/\/$/, '')}/nacos/v1/cs/configs?${params}`)
-    if (!response.ok) throw new Error(`读取 Nacos 配置失败：HTTP ${response.status}`)
-    const parsed = yaml.load(await response.text()) as Record<string, unknown>
-    const databaseRoot = parsed?.database as Record<string, unknown> | undefined
+    const parsed = await loadNacosConfig()
+    const databaseRoot = parsed.database as Record<string, unknown> | undefined
     const database = databaseRoot?.['chat-web-finance']
     if (!database || typeof database !== 'object' || Array.isArray(database)) {
         throw new Error('缺少 Nacos 数据库配置节点：database.chat-web-finance')
