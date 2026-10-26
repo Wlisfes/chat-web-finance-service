@@ -295,3 +295,39 @@ test('短信基础价格通过 Skyline Feign 查询国家/地区，按 100 个�
     assert.deepEqual(await service.findCountriesByKeyIds([]), [])
     await assert.rejects(() => service.findCountriesRequired([1, 404]), /部分国家\/地区不存在/)
 })
+
+test('simbank 基础成本价格 Feign 批量查询读取 simbank 表、去重并忽略未配置价格', async () => {
+    const { FrozenSimbankUtilsService } = require('../dist/modules/frozen/simbank/simbank.utils.service')
+    const queries = []
+    const database = {
+        async builder(repository, callback) {
+            queries.push(repository.name)
+            const qb = {
+                select() {
+                    return qb
+                },
+                where(_sql, params) {
+                    queries.push(params.countryKeyIds)
+                    return qb
+                },
+                async getMany() {
+                    return [{ countryKeyId: 2, upUsd: 1500, downUsd: 4500 }]
+                }
+            }
+            return callback(qb)
+        }
+    }
+    const service = Object.assign(new FrozenSimbankUtilsService({ name: 'simbank-repository' }, database, {}, {}), {
+        async findCountriesByKeyIds() {
+            return [{ keyId: 2, code: '1', mcc: '310', cnName: '美国', enName: 'United States' }]
+        }
+    })
+    assert.deepEqual(await service.findColumnResolver([2, 2, 3]), [
+        { countryKeyId: 2, code: '1', mcc: '310', cnName: '美国', enName: 'United States', upUsd: 1500, downUsd: 4500 }
+    ])
+    assert.deepEqual(queries, ['simbank-repository', [2, 3]])
+    await assert.rejects(
+        () => Object.assign(service, { findColumnResolver: async () => [] }).findResolver(9),
+        error => error.status === 404 && /simbank 基础成本价格/.test(error.message)
+    )
+})

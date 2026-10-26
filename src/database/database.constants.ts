@@ -1,5 +1,6 @@
 import {
     TbFinanceFrozenSms,
+    TbFinanceFrozenSimbank,
     TbFinanceBrand,
     TbFinanceCurrency,
     TbFinanceCurrencyExchange
@@ -9,4 +10,10 @@ import {
 export const FINANCE_MYSQL_CONFIG_KEY = 'database.chat-web-finance'
 
 /** Finance 数据库包含的全部 TypeORM 实体。 */
-export const FINANCE_MYSQL_ENTITIES = [TbFinanceBrand, TbFinanceCurrency, TbFinanceCurrencyExchange, TbFinanceFrozenSms]
+export const FINANCE_MYSQL_ENTITIES = [
+    TbFinanceBrand,
+    TbFinanceCurrency,
+    TbFinanceCurrencyExchange,
+    TbFinanceFrozenSms,
+    TbFinanceFrozenSimbank
+]
