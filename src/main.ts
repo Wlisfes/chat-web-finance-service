@@ -15,32 +15,11 @@ const logger = new ReadableConsoleLogger({
     prefix: process.env.NACOS_SERVICE_NAME
 })
 
-const requestLoggingMiddleware = createRequestLoggingMiddleware(process.env.NACOS_SERVICE_NAME)
-
-function shouldSkipRequestLog(requestUrl: string | undefined): boolean {
-    const pathname = (requestUrl || '/').split('?')[0]
-    return (
-        pathname === '/api/swagger' ||
-        pathname.includes('/api/swagger/') ||
-        pathname.endsWith('/api/swagger-json') ||
-        pathname.endsWith('/doc.html') ||
-        pathname.endsWith('/services.json') ||
-        pathname.endsWith('/favicon.ico') ||
-        /\.(?:png|jpe?g|gif|svg|webp|ico|bmp|pdf|zip|xlsx|xls|docx|doc|csv)$/i.test(pathname) ||
-        /\/(?:attachment|attachments|upload|uploads|download|downloads|file|files)\/.+/i.test(pathname)
-    )
-}
 async function bootstrap() {
     const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger })
     app.enableShutdownHooks()
     app.use(requestContextMiddleware)
-    app.use((request, response, next) => {
-        if (shouldSkipRequestLog(request.originalUrl || request.url)) {
-            next()
-            return
-        }
-        requestLoggingMiddleware(request, response, next)
-    })
+    app.use(createRequestLoggingMiddleware(process.env.NACOS_SERVICE_NAME))
     await setupSwagger(app, {
         title: 'Chat Web 财务服务 API',
         description: '品牌、币种、汇率、国家地区与基础价格管理接口',

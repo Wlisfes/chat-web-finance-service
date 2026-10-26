@@ -4,6 +4,7 @@ import { BrandUtilsService } from '@/modules/brand/brand.utils.service'
 import { CurrencyService } from '@/modules/currency/currency.service'
 import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
 import { FrozenSmsUtilsService } from '@/modules/frozen/sms/sms.utils.service'
+import { FrozenSimbankUtilsService } from '@/modules/frozen/simbank/simbank.utils.service'
 
 /** 统一编排财务服务对外暴露的业务 Feign 调用，实现与业务模块保持单向依赖。 */
 @Injectable()
@@ -11,6 +12,7 @@ export class FeignService extends FeignSchema.FeignClientFinanceManager implemen
     constructor(
         private readonly brandUtilsService: BrandUtilsService,
         private readonly frozenSmsUtilsService: FrozenSmsUtilsService,
+        private readonly frozenSimbankUtilsService: FrozenSimbankUtilsService,
         private readonly currencyService: CurrencyService,
         private readonly currencyExchangeSyncService: CurrencyExchangeSyncService
     ) {
@@ -48,6 +50,14 @@ export class FeignService extends FeignSchema.FeignClientFinanceManager implemen
         input: FeignSchema.FinanceFrozenSmsResolverRequest
     ): Promise<FeignSchema.FinanceFrozenSmsSummary> {
         return this.frozenSmsUtilsService.findResolver(input.countryKeyId)
+    }
+
+    /** 按国家/地区主键批量获取 simbank 基础成本价格。 */
+    public override async httpBaseFinanceColumnFrozenSimbankResolver(
+        _authorization: string,
+        input: FeignSchema.FinanceColumnFrozenSmsResolverRequest
+    ): Promise<FeignSchema.FinanceFrozenSimbankSummary[]> {
+        return this.frozenSimbankUtilsService.findColumnResolver(input.countryKeyIds ?? [])
     }
 
     /** 按币种获取最新汇率。 */
