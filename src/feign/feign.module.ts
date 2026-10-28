@@ -4,9 +4,10 @@ import { CurrencyModule } from '@/modules/currency/currency.module'
 import { FeignController } from '@/feign/feign.controller'
 import { FeignService } from '@/feign/feign.service'
 import { FrozenModule } from '@/modules/frozen/frozen.module'
+import { SrmUserModule } from '@/modules/srm-user/srm-user.module'
 
 @Module({
-    imports: [BrandModule, CurrencyModule, FrozenModule],
+    imports: [BrandModule, CurrencyModule, FrozenModule, SrmUserModule],
     controllers: [FeignController],
     providers: [FeignService]
 })

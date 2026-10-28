@@ -730,10 +730,10 @@
     "@webassemblyjs/ast" "1.14.1"
     "@xtuc/long" "4.2.2"
 
-"@wlisfes/chat-web-base-schema@1.7.11":
-  version "1.7.11"
-  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.7.11/6719772708b53e388caabfb59b6a650b3e42e5ce#6719772708b53e388caabfb59b6a650b3e42e5ce"
-  integrity sha512-1+jFbdUteB90fZ/O8n8Wbr8pCcvdNlet/ff4agM1clyNTWmXMmXfnh7fqwUk+oCLv5C7wQPYBbDgJz+dhNt8oA==
+"@wlisfes/chat-web-base-schema@1.7.18":
+  version "1.7.18"
+  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.7.18/712007df238aedb1da9f8087116f3c13c22df7b1#712007df238aedb1da9f8087116f3c13c22df7b1"
+  integrity sha512-i6Va9S0LJZuKCeF8qJdwbUMEkvvPbF6+Ns+miXqBmlN+UorKueCjEboi8m+CRnKuEuMkpEylVqQ3B3dG/OeNsA==
   dependencies:
     "@opentelemetry/api" "^1.9.0"
     "@types/lodash" "^4.17.25"
@@ -839,6 +839,11 @@ ajv@^8.0.0, ajv@^8.9.0:
     fast-uri "^3.0.1"
     json-schema-traverse "^1.0.0"
     require-from-string "^2.0.2"
+
+amqplib@2.2.0:
+  version "2.2.0"
+  resolved "https://registry.npmmirror.com/amqplib/-/amqplib-2.2.0.tgz#9d70d20d4d04306abb22cadf2431259b3b5e68a9"
+  integrity sha512-VifzN9aHs/Q3zTruVHXh2yCisQyXexBN91CQ2E5iSyUKyNjH6ilYhJGte5AXZH/Bj1PaH7SwPhyuSf6Msd2udw==
 
 ansi-colors@4.1.3:
   version "4.1.3"
