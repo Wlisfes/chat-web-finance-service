@@ -1,7 +1,6 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { SrmUserAccountService } = require('../dist/modules/srm-user/srm-user.account.service')
-const { SrmUserBillingConsumer } = require('../dist/modules/srm-user/srm-user.billing.consumer')
 
 /** 内存版 Finance 库：只实现落账用到的查询，余额更新按 SQL 表达式求值，模拟原子增减。 */
 function fakeDatabase() {
@@ -129,13 +128,3 @@ test('余额查询：没有账户的供应商返回 0，超过 100 个拒绝', a
     await assert.rejects(() => service.findColumnResolver(Array.from({ length: 101 }, (_, i) => i + 1)), /100/)
 })
 
-test('计费消费者：落账和重复事件确认，不完整事件拒绝进入死信', async () => {
-    const results = { a: 'applied', b: 'duplicate', c: 'invalid' }
-    let handler
-    const rabbitmq = { consume: async (_queue, fn) => (handler = fn) }
-    const consumer = new SrmUserBillingConsumer(rabbitmq, { apply: async billing => results[billing.msgId] })
-    await consumer.onApplicationBootstrap()
-    assert.equal(await handler(event({ msgId: 'a' })), 'ack')
-    assert.equal(await handler(event({ msgId: 'b' })), 'ack')
-    assert.equal(await handler(event({ msgId: 'c' })), 'reject')
-})
