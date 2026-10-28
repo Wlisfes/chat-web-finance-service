@@ -127,4 +127,3 @@ test('余额查询：没有账户的供应商返回 0，超过 100 个拒绝', a
     ])
     await assert.rejects(() => service.findColumnResolver(Array.from({ length: 101 }, (_, i) => i + 1)), /100/)
 })
-
