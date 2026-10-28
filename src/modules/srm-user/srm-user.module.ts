@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common'
 import { SrmUserAccountService } from '@/modules/srm-user/srm-user.account.service'
-import { SrmUserBillingConsumer } from '@/modules/srm-user/srm-user.billing.consumer'
 
-/** 供应商计费模块：消费 Dispatch 发布的计费事件落账，并向 SRM 提供供应商余额查询。不对接前端。 */
+/** 供应商余额查询。扣费已改由 Charge 服务处理，本模块不再消费计费事件。 */
 @Module({
-    providers: [SrmUserAccountService, SrmUserBillingConsumer],
+    providers: [SrmUserAccountService],
     exports: [SrmUserAccountService]
 })
 export class SrmUserModule {}
