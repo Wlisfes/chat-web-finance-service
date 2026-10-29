@@ -11,7 +11,7 @@ import {
 import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-/** 供应商钱包：创建和查询。启动时为现有钱包补齐 Redis 哈希，余额用 HINCRBY 原子扣减。 */
+/** 供应商钱包：创建、查询和余额回写。启动时为现有钱包补齐 Redis 哈希，余额用 HINCRBY 原子扣减，定时任务把 Redis 余额同步回钱包表。 */
 @Injectable()
 export class SrmUserService implements OnApplicationBootstrap, OnApplicationShutdown {
     private readonly logger = new Logger(SrmUserService.name)
@@ -82,6 +82,51 @@ export class SrmUserService implements OnApplicationBootstrap, OnApplicationShut
             .orIgnore()
             .updateEntity(false)
             .execute()
+    }
+
+    /**
+     * 把 Redis 中的最新余额同步回钱包表，由 Task 服务每分钟触发一次。
+     * Redis 是余额的实时来源，钱包表只做持久化快照；只写回不一致的钱包，Redis 缺少钱包时用钱包表补齐 Redis。
+     * 单个钱包的 Redis 余额格式错误时跳过并记录，不影响其他钱包。
+     */
+    public async syncWalletBalance(): Promise<feign.FinanceSrmUserWalletSyncResponse> {
+        const result: feign.FinanceSrmUserWalletSyncResponse = { total: 0, updated: 0, unchanged: 0, restored: 0, invalidUserKeyIds: [] }
+        const repository = this.dataSource.getRepository(Schema.TbFinanceSrmUserWallet)
+        let lastKeyId = 0
+        for (;;) {
+            const wallets = await repository.find({
+                where: { keyId: MoreThan(lastKeyId) },
+                select: { keyId: true, userKeyId: true, balance: true, credit: true },
+                order: { keyId: 'ASC' },
+                take: SRM_WALLET_CACHE_BATCH_SIZE
+            })
+            if (wallets.length === 0) break
+            for (const wallet of wallets) {
+                result.total += 1
+                const snapshot = await this.redisService.hGetAll(srmWalletRedisKey(wallet.userKeyId))
+                if (Object.keys(snapshot).length === 0) {
+                    await this.cacheIfMissing(wallet)
+                    result.restored += 1
+                    continue
+                }
+                let balance: number
+                try {
+                    balance = this.parseRedisAmount(wallet.userKeyId, '余额', snapshot[SRM_WALLET_BALANCE_FIELD])
+                } catch (error) {
+                    this.logger.warn(`供应商钱包余额同步跳过：${error instanceof Error ? error.message : String(error)}`)
+                    result.invalidUserKeyIds.push(wallet.userKeyId)
+                    continue
+                }
+                if (balance === Number(wallet.balance)) {
+                    result.unchanged += 1
+                    continue
+                }
+                await repository.update({ keyId: wallet.keyId }, { balance })
+                result.updated += 1
+            }
+            lastKeyId = wallets[wallets.length - 1].keyId
+        }
+        return result
     }
 
     /** 分批读取所有钱包，只给 Redis 中还没有缓存的钱包写入余额和信用额度。 */
