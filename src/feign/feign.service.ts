@@ -5,7 +5,7 @@ import { CurrencyService } from '@/modules/currency/currency.service'
 import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
 import { FrozenSmsUtilsService } from '@/modules/frozen/sms/sms.utils.service'
 import { FrozenSimbankUtilsService } from '@/modules/frozen/simbank/simbank.utils.service'
-import { SrmUserAccountService } from '@/modules/srm-user/srm-user.account.service'
+import { SrmUserService } from '@/modules/srm/user/user.service'
 
 /** 统一编排财务服务对外暴露的业务 Feign 调用，实现与业务模块保持单向依赖。 */
 @Injectable()
@@ -14,7 +14,7 @@ export class FeignService extends FeignSchema.FeignClientFinanceManager implemen
         private readonly brandUtilsService: BrandUtilsService,
         private readonly frozenSmsUtilsService: FrozenSmsUtilsService,
         private readonly frozenSimbankUtilsService: FrozenSimbankUtilsService,
-        private readonly srmUserAccountService: SrmUserAccountService,
+        private readonly srmUserService: SrmUserService,
         private readonly currencyService: CurrencyService,
         private readonly currencyExchangeSyncService: CurrencyExchangeSyncService
     ) {
@@ -62,12 +62,20 @@ export class FeignService extends FeignSchema.FeignClientFinanceManager implemen
         return this.frozenSimbankUtilsService.findColumnResolver(input.countryKeyIds ?? [])
     }
 
-    /** 按供应商主键批量获取供应商账户余额。 */
+    /** 按供应商主键批量获取供应商钱包。 */
     public override async httpBaseFinanceColumnSrmUserResolver(
         _authorization: string,
         input: FeignSchema.FinanceColumnSrmUserResolverRequest
     ): Promise<FeignSchema.FinanceSrmUserSummary[]> {
-        return this.srmUserAccountService.findColumnResolver(input.userKeyIds ?? [])
+        return this.srmUserService.findColumnResolver(input.userKeyIds ?? [])
+    }
+
+    /** 为新建供应商创建钱包，并写入 Redis。 */
+    public override async httpBaseFinanceCreateSrmUserWallet(
+        _authorization: string,
+        input: FeignSchema.FinanceCreateSrmUserWalletRequest
+    ): Promise<FeignSchema.FinanceSrmUserWallet> {
+        return this.srmUserService.create(input)
     }
 
     /** 按币种获取最新汇率。 */

@@ -13,7 +13,7 @@ import { DatabaseModule } from '@/database/database.module'
 import { HealthModule } from '@/health/health.module'
 import { FrozenModule } from '@/modules/frozen/frozen.module'
 import { FeignModule } from '@/feign/feign.module'
-import { SrmUserModule } from '@/modules/srm-user/srm-user.module'
+import { SrmModule } from '@/modules/srm/srm.module'
 
 @Module({
     imports: [
@@ -28,7 +28,7 @@ import { SrmUserModule } from '@/modules/srm-user/srm-user.module'
         BrandModule,
         CurrencyModule,
         FrozenModule,
-        SrmUserModule,
+        SrmModule,
         FeignModule
     ],
     controllers: [AppController],
