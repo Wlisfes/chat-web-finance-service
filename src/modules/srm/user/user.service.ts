@@ -1,17 +1,35 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common'
 import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
-import { DataSource, EntityManager, InjectDataSource } from '@wlisfes/chat-web-base-schema/database'
-import { SRM_USER_RESOLVE_LIMIT, SRM_WALLET_BALANCE_FIELD, srmWalletRedisKey } from '@/modules/srm/user/user.constants'
+import { DataSource, EntityManager, InjectDataSource, MoreThan } from '@wlisfes/chat-web-base-schema/database'
+import {
+    SRM_USER_RESOLVE_LIMIT,
+    SRM_WALLET_BALANCE_FIELD,
+    SRM_WALLET_CACHE_BATCH_SIZE,
+    SRM_WALLET_CACHE_RETRY_MS,
+    srmWalletRedisKey
+} from '@/modules/srm/user/user.constants'
 import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-/** 供应商钱包：创建和查询。创建后按字段写入 Redis 哈希，余额用 HINCRBY 原子扣减。 */
+/** 供应商钱包：创建和查询。启动时为现有钱包补齐 Redis 哈希，余额用 HINCRBY 原子扣减。 */
 @Injectable()
-export class SrmUserService {
+export class SrmUserService implements OnApplicationBootstrap, OnApplicationShutdown {
+    private readonly logger = new Logger(SrmUserService.name)
+    private retryTimer?: NodeJS.Timeout
+
     constructor(
         @InjectDataSource() private readonly dataSource: DataSource,
         private readonly redisService: RedisService
     ) {}
+
+    /** 启动后为现有供应商钱包补齐 Redis 缓存；Redis 未就绪时稍后重试，不阻塞服务启动。 */
+    public async onApplicationBootstrap(): Promise<void> {
+        await this.syncExistingWalletCache()
+    }
+
+    public onApplicationShutdown(): void {
+        if (this.retryTimer) clearTimeout(this.retryTimer)
+    }
 
     /** 为新建供应商创建钱包。已有钱包不重置余额，创建或确认后刷新 Redis。 */
     public async create(input: feign.FinanceCreateSrmUserWalletRequest): Promise<feign.FinanceSrmUserWallet> {
@@ -66,14 +84,45 @@ export class SrmUserService {
             .execute()
     }
 
+    /** 分批读取所有钱包，只给 Redis 中还没有缓存的钱包写入余额和信用额度。 */
+    private async syncExistingWalletCache(): Promise<void> {
+        try {
+            let lastKeyId = 0
+            let created = 0
+            for (;;) {
+                const wallets = await this.dataSource.getRepository(Schema.TbFinanceSrmUserWallet).find({
+                    where: { keyId: MoreThan(lastKeyId) },
+                    select: { keyId: true, userKeyId: true, balance: true, credit: true },
+                    order: { keyId: 'ASC' },
+                    take: SRM_WALLET_CACHE_BATCH_SIZE
+                })
+                if (wallets.length === 0) break
+                for (const wallet of wallets) {
+                    if (await this.cacheIfMissing(wallet)) created += 1
+                }
+                lastKeyId = wallets[wallets.length - 1].keyId
+            }
+            this.logger.log(`供应商钱包 Redis 缓存已补齐：新增=${created}`)
+        } catch (error) {
+            this.logger.warn(
+                `供应商钱包 Redis 缓存补齐失败，${SRM_WALLET_CACHE_RETRY_MS}ms 后重试：${error instanceof Error ? error.message : String(error)}`
+            )
+            this.retryTimer = setTimeout(() => void this.syncExistingWalletCache(), SRM_WALLET_CACHE_RETRY_MS)
+        }
+    }
+
+    /** Redis 已有钱包时保留最新余额；不存在时用数据库余额初始化。 */
+    private async cacheIfMissing(wallet: Pick<Schema.TbFinanceSrmUserWallet, 'userKeyId' | 'balance' | 'credit'>): Promise<boolean> {
+        const key = srmWalletRedisKey(wallet.userKeyId)
+        if (Object.keys(await this.redisService.hGetAll(key)).length > 0) return false
+        await this.redisService.hMSet(key, { [SRM_WALLET_BALANCE_FIELD]: wallet.balance, credit: wallet.credit })
+        return true
+    }
+
     private async cacheSaved(userKeyId: number): Promise<feign.FinanceSrmUserWallet> {
         const saved = await this.dataSource.getRepository(Schema.TbFinanceSrmUserWallet).findOneOrFail({ where: { userKeyId } })
-        const snapshot = this.toSnapshot(saved)
-        await this.redisService.hMSet(srmWalletRedisKey(saved.userKeyId), {
-            [SRM_WALLET_BALANCE_FIELD]: snapshot.balance,
-            credit: snapshot.credit
-        })
-        return snapshot
+        await this.cacheIfMissing(saved)
+        return this.toSnapshot(saved)
     }
 
     private toSnapshot(wallet: Schema.TbFinanceSrmUserWallet): feign.FinanceSrmUserWallet {
