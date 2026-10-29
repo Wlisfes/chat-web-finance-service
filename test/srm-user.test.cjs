@@ -22,7 +22,11 @@ function fakeDatabase() {
             if (!row) throw new Error('not found')
             return row
         },
-        find: async ({ where }) => accounts.filter(row => where.userKeyId._value.includes(row.userKeyId))
+        find: async ({ where, take }) =>
+            accounts
+                .filter(row => row.keyId > where.keyId._value)
+                .sort((left, right) => left.keyId - right.keyId)
+                .slice(0, take)
     })
     const manager = {
         createQueryBuilder: () => {
@@ -34,7 +38,8 @@ function fakeDatabase() {
                 orIgnore: () => builder,
                 updateEntity: () => builder,
                 execute: async () => {
-                    if (!accounts.some(item => item.userKeyId === state.values.userKeyId)) accounts.push({ ...state.values })
+                    if (!accounts.some(item => item.userKeyId === state.values.userKeyId))
+                        accounts.push({ keyId: accounts.length + 1, ...state.values })
                     return {}
                 }
             }
@@ -87,4 +92,14 @@ test('钱包查询：Redis 金额格式错误时拒绝返回', async () => {
     await service.create({ userKeyId: 4001, currency: 'USD', payMode: 'prepaid' })
     snapshots.set('chat-web-finance:srm:wallet:4001', { credit: '0' })
     await assert.rejects(() => service.findColumnResolver([4001]), /Redis 余额缺失或格式错误/)
+})
+
+test('启动时为现有钱包补齐 Redis 缓存，已有缓存不覆盖最新余额', async () => {
+    const db = fakeDatabase()
+    db.accounts.push({ keyId: 1, userKeyId: 5001, balance: 100, credit: 10 }, { keyId: 2, userKeyId: 5002, balance: 200, credit: 20 })
+    const snapshots = new Map([['chat-web-finance:srm:wallet:5002', { balance: '150', credit: '20' }]])
+    const service = new SrmUserService(db.dataSource, redis([], snapshots))
+    await service.onApplicationBootstrap()
+    assert.deepEqual(snapshots.get('chat-web-finance:srm:wallet:5001'), { balance: '100', credit: '10' })
+    assert.deepEqual(snapshots.get('chat-web-finance:srm:wallet:5002'), { balance: '150', credit: '20' })
 })
