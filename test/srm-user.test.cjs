@@ -26,7 +26,12 @@ function fakeDatabase() {
             accounts
                 .filter(row => row.keyId > where.keyId._value)
                 .sort((left, right) => left.keyId - right.keyId)
-                .slice(0, take)
+                .slice(0, take),
+        update: async ({ keyId }, values) =>
+            Object.assign(
+                accounts.find(item => item.keyId === keyId),
+                values
+            )
     })
     const manager = {
         createQueryBuilder: () => {
@@ -102,4 +107,27 @@ test('启动时为现有钱包补齐 Redis 缓存，已有缓存不覆盖最新�
     await service.onApplicationBootstrap()
     assert.deepEqual(snapshots.get('chat-web-finance:srm:wallet:5001'), { balance: '100', credit: '10' })
     assert.deepEqual(snapshots.get('chat-web-finance:srm:wallet:5002'), { balance: '150', credit: '20' })
+})
+
+test('余额同步：Redis 余额写回钱包表，一致的跳过，Redis 缺失时补齐，格式错误的跳过', async () => {
+    const db = fakeDatabase()
+    db.accounts.push(
+        { keyId: 1, userKeyId: 6001, balance: 100, credit: 0 },
+        { keyId: 2, userKeyId: 6002, balance: 200, credit: 0 },
+        { keyId: 3, userKeyId: 6003, balance: 300, credit: 5 },
+        { keyId: 4, userKeyId: 6004, balance: 400, credit: 0 }
+    )
+    const snapshots = new Map([
+        ['chat-web-finance:srm:wallet:6001', { balance: '-54100', credit: '0' }],
+        ['chat-web-finance:srm:wallet:6002', { balance: '200', credit: '0' }],
+        ['chat-web-finance:srm:wallet:6004', { balance: 'bad', credit: '0' }]
+    ])
+    const service = new SrmUserService(db.dataSource, redis([], snapshots))
+    const result = await service.syncWalletBalance()
+    assert.deepEqual(result, { total: 4, updated: 1, unchanged: 1, restored: 1, invalidUserKeyIds: [6004] })
+    assert.deepEqual(
+        db.accounts.map(item => item.balance),
+        [-54100, 200, 300, 400]
+    )
+    assert.deepEqual(snapshots.get('chat-web-finance:srm:wallet:6003'), { balance: '300', credit: '5' })
 })

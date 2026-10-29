@@ -78,6 +78,11 @@ export class FeignService extends FeignSchema.FeignClientFinanceManager implemen
         return this.srmUserService.create(input)
     }
 
+    /** 把 Redis 中的供应商钱包余额同步回钱包表。 */
+    public override async httpBaseFinanceSyncSrmUserWallet(_authorization: string): Promise<FeignSchema.FinanceSrmUserWalletSyncResponse> {
+        return this.srmUserService.syncWalletBalance()
+    }
+
     /** 按币种获取最新汇率。 */
     public override async httpBaseFinanceCurrencyExchangeResolver(
         _authorization: string,
