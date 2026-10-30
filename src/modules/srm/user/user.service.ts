@@ -1,13 +1,7 @@
 import { BadRequestException, Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common'
-import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
 import { DataSource, EntityManager, InjectDataSource, MoreThan } from '@wlisfes/chat-web-base-schema/database'
-import {
-    SRM_USER_RESOLVE_LIMIT,
-    SRM_WALLET_BALANCE_FIELD,
-    SRM_WALLET_CACHE_BATCH_SIZE,
-    SRM_WALLET_CACHE_RETRY_MS,
-    srmWalletRedisKey
-} from '@/modules/srm/user/user.constants'
+import { RedisService } from '@wlisfes/chat-web-base-schema/redis'
+import * as constants from '@/modules/srm/user/user.constants'
 import * as feign from '@wlisfes/chat-web-base-schema/feign'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
@@ -42,20 +36,25 @@ export class SrmUserService implements OnApplicationBootstrap, OnApplicationShut
     public async findColumnResolver(userKeyIds: number[]): Promise<feign.FinanceSrmUserSummary[]> {
         const keyIds = [...new Set(userKeyIds)].filter(keyId => Number.isInteger(keyId) && keyId > 0)
         if (keyIds.length === 0) return []
-        if (keyIds.length > SRM_USER_RESOLVE_LIMIT) {
-            throw new BadRequestException(`单次最多查询${SRM_USER_RESOLVE_LIMIT}个供应商钱包`)
+        if (keyIds.length > constants.SRM_USER_RESOLVE_LIMIT) {
+            throw new BadRequestException(`单次最多查询${constants.SRM_USER_RESOLVE_LIMIT}个供应商钱包`)
         }
-        return Promise.all(keyIds.map(async userKeyId => ({ userKeyId, ...(await this.findRedisAmounts(userKeyId)) })))
+        const fields = keyIds.map(String)
+        const [balances, credits] = await Promise.all([
+            this.redisService.hMGet(constants.SRM_WALLET_BALANCE_KEY, fields),
+            this.redisService.hMGet(constants.SRM_WALLET_CREDIT_KEY, fields)
+        ])
+        return keyIds.map((userKeyId, index) => ({
+            userKeyId,
+            balance: this.readAmount(userKeyId, '余额', balances[index]),
+            credit: this.readAmount(userKeyId, '信用额度', credits[index])
+        }))
     }
 
-    /** 从 Redis 读取最新余额和信用额度；钱包哈希不存在时金额为 0，字段格式错误时拒绝返回。 */
-    private async findRedisAmounts(userKeyId: number): Promise<Pick<feign.FinanceSrmUserSummary, 'balance' | 'credit'>> {
-        const snapshot = await this.redisService.hGetAll(srmWalletRedisKey(userKeyId))
-        if (Object.keys(snapshot).length === 0) return { balance: 0, credit: 0 }
-        return {
-            balance: this.parseRedisAmount(userKeyId, '余额', snapshot[SRM_WALLET_BALANCE_FIELD]),
-            credit: this.parseRedisAmount(userKeyId, '信用额度', snapshot.credit)
-        }
+    /** 字段不存在时金额为 0；存在但格式错误时拒绝返回。 */
+    private readAmount(userKeyId: number, name: string, raw: string | null): number {
+        if (raw === null) return 0
+        return this.parseRedisAmount(userKeyId, name, raw)
     }
     /** 将 Redis 哈希中的金额转换为安全整数。 */
     private parseRedisAmount(userKeyId: number, name: string, raw: string): number {
@@ -84,48 +83,24 @@ export class SrmUserService implements OnApplicationBootstrap, OnApplicationShut
             .execute()
     }
 
-    /**
-     * 把 Redis 中的最新余额同步回钱包表，由 Task 服务每分钟触发一次。
-     * Redis 是余额的实时来源，钱包表只做持久化快照；只写回不一致的钱包，Redis 缺少钱包时用钱包表补齐 Redis。
-     * 单个钱包的 Redis 余额格式错误时跳过并记录，不影响其他钱包。
-     */
+    /** 一次读取总余额哈希，再按包大小写回钱包表。不再按账户查询 Redis。 */
     public async syncWalletBalance(): Promise<feign.FinanceSrmUserWalletSyncResponse> {
         const result: feign.FinanceSrmUserWalletSyncResponse = { total: 0, updated: 0, unchanged: 0, restored: 0, invalidUserKeyIds: [] }
-        const repository = this.dataSource.getRepository(Schema.TbFinanceSrmUserWallet)
-        let lastKeyId = 0
-        for (;;) {
-            const wallets = await repository.find({
-                where: { keyId: MoreThan(lastKeyId) },
-                select: { keyId: true, userKeyId: true, balance: true, credit: true },
-                order: { keyId: 'ASC' },
-                take: SRM_WALLET_CACHE_BATCH_SIZE
-            })
-            if (wallets.length === 0) break
-            for (const wallet of wallets) {
-                result.total += 1
-                const snapshot = await this.redisService.hGetAll(srmWalletRedisKey(wallet.userKeyId))
-                if (Object.keys(snapshot).length === 0) {
-                    await this.cacheIfMissing(wallet)
-                    result.restored += 1
-                    continue
-                }
-                let balance: number
-                try {
-                    balance = this.parseRedisAmount(wallet.userKeyId, '余额', snapshot[SRM_WALLET_BALANCE_FIELD])
-                } catch (error) {
-                    this.logger.warn(`供应商钱包余额同步跳过：${error instanceof Error ? error.message : String(error)}`)
-                    result.invalidUserKeyIds.push(wallet.userKeyId)
-                    continue
-                }
-                if (balance === Number(wallet.balance)) {
-                    result.unchanged += 1
-                    continue
-                }
-                await repository.update({ keyId: wallet.keyId }, { balance })
-                result.updated += 1
+        const snapshot = await this.redisService.hGetAll(constants.SRM_WALLET_BALANCE_KEY)
+        const changes = Object.entries(snapshot).flatMap(([field, raw]) => {
+            const userKeyId = Number(field)
+            if (!Number.isInteger(userKeyId) || userKeyId <= 0) return []
+            result.total += 1
+            try {
+                return [{ userKeyId, balance: this.parseRedisAmount(userKeyId, '余额', raw) }]
+            } catch (error) {
+                this.logger.warn(`供应商钱包余额同步跳过：${error instanceof Error ? error.message : String(error)}`)
+                result.invalidUserKeyIds.push(userKeyId)
+                return []
             }
-            lastKeyId = wallets[wallets.length - 1].keyId
-        }
+        })
+        await this.writeBalances(changes)
+        result.updated = changes.length
         return result
     }
 
@@ -139,29 +114,60 @@ export class SrmUserService implements OnApplicationBootstrap, OnApplicationShut
                     where: { keyId: MoreThan(lastKeyId) },
                     select: { keyId: true, userKeyId: true, balance: true, credit: true },
                     order: { keyId: 'ASC' },
-                    take: SRM_WALLET_CACHE_BATCH_SIZE
+                    take: constants.SRM_WALLET_CACHE_BATCH_SIZE
                 })
                 if (wallets.length === 0) break
-                for (const wallet of wallets) {
-                    if (await this.cacheIfMissing(wallet)) created += 1
+                const existing = await this.redisService.hGetAll(constants.SRM_WALLET_BALANCE_KEY)
+                const missing = wallets.filter(wallet => existing[String(wallet.userKeyId)] === undefined)
+                if (missing.length > 0) {
+                    await this.redisService.hMSet(
+                        constants.SRM_WALLET_BALANCE_KEY,
+                        Object.fromEntries(missing.map(wallet => [String(wallet.userKeyId), wallet.balance]))
+                    )
+                    await this.redisService.hMSet(
+                        constants.SRM_WALLET_CREDIT_KEY,
+                        Object.fromEntries(missing.map(wallet => [String(wallet.userKeyId), wallet.credit]))
+                    )
+                    created += missing.length
                 }
                 lastKeyId = wallets[wallets.length - 1].keyId
             }
             this.logger.log(`供应商钱包 Redis 缓存已补齐：新增=${created}`)
         } catch (error) {
             this.logger.warn(
-                `供应商钱包 Redis 缓存补齐失败，${SRM_WALLET_CACHE_RETRY_MS}ms 后重试：${error instanceof Error ? error.message : String(error)}`
+                `供应商钱包 Redis 缓存补齐失败，${constants.SRM_WALLET_CACHE_RETRY_MS}ms 后重试：${error instanceof Error ? error.message : String(error)}`
             )
-            this.retryTimer = setTimeout(() => void this.syncExistingWalletCache(), SRM_WALLET_CACHE_RETRY_MS)
+            this.retryTimer = setTimeout(() => void this.syncExistingWalletCache(), constants.SRM_WALLET_CACHE_RETRY_MS)
+        }
+    }
+
+    /** 按包大小写回 Redis 余额，避免一条 SQL 超过 max_allowed_packet。 */
+    private async writeBalances(changes: Array<{ userKeyId: number; balance: number }>): Promise<void> {
+        for (let offset = 0; offset < changes.length; offset += constants.SRM_WALLET_SQL_BATCH_SIZE) {
+            const batch = changes.slice(offset, offset + constants.SRM_WALLET_SQL_BATCH_SIZE)
+            const when = batch.map(() => 'WHEN ? THEN ?').join(' ')
+            const ids = batch.map(() => '?').join(',')
+            await this.dataSource.query(
+                `UPDATE \`tb_finance_srm_user_wallet\` SET \`balance\` = CASE \`user_key_id\` ${when} ELSE \`balance\` END WHERE \`user_key_id\` IN (${ids})`,
+                [...batch.flatMap(item => [item.userKeyId, item.balance]), ...batch.map(item => item.userKeyId)]
+            )
         }
     }
 
     /** Redis 已有钱包时保留最新余额；不存在时用数据库余额初始化。 */
     private async cacheIfMissing(wallet: Pick<Schema.TbFinanceSrmUserWallet, 'userKeyId' | 'balance' | 'credit'>): Promise<boolean> {
-        const key = srmWalletRedisKey(wallet.userKeyId)
-        if (Object.keys(await this.redisService.hGetAll(key)).length > 0) return false
-        await this.redisService.hMSet(key, { [SRM_WALLET_BALANCE_FIELD]: wallet.balance, credit: wallet.credit })
+        const field = String(wallet.userKeyId)
+        if ((await this.redisService.hGet(constants.SRM_WALLET_BALANCE_KEY, field)) !== null) return false
+        await this.cacheWallet(wallet)
         return true
+    }
+
+    private async cacheWallet(wallet: Pick<Schema.TbFinanceSrmUserWallet, 'userKeyId' | 'balance' | 'credit'>): Promise<void> {
+        const field = String(wallet.userKeyId)
+        await Promise.all([
+            this.redisService.hSet(constants.SRM_WALLET_BALANCE_KEY, field, String(wallet.balance)),
+            this.redisService.hSet(constants.SRM_WALLET_CREDIT_KEY, field, String(wallet.credit))
+        ])
     }
 
     private async cacheSaved(userKeyId: number): Promise<feign.FinanceSrmUserWallet> {
