@@ -13,6 +13,7 @@ import { DatabaseModule } from '@/database/database.module'
 import { HealthModule } from '@/health/health.module'
 import { FrozenModule } from '@/modules/frozen/frozen.module'
 import { FeignModule } from '@/feign/feign.module'
+import { CrmModule } from '@/modules/crm/crm.module'
 import { SrmModule } from '@/modules/srm/srm.module'
 
 @Module({
@@ -29,6 +30,7 @@ import { SrmModule } from '@/modules/srm/srm.module'
         CurrencyModule,
         FrozenModule,
         SrmModule,
+        CrmModule,
         FeignModule
     ],
     controllers: [AppController],
