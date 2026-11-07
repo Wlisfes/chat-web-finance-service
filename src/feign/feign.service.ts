@@ -5,6 +5,7 @@ import { CurrencyService } from '@/modules/currency/currency.service'
 import { CurrencyExchangeSyncService } from '@/modules/currency/currency-exchange-sync.service'
 import { FrozenSmsUtilsService } from '@/modules/frozen/sms/sms.utils.service'
 import { FrozenSimbankUtilsService } from '@/modules/frozen/simbank/simbank.utils.service'
+import { CrmUserService } from '@/modules/crm/user/user.service'
 import { SrmUserService } from '@/modules/srm/user/user.service'
 
 /** 统一编排财务服务对外暴露的业务 Feign 调用，实现与业务模块保持单向依赖。 */
@@ -15,6 +16,7 @@ export class FeignService extends FeignSchema.FeignClientFinanceManager implemen
         private readonly frozenSmsUtilsService: FrozenSmsUtilsService,
         private readonly frozenSimbankUtilsService: FrozenSimbankUtilsService,
         private readonly srmUserService: SrmUserService,
+        private readonly crmUserService: CrmUserService,
         private readonly currencyService: CurrencyService,
         private readonly currencyExchangeSyncService: CurrencyExchangeSyncService
     ) {
@@ -81,6 +83,27 @@ export class FeignService extends FeignSchema.FeignClientFinanceManager implemen
     /** 把 Redis 中的供应商钱包余额同步回钱包表。 */
     public override async httpBaseFinanceSyncSrmUserWallet(_authorization: string): Promise<FeignSchema.FinanceSrmUserWalletSyncResponse> {
         return this.srmUserService.syncWalletBalance()
+    }
+
+    /** 按客户主键批量获取客户钱包。 */
+    public override async httpBaseFinanceColumnCrmUserResolver(
+        _authorization: string,
+        input: FeignSchema.FinanceColumnCrmUserResolverRequest
+    ): Promise<FeignSchema.FinanceCrmUserSummary[]> {
+        return this.crmUserService.findColumnResolver(input.userKeyIds ?? [])
+    }
+
+    /** 为新建客户创建钱包，并写入 Redis。 */
+    public override async httpBaseFinanceCreateCrmUserWallet(
+        _authorization: string,
+        input: FeignSchema.FinanceCreateCrmUserWalletRequest
+    ): Promise<FeignSchema.FinanceCrmUserWallet> {
+        return this.crmUserService.create(input)
+    }
+
+    /** 把 Redis 中的客户钱包余额同步回钱包表。 */
+    public override async httpBaseFinanceSyncCrmUserWallet(_authorization: string): Promise<FeignSchema.FinanceCrmUserWalletSyncResponse> {
+        return this.crmUserService.syncWalletBalance()
     }
 
     /** 按币种获取最新汇率。 */

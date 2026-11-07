@@ -3,6 +3,8 @@ import {
     TbFinanceFrozenSimbank,
     TbFinanceSrmUserWallet,
     TbFinanceSrmUserDeduct,
+    TbFinanceCrmUserWallet,
+    TbFinanceCrmUserDeduct,
     TbFinanceBrand,
     TbFinanceCurrency,
     TbFinanceCurrencyExchange
@@ -19,5 +21,7 @@ export const FINANCE_MYSQL_ENTITIES = [
     TbFinanceFrozenSms,
     TbFinanceFrozenSimbank,
     TbFinanceSrmUserWallet,
-    TbFinanceSrmUserDeduct
+    TbFinanceSrmUserDeduct,
+    TbFinanceCrmUserWallet,
+    TbFinanceCrmUserDeduct
 ]
